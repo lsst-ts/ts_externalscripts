@@ -5,6 +5,8 @@
 # - Any package whose API is used should be listed explicitly
 #   rather than assuming it will be included recursively.
 setupRequired(sconsUtils)
+setupRequired(ts_sal)
+setupRequired(salobj)
 
 # The following is boilerplate for all packages.
 # See https://dmtn-001.lsst.io for details on LSST_LIBRARY_PATH.

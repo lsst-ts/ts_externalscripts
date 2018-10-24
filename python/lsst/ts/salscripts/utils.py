@@ -2,7 +2,14 @@ import os
 import logging
 import asyncio
 import posixpath
-import aiohttp  # $ pip install aiohttp
+import warnings
+try:
+    import aiohttp  # $ pip install aiohttp
+    _with_aiohttp = True
+except ModuleNotFoundError:
+    warnings.warn('aiohttp is not installed. May limit or prevent use of some utility methods. '
+                  'You can install it with $pip install aiohttp')
+    _with_aiohttp = False
 from contextlib import closing
 import datetime
 
@@ -45,6 +52,9 @@ def wget(url, chunk_size=1<<15):
     filename: string
 
     """
+    if not _with_aiohttp:
+        raise ImportError("aiohttp not available.")
+
     filename = url2filename(url)
     logging.info('downloading %s', filename)
     with closing(aiohttp.ClientSession()) as session:
