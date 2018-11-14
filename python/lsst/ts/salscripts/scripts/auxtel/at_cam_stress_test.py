@@ -4,7 +4,11 @@ __all__ = ["TakeImageStressTest"]
 
 from scriptloader import BaseScript
 import salobj
-import SALPY_atcamera
+import warnings
+try:
+    import SALPY_atcamera
+except ModuleNotFoundError:
+    warnings.warn("Could not load SALPY_atcamera, wont be able to run TakeImageStressTest locally.")
 import numpy as np
 
 
@@ -109,4 +113,3 @@ class TakeImageStressTest(BaseScript):
 
 if __name__ == '__main__':
     TakeImageStressTest.main(descr="Make a stress test of the atcamera.")
-

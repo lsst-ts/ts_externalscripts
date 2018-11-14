@@ -58,12 +58,13 @@ def url2filename(url):
     urlpath = urlsplit(url).path
     basename = posixpath.basename(unquote(urlpath))
     if (os.path.basename(basename) != basename or
-        unquote(posixpath.basename(urlpath)) != basename):
+            unquote(posixpath.basename(urlpath)) != basename):
         raise ValueError  # reject '%2f' or 'dir%5Cbasename.ext' on Windows
     return basename
 
+
 @asyncio.coroutine
-def wget(url, chunk_size=1<<15):
+def wget(url, chunk_size=1 << 15):
     """
     A coroutine method to download images using asyncio.
 
