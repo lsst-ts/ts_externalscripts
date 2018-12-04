@@ -6,7 +6,7 @@
 #   rather than assuming it will be included recursively.
 setupRequired(sconsUtils)
 setupRequired(ts_sal)
-setupRequired(salobj)
+setupRequired(ts_salobj)
 
 # The following is boilerplate for all packages.
 # See https://dmtn-001.lsst.io for details on LSST_LIBRARY_PATH.

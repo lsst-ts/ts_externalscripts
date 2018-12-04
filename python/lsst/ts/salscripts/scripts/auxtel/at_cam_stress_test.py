@@ -2,8 +2,8 @@
 
 __all__ = ["TakeImageStressTest"]
 
-from scriptloader import BaseScript
-import salobj
+from lsst.ts.scriptqueue.base_script import BaseScript
+from lsst.ts import salobj
 import warnings
 try:
     import SALPY_atcamera

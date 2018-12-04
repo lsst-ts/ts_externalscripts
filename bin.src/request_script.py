@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import os
 import argparse
 import logging
 import asyncio
@@ -11,12 +10,13 @@ import SALPY_ScriptQueue
 # import SALPY_ScriptLoader
 # import SALPY_Script
 
-from lsst.ts.salscripts.utils import generate_logfile, configure_logging, set_log_levels
+from lsst.ts.salscripts.utils import generate_logfile, configure_logging
 from lsst.ts.salscripts import __version__
 
 __all__ = ["main"]
 
 script_state = ['Loading', 'Configured', 'Running', 'Complete', 'Failed', 'Terminated']
+
 
 def create_parser():
     """Create parser
@@ -142,8 +142,8 @@ async def main(args):
         terminate_task = await script_queue.cmd_terminate.start(topic)
         if terminate_task.ack.ack != script_queue.salinfo.lib.SAL__CMD_COMPLETE:
             raise IOError("Could not terminate script. Got %i, %i, %s" % (terminate_task.ack.ack,
-                                                                     terminate_task.ack.error,
-                                                                     terminate_task.ack.result))
+                                                                          terminate_task.ack.error,
+                                                                          terminate_task.ack.result))
 
         return 0
 
@@ -165,17 +165,18 @@ async def main(args):
             info_coro = script_queue.evt_script.next(timeout=10.)
             topic = script_queue.cmd_showScript.DataType()
             topic.salIndex = queue.salIndices[i]
-            request_info = await script_queue.cmd_showScript.start(topic)
+            await script_queue.cmd_showScript.start(topic)
 
             info = await info_coro
 
             s_type = 'Standard' if info.isStandard else 'External'
-            queue_txt += '\t[salIndex:%i][%s][path:%s][duration:%.2f][state:%s]\n' % (queue.salIndices[i],
-                                                                                      s_type,
-                                                                                      info.path,
-                                                                                      info.duration,
-                                                                                      script_state[info.processState-1]
-                                                                                      )
+            queue_txt += '\t[salIndex:%i][%s][path:%s]' \
+                         '[duration:%.2f][state:%s]\n' % (queue.salIndices[i],
+                                                          s_type,
+                                                          info.path,
+                                                          info.duration,
+                                                          script_state[info.processState - 1]
+                                                          )
 
         queue_txt += '\nItems on past queue:\n' if queue.pastLength > 0 else '\nNo items on past queue.'
 
@@ -183,34 +184,36 @@ async def main(args):
             info_coro = script_queue.evt_script.next(timeout=10.)
             topic = script_queue.cmd_showScript.DataType()
             topic.salIndex = queue.pastSalIndices[i]
-            request_info = await script_queue.cmd_showScript.start(topic)
+            await script_queue.cmd_showScript.start(topic)
 
             info = await info_coro
 
             s_type = 'Standard' if info.isStandard else 'External'
-            queue_txt += '\t[salIndex:%i][%s][path:%s][duration:%.2f][state:%s]\n' % (queue.pastSalIndices[i],
-                                                                                      s_type,
-                                                                                      info.path,
-                                                                                      info.duration,
-                                                                                      script_state[info.processState-1]
-                                                                                      )
+            queue_txt += '\t[salIndex:%i][%s][path:%s]' \
+                         '[duration:%.2f][state:%s]\n' % (queue.pastSalIndices[i],
+                                                          s_type,
+                                                          info.path,
+                                                          info.duration,
+                                                          script_state[info.processState - 1]
+                                                          )
         current_running = 'None'
         if queue.currentSalIndex > 0:
             info_coro = script_queue.evt_script.next(timeout=10.)
             topic = script_queue.cmd_showScript.DataType()
             topic.salIndex = queue.currentSalIndex
-            request_info = await script_queue.cmd_showScript.start(topic)
+            await script_queue.cmd_showScript.start(topic)
 
             info = await info_coro
 
             s_type = 'Standard' if info.isStandard else 'External'
 
-            current_running = '[salIndex:%i][%s][path:%s][duration:%.2f][state:%s]' % (queue.currentSalIndex,
-                                                                                      s_type,
-                                                                                      info.path,
-                                                                                      info.duration,
-                                                                                      script_state[info.processState-1]
-                                                                                      )
+            current_running = '[salIndex:%i][%s][path:%s]' \
+                              '[duration:%.2f][state:%s]' % (queue.currentSalIndex,
+                                                             s_type,
+                                                             info.path,
+                                                             info.duration,
+                                                             script_state[info.processState - 1]
+                                                             )
 
         logger.info('Queue state: %s', 'Running' if queue.running else 'Stopped')
         logger.info('Current running: %s', current_running)
@@ -264,7 +267,7 @@ async def main(args):
             requeue_topic.salIndex = index
             requeue_topic.location = 2  # should be last
             logger.debug('Requeuing %i', index)
-            requeue = await script_queue.cmd_requeue.start(requeue_topic, timeout=30.)
+            await script_queue.cmd_requeue.start(requeue_topic, timeout=30.)
 
     if args.remove is not None:
         for index in args.remove:
