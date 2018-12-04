@@ -85,8 +85,8 @@ async def main(args):
     # enable = await script_queue.cmd_enable.start(script_queue.cmd_enable.DataType())
 
     if args.enable:
-        script_queue.cmd_start.start(script_queue.cmd_start.DataType(), timeout=5.)
-        script_queue.cmd_enable.start(script_queue.cmd_enable.DataType(), timeout=5.)
+        await script_queue.cmd_start.start(script_queue.cmd_start.DataType(), timeout=5.)
+        await script_queue.cmd_enable.start(script_queue.cmd_enable.DataType(), timeout=5.)
     available_scripts_coro = script_queue.evt_availableScripts.next(flush=True,
                                                                     timeout=10.)
 
