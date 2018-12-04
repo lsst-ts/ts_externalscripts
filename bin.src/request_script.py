@@ -77,12 +77,13 @@ async def main(args):
 
     script_queue = salobj.Remote(SALPY_ScriptQueue, 1)
 
-    # queue_summary_state_coro = script_queue.evt_summaryState.next(timeout=10., flush=False)
+    # queue_summary_state_coro = script_queue.evt_summaryState.next(flush=True,timeout=10., flush=False)
 
     # start = await script_queue.cmd_start.start(script_queue.cmd_start.DataType())
     # enable = await script_queue.cmd_enable.start(script_queue.cmd_enable.DataType())
 
-    available_scripts_coro = script_queue.evt_availableScripts.next(timeout=10.)
+    available_scripts_coro = script_queue.evt_availableScripts.next(flush=True,
+                                                                    timeout=10.)
 
     topic = script_queue.cmd_showAvailableScripts.DataType()
     request_list_task = await script_queue.cmd_showAvailableScripts.start(topic)
@@ -149,7 +150,7 @@ async def main(args):
 
     elif args.show:
         logger.info("Showing tasks in the queue.")
-        queue_coro = script_queue.evt_queue.next(timeout=10.)
+        queue_coro = script_queue.evt_queue.next(flush=True, timeout=10.)
 
         topic = script_queue.cmd_showQueue.DataType()
         request_queue = await script_queue.cmd_showQueue.start(topic)
@@ -162,7 +163,8 @@ async def main(args):
         queue_txt = '\nItems on queue:\n' if queue.length > 0 else '\nNo items on queue.'
 
         for i in range(queue.length):
-            info_coro = script_queue.evt_script.next(timeout=10.)
+            info_coro = script_queue.evt_script.next(flush=True,
+                                                     timeout=10.)
             topic = script_queue.cmd_showScript.DataType()
             topic.salIndex = queue.salIndices[i]
             await script_queue.cmd_showScript.start(topic)
@@ -181,7 +183,8 @@ async def main(args):
         queue_txt += '\nItems on past queue:\n' if queue.pastLength > 0 else '\nNo items on past queue.'
 
         for i in range(queue.pastLength):
-            info_coro = script_queue.evt_script.next(timeout=10.)
+            info_coro = script_queue.evt_script.next(flush=True,
+                                                     timeout=10.)
             topic = script_queue.cmd_showScript.DataType()
             topic.salIndex = queue.pastSalIndices[i]
             await script_queue.cmd_showScript.start(topic)
@@ -198,7 +201,8 @@ async def main(args):
                                                           )
         current_running = 'None'
         if queue.currentSalIndex > 0:
-            info_coro = script_queue.evt_script.next(timeout=10.)
+            info_coro = script_queue.evt_script.next(flush=True,
+                                                     timeout=10.)
             topic = script_queue.cmd_showScript.DataType()
             topic.salIndex = queue.currentSalIndex
             await script_queue.cmd_showScript.start(topic)
@@ -251,7 +255,7 @@ async def main(args):
         load_script_topic.config = config  # Todo: Load configuration from args.config
         load_script_topic.location = 2  # should be last
 
-        # info_coro = script_queue.evt_scriptInfo.next(timeout=10)
+        # info_coro = script_queue.evt_scriptInfo.next(flush=True,timeout=10)
 
         task = await script_queue.cmd_add.start(load_script_topic, timeout=30.)
 
