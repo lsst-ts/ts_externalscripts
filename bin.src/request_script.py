@@ -40,6 +40,8 @@ def create_parser():
                         help="List available scripts.")
     parser.add_argument("--show", dest="show", action="store_true",
                         help="Show queued tasks.")
+    parser.add_argument("--enable", dest="enable", action="store_true",
+                        help="Enable  queue.")
     parser.add_argument("--pause", dest="pause", action="store_true",
                         help="Pause queue.")
     parser.add_argument("--resume", dest="resume", action="store_true",
@@ -82,6 +84,9 @@ async def main(args):
     # start = await script_queue.cmd_start.start(script_queue.cmd_start.DataType())
     # enable = await script_queue.cmd_enable.start(script_queue.cmd_enable.DataType())
 
+    if args.enable:
+        script_queue.cmd_start.start(script_queue.cmd_start.DataType(), timeout=5.)
+        script_queue.cmd_enable.start(script_queue.cmd_enable.DataType(), timeout=5.)
     available_scripts_coro = script_queue.evt_availableScripts.next(flush=True,
                                                                     timeout=10.)
 

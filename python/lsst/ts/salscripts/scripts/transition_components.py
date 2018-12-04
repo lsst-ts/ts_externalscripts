@@ -85,7 +85,7 @@ class TransitionComponents(BaseScript):
 
         if settings_to_apply is None:
             self.settings_to_apply = settings_to_apply
-        elif len(settings_to_apply) == self.components:
+        elif len(settings_to_apply) == len(self.components):
             self.settings_to_apply = settings_to_apply
         else:
             raise IOError('Invalid entry for settings_to_apply: %s' % settings_to_apply)
@@ -107,13 +107,13 @@ class TransitionComponents(BaseScript):
     async def run(self):
         """Run script."""
 
-        # await self.checkpoint("start")
+        await self.checkpoint("start")
 
         for i, remote in enumerate(self.remotes):
             awaitable_list = []
             for transition in self.transition_to:
 
-                # await self.checkpoint(f"{remote}: {transition}")
+                await self.checkpoint(f"{remote}: {transition}")
 
                 cmd_attr = getattr(self.remotes[remote], f'cmd_{transition}')
                 topic = cmd_attr.DataType()
