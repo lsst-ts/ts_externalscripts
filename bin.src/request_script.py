@@ -5,7 +5,7 @@ import logging
 import asyncio
 import yaml
 
-import salobj
+from lsst.ts import salobj
 import SALPY_ScriptQueue
 # import SALPY_ScriptLoader
 # import SALPY_Script
