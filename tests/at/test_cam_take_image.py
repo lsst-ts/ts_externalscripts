@@ -48,7 +48,7 @@ class TestATCamTakeImage(unittest.TestCase):
 
             # test with exp_times as a float
             with self.subTest():
-                harness.script.configure(exp_times=exp_time)
+                await harness.script.configure(exp_times=exp_time)
 
                 await harness.script.run()
 

@@ -42,24 +42,24 @@ class TestTransitionComponents(unittest.TestCase):
 
             # Check that configuration fails with TypeError if no parameters sent
             with self.assertRaises(TypeError):
-                harness.script.configure()
+                await harness.script.configure()
 
             # Check that configuration fails with IOError with empty set
             with self.assertRaises(IOError):
-                harness.script.configure(components=[], transition_to=[])
+                await harness.script.configure(components=[], transition_to=[])
 
             # Check that configuration fails with IOError with empty set
             with self.assertRaises(IOError):
-                harness.script.configure(components=[], transition_to=[])
+                await harness.script.configure(components=[], transition_to=[])
 
             with self.assertRaises(IOError):
-                harness.script.configure(components=component, transition_to=[])
+                await harness.script.configure(components=component, transition_to=[])
 
             with self.assertRaises(IOError):
-                harness.script.configure(components=component, transition_to=invalid_transition_to)
+                await harness.script.configure(components=component, transition_to=invalid_transition_to)
 
             # This shall work
-            harness.script.configure(components=component, transition_to=valid_transition_up)
+            await harness.script.configure(components=component, transition_to=valid_transition_up)
 
             def callback(data):
                 pass
@@ -72,7 +72,7 @@ class TestTransitionComponents(unittest.TestCase):
 
             await harness.script.run()
 
-            harness.script.configure(components=component, transition_to=valid_transition_down)
+            await harness.script.configure(components=component, transition_to=valid_transition_down)
 
             await harness.script.run()
 

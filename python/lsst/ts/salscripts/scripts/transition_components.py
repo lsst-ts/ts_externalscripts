@@ -33,7 +33,7 @@ class TransitionComponents(BaseScript):
         self.time_per_transition = 5.  # Time it takes to make a transition
         self.cmd_timeout = 5.
 
-    def configure(self, components, transition_to, settings_to_apply=None):
+    async def configure(self, components, transition_to, settings_to_apply=None):
         """Configure script.
 
         Parameters
@@ -76,6 +76,7 @@ class TransitionComponents(BaseScript):
             self.remotes[component[0]] = Remote(importlib.import_module('SALPY_%s' % component[0]),
                                                 index)
 
+        await asyncio.sleep(0.)  # Give control back to event loop
         # Check that transition_to are valid
         for transition in transition_to:
             if transition not in self.valid_transitions:
@@ -107,13 +108,13 @@ class TransitionComponents(BaseScript):
     async def run(self):
         """Run script."""
 
-        await self.checkpoint("start")
+        # await self.checkpoint("start")
 
         for i, remote in enumerate(self.remotes):
             awaitable_list = []
             for transition in self.transition_to:
 
-                await self.checkpoint(f"{remote}: {transition}")
+                # await self.checkpoint(f"{remote}: {transition}")
 
                 cmd_attr = getattr(self.remotes[remote], f'cmd_{transition}')
                 topic = cmd_attr.DataType()

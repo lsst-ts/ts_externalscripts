@@ -51,10 +51,10 @@ class TestATCalSysTakeData(unittest.TestCase):
 
             # Check that configuration fails with TypeError if no parameters sent
             with self.assertRaises(TypeError):
-                harness.script.configure()
+                await harness.script.configure()
 
-            harness.script.configure(wavelength=wavelength,
-                                     integrationTime=integration_time)
+            await harness.script.configure(wavelength=wavelength,
+                                           integrationTime=integration_time)
 
             def callback(data):
                 pass

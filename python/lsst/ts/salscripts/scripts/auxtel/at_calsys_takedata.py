@@ -32,14 +32,14 @@ class ATCalSysTakeData(BaseScript):
         self.lamp = 'lamp'
         self.spectrometer_delay = 1.
 
-    def configure(self, wavelength, integrationTime,
-                  gratingType=1,
-                  fontExitSlitWidth=4.,
-                  fontEntranceSlitWidth=2.,
-                  imageType='test',
-                  lamp='lamp',
-                  spectrometer_delay=1.
-                  ):
+    async def configure(self, wavelength, integrationTime,
+                        gratingType=1,
+                        fontExitSlitWidth=4.,
+                        fontEntranceSlitWidth=2.,
+                        imageType='test',
+                        lamp='lamp',
+                        spectrometer_delay=1.
+                        ):
         """Configure script.
 
         Values can be passes as iterables or single values. At the end, a consistency check runs and

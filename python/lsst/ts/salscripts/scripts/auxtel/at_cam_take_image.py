@@ -28,7 +28,7 @@ class ATCamTakeImage(BaseScript):
         self.shutter_time = 1.  # time required to open/close the shutter
         self.cmd_timeout = 45.  # this timeout is large because of an issue with one of the components.
 
-    def configure(self, nimages=1, exp_times=0., shutter=False, image_sequence_name=''):
+    async def configure(self, nimages=1, exp_times=0., shutter=False, image_sequence_name=''):
         """Configure script.
 
         Parameters
