@@ -75,7 +75,7 @@ class TransitionComponents(BaseScript):
                 index = int(component[1])
             self.remotes[component[0]] = Remote(importlib.import_module('SALPY_%s' % component[0]),
                                                 index,
-                                                includes=self.valid_transitions)
+                                                include=self.valid_transitions)
 
         await asyncio.sleep(0.)  # Give control back to event loop
         # Check that transition_to are valid
