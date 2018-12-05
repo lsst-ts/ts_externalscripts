@@ -110,12 +110,10 @@ class TransitionComponents(BaseScript):
 
         # await self.checkpoint("start")
 
-        for i, remote in enumerate(self.remotes):
+        for transition in self.transition_to:
             awaitable_list = []
-            for transition in self.transition_to:
-
+            for i, remote in enumerate(self.remotes):
                 # await self.checkpoint(f"{remote}: {transition}")
-
                 cmd_attr = getattr(self.remotes[remote], f'cmd_{transition}')
                 topic = cmd_attr.DataType()
                 if transition == 'start' and self.settings_to_apply is not None:
