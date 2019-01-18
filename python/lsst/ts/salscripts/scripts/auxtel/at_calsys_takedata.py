@@ -22,6 +22,7 @@ class ATCalSysTakeData(BaseScript):
                                        'monochromator': Remote(SALPY_ATMonochromator),
                                        'fiber_spectrograph': Remote(SALPY_FiberSpectrograph)})
         self.cmd_timeout = 10.
+        self.change_grating_time = 60.
 
         self.wavelength = 0.
         self.integrationTime = 0.
@@ -120,12 +121,11 @@ class ATCalSysTakeData(BaseScript):
             topic.slitWidth = self.fontEntranceSlitWidth[i]
             await cmd.start(topic, timeout=self.cmd_timeout)
 
-            cmd = getattr(self.monochromator, f"cmd_cmd_selectGrating")
+            # FIXME: This command does not work!
+            cmd = getattr(self.monochromator, f"cmd_selectGrating")
             topic = cmd.DataType()
             topic.gratingType = self.gratingType[i]
-
-            # FIXME: This command does not work!
-            # await cmd.start(topic, timeout=self.cmd_timeout)
+            await cmd.start(topic, timeout=self.cmd_timeout+self.change_grating_time)
 
             # await self.checkpoint("take data")
 
