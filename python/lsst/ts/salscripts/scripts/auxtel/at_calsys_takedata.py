@@ -124,7 +124,8 @@ class ATCalSysTakeData(BaseScript):
             topic = cmd.DataType()
             topic.gratingType = self.gratingType[i]
 
-            await cmd.start(topic, timeout=self.cmd_timeout)
+            # FIXME: This command does not work!
+            # await cmd.start(topic, timeout=self.cmd_timeout)
 
             # await self.checkpoint("take data")
 
