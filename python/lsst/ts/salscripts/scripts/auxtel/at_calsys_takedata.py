@@ -104,14 +104,27 @@ class ATCalSysTakeData(BaseScript):
 
             # await self.checkpoint("setup monochromator")
 
-            cmd_attr = getattr(self.monochromator, f"cmd_updateMonochromatorSetup")
-            update_mono_topic = cmd_attr.DataType()
-            update_mono_topic.gratingType = self.gratingType[i]
-            update_mono_topic.fontExitSlitWidth = self.fontExitSlitWidth[i]
-            update_mono_topic.fontEntranceSlitWidth = self.fontEntranceSlitWidth[i]
-            update_mono_topic.wavelength = self.wavelength[i]
+            cmd = getattr(self.monochromator, f"cmd_changeWavelength")
+            topic = cmd.DataType()
+            topic.wavelength = self.wavelength[i]
+            await cmd.start(topic, timeout=self.cmd_timeout)
 
-            await cmd_attr.start(update_mono_topic, timeout=self.cmd_timeout)
+            cmd = getattr(self.monochromator, f"cmd_changeSlitWidth")
+            topic = cmd.DataType()
+            topic.slit = 2
+            topic.slitWidth = self.fontExitSlitWidth[i]
+            await cmd.start(topic, timeout=self.cmd_timeout)
+
+            topic = cmd.DataType()
+            topic.slit = 1
+            topic.slitWidth = self.fontEntranceSlitWidth[i]
+            await cmd.start(topic, timeout=self.cmd_timeout)
+
+            cmd = getattr(self.monochromator, f"cmd_cmd_selectGrating")
+            topic = cmd.DataType()
+            topic.gratingType = self.gratingType[i]
+
+            await cmd.start(topic, timeout=self.cmd_timeout)
 
             # await self.checkpoint("take data")
 
