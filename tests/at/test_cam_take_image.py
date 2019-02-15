@@ -5,7 +5,11 @@ import yaml
 
 from lsst.ts import salobj
 
+<<<<<<< HEAD
 from lsst.ts.externalscripts.auxtel import ATCamTakeImage
+=======
+from lsst.ts.externalscripts.scripts.auxtel import ATCamTakeImage
+>>>>>>> Fix path with repository rename.
 
 import SALPY_ATCamera
 import SALPY_Script

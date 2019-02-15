@@ -1,4 +1,4 @@
-from lsst.ts.salscripts.bobhoskins.script import BobHoskins
+from lsst.ts.externalscripts.bobhoskins.script import BobHoskins
 from lsst.ts.salobj import index_generator, Controller
 from lsst.ts.salobj.test_utils import set_random_lsst_dds_domain
 import SALPY_LinearStage

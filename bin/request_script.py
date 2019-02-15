@@ -10,8 +10,8 @@ import SALPY_ScriptQueue
 # import SALPY_ScriptLoader
 # import SALPY_Script
 
-from lsst.ts.salscripts.utils import generate_logfile, configure_logging
-from lsst.ts.salscripts import __version__
+from lsst.ts.externalscripts.utils import generate_logfile, configure_logging
+from lsst.ts.externalscripts import __version__
 
 __all__ = ["main"]
 
