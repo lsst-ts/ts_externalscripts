@@ -1,0 +1,8 @@
+version: '3.6'
+services:
+  externalscript:
+    image: lsst/queue
+    volumes:
+      - type: bind
+        source: ./
+        target: /home/saluser/repos/ts_externalscripts
