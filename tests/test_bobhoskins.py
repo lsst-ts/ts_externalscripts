@@ -1,4 +1,4 @@
-from lsst.ts.externalscripts.bobhoskins.script import BobHoskins
+from lsst.ts.externalscripts.coordination.script import LaserCoordination
 from lsst.ts.salobj import index_generator, Controller
 from lsst.ts.salobj.test_utils import set_random_lsst_dds_domain
 import SALPY_LinearStage
@@ -9,12 +9,12 @@ import pytest
 from types import SimpleNamespace
 
 
-class TestBobHoskins:
+class TestLaserCoordination:
     @pytest.fixture(scope="class")
     def bh(self):
         set_random_lsst_dds_domain()
         bh = SimpleNamespace()
-        bh.script = BobHoskins(index=next(index_generator()))
+        bh.script = LaserCoordination(index=next(index_generator()))
         bh.linear_stage_1_controller = Controller(SALPY_LinearStage, 1)
         bh.linear_stage_2_controller = Controller(SALPY_LinearStage, 2)
         bh.electrometer_controller = Controller(SALPY_Electrometer, 1)

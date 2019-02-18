@@ -7,12 +7,15 @@ import SALPY_TunableLaser
 
 class LaserCharacterization(scriptqueue.BaseScript):
     def __init__(self,index):
-        super().__init__(index=index,descr="Laser Characterizationscript",remotes_dict={'electrometer': Remote(SALPY_Electrometer,1), 'tunable_laser': Remote(SALPY_TunableLaser),'electrometer_2': Remote(SALPY_Electrometer,2)})
+        super().__init__(index=index,descr="Laser Characterization script",remotes_dict={
+            'electrometer': Remote(SALPY_Electrometer,1),
+            'tunable_laser': Remote(SALPY_TunableLaser),
+            'electrometer_2': Remote(SALPY_Electrometer,2)})
 
     def configure(self,wavelengths,exposure_time,mode):
         self.wavelengths = range(wavelengths[0],wavelengths[1])
         self.exposure_time = exposure_time
-        self.mode = 1
+        self.mode = mode
 
     def metadata(self,struct):
         return {}
@@ -39,12 +42,12 @@ class LaserCharacterization(scriptqueue.BaseScript):
             change_wavelength_ack = await getattr(self.tunable_laser,"cmd_changeWavelength").start(change_wavelength,timeout=10)
             if change_wavelength_ack.ack.ack is not 303:
                 raise ValueError("Script does not know what to do")
+            electrometer_scan_data = await getattr(self.electrometer,"evt_largeFileObjectAvailable").next(flush=True,timeout=10)
             start_scan_dt = getattr(self.electrometer,"cmd_startScanDt").DataType()
             start_scan_dt.scanDuration = self.exposure_time
             start_scan_dt_ack = await getattr(self.electrometer,"cmd_startScanDt").start(start_scan_dt,timeout=10)
             if start_scan_dt_ack.ack.ack is not 303:
                 raise ValueError("Script does not know what to do")
-           electrometer_scan_data = await getattr(self.electrometer,"evt_largeFileObjectAvailable").next(flush=False,timeout=10)
            wavelength_list.append(wavelength)
            electrometer_data_links.append(electrometer_scan_data.url)
         df = pd.DataFrame({'wavelength': wavelength_list, 'electrometer_data_link': electrometer_data_links})

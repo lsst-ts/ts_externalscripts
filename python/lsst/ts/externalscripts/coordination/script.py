@@ -1,5 +1,5 @@
-__all__ = ["BobHoskins"]
-"""The script module
+__all__ = ["LaserCoordination"]
+"""Contains the coordination scripts.
 """
 
 import SALPY_LinearStage
@@ -10,8 +10,8 @@ from lsst.ts.salobj import Remote
 import numpy as np
 
 
-class BobHoskins(BaseScript):
-    """docstring for BobHoskins
+class LaserCoordination(BaseScript):
+    """ES-Coordination-Laser-001: Laser coordination 
 
     A SAL script that is used for testing two lab LinearStages, the TunableLaser and an Electrometer.
     It propagates the laser at a wavelength while the two linear stages move in a grid pattern in a given
@@ -74,15 +74,15 @@ class BobHoskins(BaseScript):
                     if move_ls2_ack.ack.ack is not 303:
                         raise ValueError("Script does not know what to do in this situation")
                     if self.electrometer_set:
+                        electrometer_data = await self.electrometer.evt_largeFileObjectAvailable.next(flush=True,timeout=10)
                         electrometer_scan_topic = self.electrometer.cmd_startScanDt.DataType()
                         electrometer_scan_topic.scanDuration = 1
                         electrometer_scan_ack = await self.electrometer.cmd_startScanDt.start(
                             electrometer_scan_topic, timeout=10)
                         if electrometer_scan_ack.ack.ack is not 303:
                             raise ValueError("Script does not know what to do in this situation")
-                        electrometer_data = await self.electrometer.evt_largeFileObjectAvailable.get(timeout=10)
                         data_array = np.append(data_array, [wavelength, ls_pos, ls_2_pos, electrometer_data])
-        data_array = np.save_txt("bobhoskins.csv", data_array, delimiter=",",
+        data_array = np.save_txt("laser_coordination.csv", data_array, delimiter=",",
                                  header="Wavelength, Linear stage 1 position, " +
                                  "Linear stage 2 position, electrometer_data_url")
 

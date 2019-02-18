@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 .sconsign.dblite
 config.log
 .sconf_temp
@@ -133,4 +132,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
->>>>>>> Added initial script implementation
+
+*.swp
+
+.sconsign.dblite
+tests/.tests
