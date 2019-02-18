@@ -137,3 +137,4 @@ dmypy.json
 
 .sconsign.dblite
 tests/.tests
+version.py
