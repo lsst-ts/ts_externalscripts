@@ -4,6 +4,7 @@ from lsst.ts.salobj.test_utils import set_random_lsst_dds_domain
 import SALPY_LinearStage
 import SALPY_TunableLaser
 import SALPY_Electrometer
+import asyncio
 
 import pytest
 from types import SimpleNamespace
@@ -21,8 +22,8 @@ class TestLaserCoordination:
         bh.tunable_laser_controller = Controller(SALPY_TunableLaser)
         return bh
 
-    def test_configure(self, bh):
-        bh.script.configure(wanted_remotes=[
+    async def test_configure(self, bh):
+        await bh.script.configure(wanted_remotes=[
             'linear_stage_1_remote',
             'linear_stage_2_remote',
             'electrometer_remote',
@@ -40,6 +41,10 @@ class TestLaserCoordination:
         assert bh.script.linear_stage_2_set is True
         assert bh.script.electrometer_set is True
         assert bh.script.tunable_laser_set is True
+        assert bh.script.max_linear_stage_position == 75
+        assert bh.script.integration_time == 0.2
+        assert bh.script.scan_duration == 10
+        assert bh.script.timeout == 20
 
     def test_set_metadata(self, bh):
         pass
