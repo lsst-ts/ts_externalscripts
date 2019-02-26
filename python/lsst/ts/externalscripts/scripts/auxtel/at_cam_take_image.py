@@ -22,6 +22,7 @@ class ATCamTakeImage(BaseScript):
         self.nimages = 1
         self.exp_times = 0.
         self.max_exptime = 5.
+        self.min_exptime = 0.
         self.shutter = False
 
         self.read_out_time = 2.  # the readout time
