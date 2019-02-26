@@ -87,7 +87,7 @@ class ATCamTakeImage(BaseScript):
 
     async def run(self):
 
-        # await self.checkpoint("start")
+        await self.checkpoint("start")
 
         for i in range(self.nimages):
             exposure = self.exp_times[i]
@@ -101,13 +101,13 @@ class ATCamTakeImage(BaseScript):
             end_readout_coro = self.atcamera.evt_endReadout.next(flush=True,
                                                                  timeout=self.read_out_time+self.cmd_timeout)
 
-            # await self.checkpoint(f"Take image {i+1} of {self.nimages}")
+            await self.checkpoint(f"Take image {i+1} of {self.nimages}")
 
             await self.atcamera.cmd_takeImages.start(take_image_topic,
                                                      timeout=exposure+self.cmd_timeout)
             await end_readout_coro
 
-        # await self.checkpoint("end")
+        await self.checkpoint("end")
 
 
 if __name__ == '__main__':
