@@ -1,6 +1,4 @@
-___all__ = ["LaserCoordination"]
-"""Contains the coordination scripts.
-"""
+__all__ = ["LaserCoordination"]
 
 import SALPY_LinearStage
 import SALPY_Electrometer
@@ -9,6 +7,12 @@ from lsst.ts import scriptqueue
 from lsst.ts import salobj
 import os
 import asyncio
+import logging
+
+log_file = logging.FileHandler("/home/saluser/develop/script.log")
+log_file.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
+log_file.setLevel(logging.DEBUG)
+logging.getLogger().addHandler(log_file)
 
 
 class LaserCoordination(scriptqueue.BaseScript):
@@ -60,6 +64,7 @@ class LaserCoordination(scriptqueue.BaseScript):
 
         self.log.setLevel(10)
         self.put_log_level()
+        self.log.debug("END INIT")
 
     def set_metadata(self, metadata):
         metadata = {'remotes_set': [self.linear_stage_set,
@@ -68,26 +73,26 @@ class LaserCoordination(scriptqueue.BaseScript):
 
     async def run(self):
 
+        async def setup_electrometers():
+            self.electrometer.cmd_setMode.set(mode=1)
+            self.electrometer.cmd_setIntegrationTime.set(intTime=self.integration_time)
+            set_electrometer_mode_ack_coro = await self.electrometer.cmd_setMode.start(timeout=self.timeout)
+            set_electrometer_integration_time_ack_coro = await self.electrometer.cmd_setIntegrationTime.start(
+                timeout=self.timeout)
         setup_tasks = []
         if not self.tunable_laser_set:
             self.wavelengths = [525, ]
         if self.tunable_laser_set:
-            propagate_state_ack = self.tunable_laser.cmd_startPropagate.start(timeout=self.timeout)
+            propagate_state_ack = self.tunable_laser.cmd_startPropagateLaser.start(timeout=self.timeout)
             setup_tasks.append(propagate_state_ack)
         if self.electrometer_set:
-            self.electrometer.cmd_setMode.set(mode=1)
-            set_electrometer_mode_ack_coro = self.electrometer.cmd_setMode.start(timeout=self.timeout)
-            self.electrometer.cmd_setIntegrationTime.set(intTime=self.integration_time)
-            set_electrometer_integration_time_ack_coro = self.electrometer.cmd_setIntegrationTime.start(
-                timeout=self.timeout)
-            setup_electrometer_ack_coro = asyncio.ensure_future(*[
-                set_electrometer_mode_ack_coro,
-                set_electrometer_integration_time_ack_coro])
+            setup_electrometer_ack_coro = setup_electrometers()
             setup_tasks.append(setup_electrometer_ack_coro)
         try:
             data_array = []
             self.log.debug(f"Setting up Script")
-            setup_ack = asyncio.gather(*setup_tasks)
+            setup_ack = await asyncio.gather(*setup_tasks)
+            await self.checkpoint(f"setup complete")
             self.log.debug(f"Finished setting up script")
             for wavelength in self.wavelengths:
                 for ls_pos in range(1, self.max_linear_stage_position, self.steps):
@@ -110,8 +115,10 @@ class LaserCoordination(scriptqueue.BaseScript):
                             await self.checkpoint(f"ls 1 pos {ls_pos} ls 2 pos {ls_2_pos} electr. data")
                             data_array.append([wavelength, ls_pos, ls_2_pos, electrometer_data.url])
             if self.tunable_laser_set:
-                self.tunable_laser.cmd_stopPropagate.set()
-                stop_propagate_ack = await self.tunable_laser.cmd_stopPropagate.start(timeout=self.timeout)
+                self.tunable_laser.cmd_stopPropagateLaser.set()
+                stop_propagate_ack = await self.tunable_laser.cmd_stopPropagateLaser.start(
+                    timeout=self.timeout)
+                await self.checkpoint(f"Laser stopped propagating")
             with open(f"{self.file_location}laser_coordination.txt", "w") as f:
                 f.write("wavelength ls_pos ls_2_pos electrometer_data_url\n")
                 for line in data_array:
@@ -142,28 +149,38 @@ class LaserCoordination(scriptqueue.BaseScript):
             * 'tunable_laser_remote'
 
         wavelengths : `range`
-            A range of wavelengths to iterate through.
+            A range of wavelengths to iterate through. Units: Nanometers
         file_location
         steps : `int` (the default is 5 mm)
             The amount of mm to move the linear stages by.
         max_linear_stage_position : `int`
+            Units: millimeters
         integration_time : `int`
+            Units: seconds
         scan_duration : `float`
+            Units: seconds
         timeout : `int`
+            Units: seconds
         """
-        self.wanted_remotes = wanted_remotes
-        self.wavelengths = range(wavelengths[0], wavelengths[1])
-        self.file_location = os.path.expanduser(file_location)
-        self.steps = steps
-        self.max_linear_stage_position = max_linear_stage_position
-        self.integration_time = integration_time
-        self.scan_duration = scan_duration
-        self.timeout = timeout
-        if 'linear_stage_1_remote' in self.wanted_remotes:
-            self.linear_stage_set = True
-        if 'linear_stage_2_remote' in self.wanted_remotes:
-            self.linear_stage_2_set = True
-        if 'electrometer_remote' in self.wanted_remotes:
-            self.electrometer_set = True
-        if 'tunable_laser_remote' in self.wanted_remotes:
-            self.tunable_laser_set = True
+        try:
+            self.log.debug("START CONFIG")
+            self.wanted_remotes = wanted_remotes
+            self.wavelengths = range(wavelengths[0], wavelengths[1])
+            self.file_location = os.path.expanduser(file_location)
+            self.steps = steps
+            self.max_linear_stage_position = max_linear_stage_position
+            self.integration_time = integration_time
+            self.scan_duration = scan_duration
+            self.timeout = timeout
+            if 'linear_stage_1_remote' in self.wanted_remotes:
+                self.linear_stage_set = True
+            if 'linear_stage_2_remote' in self.wanted_remotes:
+                self.linear_stage_2_set = True
+            if 'electrometer_remote' in self.wanted_remotes:
+                self.electrometer_set = True
+            if 'tunable_laser_remote' in self.wanted_remotes:
+                self.tunable_laser_set = True
+            self.log.debug("END CONFIG")
+        except Exception as e:
+            self.log.exception(e)
+            raise
