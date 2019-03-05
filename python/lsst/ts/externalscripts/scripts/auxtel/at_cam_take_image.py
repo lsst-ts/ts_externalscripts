@@ -51,19 +51,19 @@ class ATCamTakeImage(BaseScript):
         """
         self.log.info("Configure started")
 
-        self.nimages = nimages
+        self.nimages = int(nimages)
         if self.nimages < 1:
-            raise IOError(f"nimages={self.nimages} must be > 0")
+            raise RuntimeError(f"nimages={self.nimages} must be > 0")
 
         # make exposure time a list with size = nimages, if it is not
         self.exp_times = exp_times
 
         if not isinstance(self.exp_times, collections.Iterable):
-            self.exp_times = [exp_times]*self.nimages
+            self.exp_times = [float(exp_times)]*self.nimages
 
         for etime in self.exp_times:
             if etime < 0.:
-                raise IOError(f"exptime={etime} must be >= 0")
+                raise RuntimeError(f"exptime={etime} must be >= 0")
 
         # Fix size of nimages in case exp_times had different size
         self.nimages = len(self.exp_times)
@@ -98,14 +98,22 @@ class ATCamTakeImage(BaseScript):
             take_image_topic.shutter = self.shutter
             take_image_topic.imageSequenceName = str(self.imageSequenceName)
 
-            end_readout_coro = self.atcamera.evt_endReadout.next(flush=True,
-                                                                 timeout=self.read_out_time+self.cmd_timeout)
+            timeout = self.read_out_time+self.cmd_timeout+exposure
+            end_readout_coro = self.atcamera.evt_endReadout.next(flush=False,
+                                                                 timeout=timeout)
 
             await self.checkpoint(f"Take image {i+1} of {self.nimages}")
 
             await self.atcamera.cmd_takeImages.start(take_image_topic,
-                                                     timeout=exposure+self.cmd_timeout)
+                                                     timeout=timeout)
+
+            self.evt_logMessage.set_put(level=10,
+                                        message="Finished taking image. Waiting for endReadout event.")
+
             await end_readout_coro
+
+            self.evt_logMessage.set_put(level=10,
+                                        message=f"Image {i+1}/{self.nimages} done")
 
         await self.checkpoint("end")
 
