@@ -97,9 +97,9 @@ class TransitionComponents(BaseScript):
         if settings_to_apply is not None:
             self.settings_to_apply = [setting.strip() for setting in settings_to_apply.split(",")]
 
-        if len(self.settings_to_apply) != len(self.components):
-            raise RuntimeError(f"Setting to apply ({len(self.settings_to_apply)}) "
-                               f"must have same size of components ({len(self.components)}).")
+            if len(self.settings_to_apply) != len(self.components):
+                raise RuntimeError(f"Setting to apply ({len(self.settings_to_apply)}) "
+                                   f"must have same size of components ({len(self.components)}).")
 
         self.log.info("Configure completed")
 
