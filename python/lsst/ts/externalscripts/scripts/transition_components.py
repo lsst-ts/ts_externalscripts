@@ -27,7 +27,8 @@ class TransitionComponents(BaseScript):
 
         self.remotes = {}
 
-        self.valid_transitions = ['start', 'enable', 'disable', 'standby']
+        self.valid_transitions = ['enterControl', 'start', 'enable',
+                                  'disable', 'standby', 'exitControl']
 
         self.time_per_component = 10.  # Time it takes to instantiate a component
         self.time_per_transition = 5.  # Time it takes to make a transition
@@ -38,17 +39,25 @@ class TransitionComponents(BaseScript):
 
         Parameters
         ----------
-        components : list(tuples())
-            A list of tuples with the component name and index, e.g.;
-            [('Electrometer', 1), ('FiberSpectrograph')]. Note that components that are
-            not indexed they don't need to be passed or use index = 0.
-        transition_to : list(str())
-            For which states to transition to. For instance ['DISABLE', 'ENABLE'], will
-            transition all components from standby to disable and to enable in a single take.
-        settings_to_apply : list(str())
-            The settings to apply for each component, in case transitioning from STANDBY to
-            DISABLE. If an empty string is used, will read the `logevent_settingVersions` event
-            and select `recommendedSettingsVersion`.
+        components : `str`
+            A comma separated list of components to work on. Indexed components can be
+            specified after a colon, e.g.; ComponentA,ComponentB:1,ComponentB:2
+        transition_to : `str`
+            A comma separated list of commands to transition the components to the
+            desired state, e.g.; start,enable
+        settings_to_apply : `str`
+            A comma separated list of settings to apply for each component, in case transitioning
+            from STANDBY to DISABLE. If an empty string is used, will read the `logevent_settingVersions`
+            event and select `recommendedSettingsVersion`.
+
+            For three components when the second does not need a setting;
+
+            default,,Default1
+
+            or for three components when the last does not need a setting;
+
+            default,Default1,
+
 
         Raises
         ------
@@ -60,37 +69,37 @@ class TransitionComponents(BaseScript):
         """
         self.log.info("Configure started")
 
-        if len(components) == 0:
-            raise IOError('Input components is empty. Must have at least one component to work.')
-        elif len(transition_to) == 0:
-            raise IOError('Need at least one transition to perform.')
+        self.components = components.split(",")
+        for component in self.components:
+            split_component = component.split(":")
+            if len(split_component) > 1:
+                component_name = split_component[0].strip()
+                index = int(split_component[1])
+            else:
+                component_name = component.strip()
+                index = 0
 
-        self.components = components
-        for component in components:
-            index = 0
-            if len(component) < 1:
-                raise IOError('Item %s has the wrong number of items. Must have at least 1 item,'
-                              'the component name.' % component)
-            elif len(component) > 1:
-                index = int(component[1])
-            self.remotes[component[0]] = Remote(importlib.import_module('SALPY_%s' % component[0]),
-                                                index,
-                                                include=self.valid_transitions)
+            self.remotes[component] = Remote(importlib.import_module('SALPY_%s' % component_name),
+                                             index,
+                                             include=self.valid_transitions)
 
-        await asyncio.sleep(0.)  # Give control back to event loop
+            await asyncio.sleep(0.)  # Give control back to event loop
+
         # Check that transition_to are valid
-        for transition in transition_to:
-            if transition not in self.valid_transitions:
+        self.transition_to = []
+        for transition in transition_to.split(","):
+            if transition.strip() not in self.valid_transitions:
                 raise IOError('Transition %s not valid. Must be one of %s' % (transition,
                                                                               self.valid_transitions))
-        self.transition_to = transition_to
+            else:
+                self.transition_to.append(transition.strip())
 
-        if settings_to_apply is None:
-            self.settings_to_apply = settings_to_apply
-        elif len(settings_to_apply) == len(self.components):
-            self.settings_to_apply = settings_to_apply
-        else:
-            raise IOError('Invalid entry for settings_to_apply: %s' % settings_to_apply)
+        if settings_to_apply is not None:
+            self.settings_to_apply = [setting.strip() for setting in settings_to_apply.split(",")]
+
+        if len(self.settings_to_apply) != len(self.components):
+            raise RuntimeError(f"Setting to apply ({len(self.settings_to_apply)}) "
+                               f"must have same size of components ({len(self.components)}).")
 
         self.log.info("Configure completed")
 
