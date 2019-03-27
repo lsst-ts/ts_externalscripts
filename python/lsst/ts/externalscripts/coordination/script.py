@@ -61,6 +61,7 @@ class LaserCoordination(scriptqueue.BaseScript):
         self.tunable_laser_set = False
         self.scan_duration = None
         self.timeout = None
+        self.stablization = False
 
         self.log.setLevel(10)
         self.put_log_level()
@@ -80,8 +81,22 @@ class LaserCoordination(scriptqueue.BaseScript):
             set_electrometer_integration_time_ack_coro = await self.electrometer.cmd_setIntegrationTime.start(
                 timeout=self.timeout)
         setup_tasks = []
-        if not self.tunable_laser_set:
+        if not self.tunable_laser_set and not self.stablization:
             self.wavelengths = [525, ]
+        if self.stablization:
+            self.wavelengths = range(0, 1440)
+            self.linear_stage_set = False
+            self.linear_stage_2_set = False
+            self.tunable_laser_set = False
+            self.electrometer_set = True
+            self.scan_duration = 2
+
+        if not self.linear_stage_set:
+            self.max_linear_stage_position = 2
+            self.steps = 1
+        if not self.linear_stage_2_set:
+            self.max_linear_stage_position = 2
+            self.steps = 1
         if self.tunable_laser_set:
             propagate_state_ack = self.tunable_laser.cmd_startPropagateLaser.start(timeout=self.timeout)
             setup_tasks.append(propagate_state_ack)
@@ -96,14 +111,19 @@ class LaserCoordination(scriptqueue.BaseScript):
             self.log.debug(f"Finished setting up script")
             for wavelength in self.wavelengths:
                 for ls_pos in range(1, self.max_linear_stage_position, self.steps):
-                    self.linear_stage_1.cmd_moveAbsolute.set(distance=ls_pos)
-                    self.log.debug("Moving linear stage 1")
-                    move_ls1_ack = await self.linear_stage_1.cmd_moveAbsolute.start(timeout=self.timeout)
+                    if self.linear_stage_set:
+                        self.linear_stage_1.cmd_moveAbsolute.set(distance=ls_pos)
+                        self.log.debug("Moving linear stage 1")
+                        move_ls1_ack = await self.linear_stage_1.cmd_moveAbsolute.start(timeout=self.timeout)
                     await self.checkpoint(f"ls 1 pos: {ls_pos}")
                     for ls_2_pos in range(1, self.max_linear_stage_position, self.steps):
-                        self.linear_stage_2.cmd_moveAbsolute.set(distance=ls_2_pos)
-                        self.log.debug("moving linear stage 2")
-                        move_ls2_ack = await self.linear_stage_2.cmd_moveAbsolute.start(timeout=self.timeout)
+                        if self.linear_stage_2_set:
+                            self.linear_stage_2.cmd_moveAbsolute.set(distance=ls_2_pos)
+                            self.log.debug("moving linear stage 2")
+                            move_ls2_ack = await self.linear_stage_2.cmd_moveAbsolute.start(
+                                timeout=self.timeout)
+                        elif not self.linear_stage_2_set and self.stablization:
+                            await asyncio.sleep(10)
                         await self.checkpoint(f"ls 1 pos {ls_pos} ls 2 pos: {ls_2_pos}")
                         if self.electrometer_set:
                             electrometer_data_coro = self.electrometer.evt_largeFileObjectAvailable.next(
@@ -133,7 +153,10 @@ class LaserCoordination(scriptqueue.BaseScript):
                         file_location="~",
                         steps=5,
                         max_linear_stage_position=75,
-                        integration_time=0.2, scan_duration=10, timeout=20):
+                        integration_time=0.2,
+                        scan_duration=10,
+                        timeout=20,
+                        stablization=False):
         """Configures the script.
 
         Parameters
@@ -180,6 +203,7 @@ class LaserCoordination(scriptqueue.BaseScript):
                 self.electrometer_set = True
             if 'tunable_laser_remote' in self.wanted_remotes:
                 self.tunable_laser_set = True
+            self.stablization = stablization
             self.log.debug("END CONFIG")
         except Exception as e:
             self.log.exception(e)
