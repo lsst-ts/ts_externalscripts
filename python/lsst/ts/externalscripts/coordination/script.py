@@ -8,6 +8,7 @@ from lsst.ts import salobj
 import os
 import asyncio
 import logging
+import datetime
 
 log_file = logging.FileHandler("/home/saluser/develop/script.log")
 log_file.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
@@ -62,6 +63,7 @@ class LaserCoordination(scriptqueue.BaseScript):
         self.scan_duration = None
         self.timeout = None
         self.stablization = False
+        self.number_of_scans = None
 
         self.log.setLevel(10)
         self.put_log_level()
@@ -84,7 +86,7 @@ class LaserCoordination(scriptqueue.BaseScript):
         if not self.tunable_laser_set and not self.stablization:
             self.wavelengths = [525, ]
         if self.stablization:
-            self.wavelengths = range(0, 1440)
+            self.wavelengths = range(0, self.number_of_scans)
             self.linear_stage_set = False
             self.linear_stage_2_set = False
             self.tunable_laser_set = False
@@ -133,16 +135,21 @@ class LaserCoordination(scriptqueue.BaseScript):
                                 timeout=self.timeout)
                             electrometer_data = await electrometer_data_coro
                             await self.checkpoint(f"ls 1 pos {ls_pos} ls 2 pos {ls_2_pos} electr. data")
-                            data_array.append([wavelength, ls_pos, ls_2_pos, electrometer_data.url])
+                            data_array.append([
+                                datetime.datetime.now(),
+                                wavelength,
+                                ls_pos,
+                                ls_2_pos,
+                                electrometer_data.url])
             if self.tunable_laser_set:
                 self.tunable_laser.cmd_stopPropagateLaser.set()
                 stop_propagate_ack = await self.tunable_laser.cmd_stopPropagateLaser.start(
                     timeout=self.timeout)
                 await self.checkpoint(f"Laser stopped propagating")
             with open(f"{self.file_location}laser_coordination.txt", "w") as f:
-                f.write("wavelength ls_pos ls_2_pos electrometer_data_url\n")
+                f.write("timestamp wavelength ls_pos ls_2_pos electrometer_data_url\n")
                 for line in data_array:
-                    f.write(f"{line[0]}, {line[1]}, {line[2]}, {line[3]}\n")
+                    f.write(f"{line[0]} {line[1]}, {line[2]}, {line[3]}, {line[4]}\n")
         except Exception as e:
             print(e)
             raise
@@ -156,7 +163,8 @@ class LaserCoordination(scriptqueue.BaseScript):
                         integration_time=0.2,
                         scan_duration=10,
                         timeout=20,
-                        stablization=False):
+                        stablization=False,
+                        number_of_scans=1440):
         """Configures the script.
 
         Parameters
@@ -204,6 +212,7 @@ class LaserCoordination(scriptqueue.BaseScript):
             if 'tunable_laser_remote' in self.wanted_remotes:
                 self.tunable_laser_set = True
             self.stablization = stablization
+            self.number_of_scans = number_of_scans
             self.log.debug("END CONFIG")
         except Exception as e:
             self.log.exception(e)
