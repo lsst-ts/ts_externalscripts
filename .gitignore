@@ -1,0 +1,17 @@
+.sconsign.dblite
+config.log
+.sconf_temp
+*.pyc
+
+# Built by sconsUtils
+version.py
+
+# OpenSplice logs
+ospl-*.log
+
+# Pytest
+tests/.tests
+pytest_session.txt
+.cache/
+.pytest_cache
+.coverage

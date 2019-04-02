@@ -1,15 +1,14 @@
 import unittest
-# from unittest.mock import Mock
 import asyncio
-import numpy as np
+
+import yaml
 
 from lsst.ts import salobj
 
-from lsst.ts.salscripts.scripts.auxtel import ATCamTakeImage
+from lsst.ts.externalscripts.auxtel import ATCamTakeImage
 
 import SALPY_ATCamera
-
-np.random.seed(47)
+import SALPY_Script
 
 index_gen = salobj.index_generator()
 
@@ -17,46 +16,42 @@ index_gen = salobj.index_generator()
 class Harness:
     def __init__(self):
         self.index = next(index_gen)
-
         self.test_index = next(index_gen)
-
         salobj.test_utils.set_random_lsst_dds_domain()
-
-        self.script = ATCamTakeImage(index=self.index, descr='Test ATCamTakeImage')
-
-        # Adds controller to Test
-        self.at_cam = salobj.Controller(SALPY_ATCamera)
+        self.script = ATCamTakeImage(index=self.index)
+        self.atcam = salobj.Controller(SALPY_ATCamera)
 
     async def cmd_take_images_callback(self, id_data):
-        await asyncio.sleep((id_data.data.expTime +
-                             self.script.read_out_time +
-                             self.script.shutter_time*2.)*id_data.data.numImages)
-
-        self.at_cam.evt_endReadout.put(self.at_cam.evt_endReadout.DataType())
+        one_exp_time = id_data.data.expTime + self.script.readout_time + self.script_shutter_time
+        await asyncio.sleep(one_exp_time*id_data.data.numImages)
+        self.atcam.evt_endReadout.put()
 
 
 class TestATCamTakeImage(unittest.TestCase):
 
-    def test_script(self):
+    def test_script_exp_time_scalar(self):
         async def doit():
             harness = Harness()
-            exp_time = 5.
-            exp_time_arr = np.random.uniform(0., 5., 3)
+            exp_time = 5
+            harness.atcam.cmd_takeImages.callback = harness.cmd_take_images_callback
 
-            # Adds callback to take image command
-            harness.at_cam.cmd_takeImages.callback = harness.cmd_take_images_callback
+            config_kwargs = dict(exp_times=exp_time)
+            config_data = SALPY_Script.Script_command_configureC()
+            config_data.config = yaml.safe_dump(config_kwargs)
+            await harness.script.do_configure(id_data=salobj.CommandIdData(cmd_id=1, data=config_data))
+            await harness.script.do_run(id_data=salobj.CommandIdData(cmd_id=2, data=None))
 
-            # test with exp_times as a float
-            with self.subTest():
-                await harness.script.configure(exp_times=exp_time)
+        asyncio.get_event_loop().run_until_complete(doit())
 
-                await harness.script.run()
-
-            with self.subTest():
-                # test with exp_times as an array
-                harness.script.configure(exp_times=exp_time_arr)
-
-                await harness.script.run()
+    def test_script_exp_time_array(self):
+        async def doit():
+            harness = Harness()
+            exp_time_arr = (0, 5, 3)
+            config_kwargs = dict(exp_times=exp_time_arr)
+            config_data = SALPY_Script.Script_command_configureC()
+            config_data.config = yaml.safe_dump(config_kwargs)
+            await harness.script.do_configure(id_data=salobj.CommandIdData(cmd_id=1, data=config_data))
+            await harness.script.do_run(id_data=salobj.CommandIdData(cmd_id=2, data=None))
 
         asyncio.get_event_loop().run_until_complete(doit())
 

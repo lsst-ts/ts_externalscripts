@@ -112,7 +112,7 @@ def get_atcamera_filename(increment=True):
     filename: string
 
     """
-    # FIXME: This could probably be an environment variable or something like that.
+    # FIXME: This could probably be an environment variable or something
     tmp_file = '/tmp/atcamera_filename_current.dat'
 
     def time_stamped(fname_suffix, fmt='AT-O-%Y%m%d-{fname:05}'):
@@ -189,7 +189,8 @@ def configure_logging(options, logfilename=None):
 
     logging.basicConfig(level=DETAIL_LEVEL[main_level], format=console_format)
     logging.captureWarnings(True)
-    # Remove old console logger as it will double up messages when levels match.
+    # Remove existing console logger as it will double up messages
+    # when levels match.
     logging.getLogger().removeHandler(logging.getLogger().handlers[0])
 
     logging.addLevelName(WORDY, 'WORDY')
@@ -210,8 +211,8 @@ def configure_logging(options, logfilename=None):
 def set_log_levels(verbose=0):
     """Set detail levels for console and file logging systems.
 
-    This function sets the detail levels for console and file (via socket) logging systems. These
-    levels are keys into the DETAIL_LEVEL dictionary.
+    This function sets the detail levels for console and file (via socket)
+    logging systems. These levels are keys into the DETAIL_LEVEL dictionary.
 
     Parameters
     ----------
@@ -221,7 +222,10 @@ def set_log_levels(verbose=0):
     Returns
     -------
     (int, int)
-        A tuple containing the console detail level and the file detail level respectively.
+        A tuple containing:
+
+        * the console detail level
+        * the file detail level
     """
     console_detail = MAX_CONSOLE if verbose > MAX_CONSOLE else verbose
 
