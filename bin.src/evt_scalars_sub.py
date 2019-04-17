@@ -16,10 +16,10 @@ async def main(parsed):
 
     """
 
-    def get_callback(index):
-        def print_evt_scalars(data):
-            print(f"index[{index}]: {data.int0}")
-        return print_evt_scalars
+    def get_callback(index, stype):
+        def print_scalars(data):
+            print(f"index[{index}]:{stype}:{data.int0}")
+        return print_scalars
 
     def get_callback_summary_state(index):
         def print_evt_scalars(data):
@@ -29,8 +29,10 @@ async def main(parsed):
     print(f"** creating {parsed.n} remotes")
     remotes_list = []
     for i in range(parsed.n):
-        remotes_list.append(Remote(SALPY_Test, i+1))
-        remotes_list[-1].evt_scalars.callback = get_callback(i+1)
+        remotes_list.append(Remote(SALPY_Test, i+1,
+                                   include=["scalars", "summaryState"]))
+        remotes_list[-1].evt_scalars.callback = get_callback(i+1, "Event")
+        remotes_list[-1].tel_scalars.callback = get_callback(i+1, "Telemetry")
         remotes_list[-1].evt_summaryState.callback = get_callback_summary_state(i+1)
     print("** done")
 

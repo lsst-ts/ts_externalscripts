@@ -32,7 +32,9 @@ async def main(parsed):
     print(f"** creating {parsed.n} remotes")
     remotes_list = []
     for i in range(parsed.n):
-        remotes_list.append(Remote(SALPY_Test, i+1))
+        remotes_list.append(Remote(SALPY_Test, i+1,
+                                   include=["scalars", "summaryState",
+                                            "setScalars", "setArrays"]))
         remotes_list[-1].evt_scalars.callback = get_callback(i+1)
         remotes_list[-1].evt_summaryState.callback = get_callback_summary_state(i+1)
 
@@ -58,11 +60,14 @@ async def main(parsed):
 
     try:
         while True:
+            cmd_list = []
             for i in range(len(remotes_list)):
                 remotes_list[i].cmd_setScalars.set(int0=int(i)+1)
+                cmd_list.append(remotes_list[i].cmd_setScalars.start(timeout=1.))
+                cmd_list.append(remotes_list[i].cmd_setArrays.start(timeout=1.))
 
             print("** setScalars - start")
-            await asyncio.gather(*[r.cmd_setScalars.start(timeout=1.) for r in remotes_list])
+            await asyncio.gather(*cmd_list)
             print("** setScalars - done")
 
             await asyncio.sleep(parsed.wait_time)
