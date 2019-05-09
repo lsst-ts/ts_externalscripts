@@ -1,4 +1,5 @@
 #!/usr/bin/env python
 from lsst.ts.externalscripts.auxtel import CalSysTakeData
 
-CalSysTakeData.main()
+if __name__ == "__main__":
+    CalSysTakeData.main()
