@@ -1,1 +1,1 @@
-from .script import *
+from .laser_coordination import *
