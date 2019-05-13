@@ -7,6 +7,7 @@ import numpy as np
 
 from lsst.ts import salobj
 from lsst.ts import scriptqueue
+from .calsys_takedata import is_sequence, as_array
 
 import SALPY_ATMonochromator
 import SALPY_Electrometer
@@ -21,46 +22,6 @@ import pathlib
 import requests
 
 __all__ = ["CalSysTakeNarrowbandData"]
-
-def is_sequence(value):
-    """Return True if value is a sequence that is not a `str` or `bytes`.
-    """
-    if isinstance(value, str) or isinstance(value, bytes):
-        return False
-    return isinstance(value, collections.Sequence)
-
-
-def as_array(value, dtype, nelt):
-    """Return a scalar or sequence as a 1-d array of specified type and length.
-
-    Parameters
-    ----------
-    value : ``any`` or `list` [``any``]
-        Value to convert to a list
-    dtype : `type`
-        Type of data for output
-    nelt : `int`
-        Required number of elements
-
-    Returns
-    -------
-    array : `numpy.ndarray`
-        ``value`` as a 1-dimensional array with the specified type and length.
-
-    Raises
-    ------
-    ValueError
-        If ``value`` is a sequence of the wrong length
-    TypeError
-        If ``value`` (if a scalar) or any of its elements (if a sequence)
-        cannot be cast to ``dtype``.
-    """
-    if is_sequence(value):
-        if len(value) != nelt:
-            raise ValueError(f"len={len(value)} != {nelt}")
-        return np.array(value, dtype=dtype)
-    return np.array([value]*nelt, dtype=dtype)
-
 
 class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
     """
