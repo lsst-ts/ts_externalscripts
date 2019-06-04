@@ -1,7 +1,28 @@
+# This file is part of ts_externalscripts
+#
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+
 import os
 import logging
 import logging.handlers
 import asyncio
+import pathlib
 import posixpath
 import warnings
 import time
@@ -22,7 +43,7 @@ try:
 except ImportError:  # Python 3
     from urllib.parse import urlsplit, unquote
 
-__all__ = ['url2filename', 'wget', 'get_atcamera_filename',
+__all__ = ['get_scripts_dir', 'url2filename', 'wget', 'get_atcamera_filename',
            "EXTENSIVE", "TRACE", "WORDY", "configure_logging",
            "generate_logfile", "set_log_levels"]
 
@@ -44,6 +65,12 @@ DETAIL_LEVEL = {
 MAX_CONSOLE = 3
 MIN_FILE = 3
 MAX_FILE = 5
+
+
+def get_scripts_dir():
+    """Get the absolute path to the scripts directory."""
+    # 4 for python/lsst/ts/standardscripts
+    return pathlib.Path(__file__).resolve().parents[4] / "scripts"
 
 
 def url2filename(url):
