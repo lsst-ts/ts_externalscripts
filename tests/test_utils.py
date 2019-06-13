@@ -1,4 +1,4 @@
-# This file is part of ts_salscripts.
+# This file is part of ts_externalscripts
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -17,7 +17,22 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import pkgutil, lsstimport
-__path__ = pkgutil.extend_path(__path__, __name__)
+import pathlib
+import unittest
+
+from lsst.ts import externalscripts
+
+
+class TestUtils(unittest.TestCase):
+    def test_get_scripts_dir(self):
+        scripts_dir = externalscripts.get_scripts_dir()
+        self.assertTrue(scripts_dir.is_dir())
+
+        pkg_path = pathlib.Path(__file__).resolve().parent.parent
+        predicted_path = pkg_path / "scripts"
+        self.assertTrue(scripts_dir.samefile(predicted_path))
+
+
+if __name__ == '__main__':
+    unittest.main()

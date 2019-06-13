@@ -1,3 +1,10 @@
 # -*- python -*-
-from lsst.sconsUtils import scripts
+import os
+
+from lsst.sconsUtils import env, scripts
 scripts.BasicSConscript.tests(pyList=[])
+
+for name in ("OSPL_URI", "OPENSPLICE_LOC"):
+    val = os.environ.get(name)
+    if val is not None:
+        env.AppendENVPath(name, val)
