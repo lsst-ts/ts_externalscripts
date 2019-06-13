@@ -68,7 +68,13 @@ MAX_FILE = 5
 
 
 def get_scripts_dir():
-    """Get the absolute path to the scripts directory."""
+    """Get the absolute path to the scripts directory.
+
+    Returns
+    -------
+    scripts_dir : `pathlib.Path`
+        Absolute path to the specified scripts directory.
+    """
     # 4 for python/lsst/ts/standardscripts
     return pathlib.Path(__file__).resolve().parents[4] / "scripts"
 
