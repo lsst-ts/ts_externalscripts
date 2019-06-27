@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import asyncio
-import collections
 
 import numpy as np
 
@@ -9,12 +8,7 @@ from lsst.ts import salobj
 from lsst.ts import scriptqueue
 from .calsys_takedata import is_sequence, as_array
 
-import SALPY_ATMonochromator
-import SALPY_Electrometer
-import SALPY_FiberSpectrograph
-import SALPY_ATCamera
-import SALPY_ATSpectrograph
-import SALPY_ATArchiver
+from lsst.ts.idl.enums import ATMonochromator
 import csv
 import datetime
 import os
@@ -23,6 +17,7 @@ import requests
 
 __all__ = ["CalSysTakeNarrowbandData"]
 
+
 class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
     """
     """
@@ -30,35 +25,129 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
     def __init__(self, index):
         super().__init__(index=index,
                          descr="Configure and take LATISS data using the"
-                               "auxiliary telescope CalSystem.",
-                         remotes_dict={'electrometer': salobj.Remote(SALPY_Electrometer, 1),
-                                       'monochromator': salobj.Remote(SALPY_ATMonochromator),
-                                       'fiber_spectrograph': salobj.Remote(SALPY_FiberSpectrograph),
-                                       'atcamera': salobj.Remote(SALPY_ATCamera),
-                                       'atspectrograph': salobj.Remote(SALPY_ATSpectrograph),
-                                       'atarchiver': salobj.Remote(SALPY_ATArchiver)
-                                      })
+                               "auxiliary telescope CalSystem.")
         self.cmd_timeout = 60
         self.change_grating_time = 60
+        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer")
+        self.monochromator = salobj.Remote(domain=self.domain, name="ATMonochromator")
+        self.fiber_spectrograph = salobj.Remote(domain=self.domain, name="FiberSpectrograph")
+        self.atcamera = salobj.Remote(domain=self.domain, name="ATCamera")
+        self.atspectrograph = salobj.Remote(domain=self.domain, name="ATSpectrograph")
+        self.atarchiver = salobj.Remote(domain=self.domain, name="ATArchiver")
 
-    async def configure(self, wavelengths, integration_times, fiber_spectrograph_integration_times,
-                        mono_grating_types=1,
-                        mono_entrance_slit_widths=2,
-                        mono_exit_slit_widths=4,
-                        image_types="test",
-                        lamps="Kiloarc",
-                        fiber_spectrometer_delays=1,
-                        latiss_filter=0,
-                        latiss_grating=0,
-                        latiss_stage_pos=60,
-                        nimages_per_wavelength=1,
-                        shutter=1,
-                        image_sequence_name="test",
-                        take_image=True,
-                        setup_spectrograph=True,
-                        file_location="~/develop",
-                        script_type="narrowband"
-                        ):
+    @classmethod
+    def get_schema(cls):
+        yaml_schema = """
+        $schema: http://json-schema/draft-07/schema#
+        $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/CalSysTakeNarrowbandData.yaml
+        title: CalSysTakeNarrowbandData v1
+        description: Configuration for CalSysTakeNarrowbandData.
+        type: object
+        properties:
+          wavelengths:
+            type: array
+            items:
+              type: number
+              minItems: 1
+          integration_times:
+            type: array
+            items:
+              type: number
+              minItems: 1
+          fiber_spectrograph_integration_times:
+            type: array
+            items:
+              type: number
+              minItems: 1
+          mono_grating_types:
+            type: integer
+            minimum: 1
+            maximum: 3
+            default: [1]
+          mono_entrance_slit_widths:
+            type: array
+            items:
+              type: number
+              minItems: 1
+            default: [2]
+          mono_exit_slit_widths:
+            type: array
+            items:
+              type: number
+              minItems: 1
+            default: [4]
+          image_types:
+            type: array
+            items:
+              type: string
+              minItems: 1
+            default: ["Kilos"]
+          lamps:
+            type: array
+            items:
+              type: string
+              minItems: 1
+            default: ["lamps"]
+          fiber_spectrometer_delays:
+            type: array
+            items:
+              type: number
+              minItems: 1
+            default: [1]
+          latiss_filter:
+            type: array
+            items:
+              type: number
+              minItems: 1
+            default: [0]
+          latiss_grating:
+            type: array
+            items:
+              type: integer
+              minItems: 1
+            default: [0]
+          latiss_stage_pos:
+            type: array
+            items:
+              type: number
+              minItems: 1
+            default: [60]
+          nimages_per_wavelength:
+            type: array
+            items:
+              type: integer
+              minItems: 1
+            default: [1]
+          shutter:
+            type: array
+            items:
+              type: number
+              minItems: 1
+            default: [1]
+          image_sequence_name:
+            type: array
+            items:
+              type: string
+              minItems: 1
+            default: ["test"]
+          take_image:
+            type: boolean
+            default: true
+          setup_spectrograph:
+            type: boolean
+            default: true
+          file_location:
+            type: string
+            default: "~/develop"
+          script_type:
+            type: string
+            default: "narrowband"
+        required: [wavelengths, integration_times, fiber_spectrograph_integration_times]
+        additionalProperties: false
+        """
+        return yaml_schema
+
+    async def configure(self, config):
         """Configure the script.
 
         Parameters
@@ -99,39 +188,42 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
         self.log.info("Configure started")
 
         nelt = 1
-        kwargs = locals()
         for argname in ("wavelengths", "integration_times", "mono_grating_types",
                         "mono_entrance_slit_widths", "mono_exit_slit_widths",
                         "image_types", "lamps", "fiber_spectrometer_delays",
                         "latiss_filter", "latiss_grating", "latiss_stage_pos",
-                        "nimages_per_wavelength", "shutter", "image_sequence_name","fiber_spectrograph_integration_times"):
-            value = kwargs[argname]
+                        "nimages_per_wavelength", "shutter",
+                        "image_sequence_name", "fiber_spectrograph_integration_times"):
+            value = getattr(config, argname)
             if is_sequence(value):
                 nelt = len(value)
                 break
-        self.file_location=os.path.expanduser(file_location)
-        self.setup_spectrograph = setup_spectrograph
-        self.take_image = take_image
-        self.script_type = script_type
+        self.file_location = os.path.expanduser(self.config.file_location)
+        self.setup_spectrograph = self.config.setup_spectrograph
+        self.take_image = self.config.take_image
+        self.script_type = self.config.script_type
         # Monochromator Setup
-        self.wavelengths = as_array(wavelengths, dtype=float, nelt=nelt)
-        self.integration_times = as_array(integration_times, dtype=float, nelt=nelt)
-        self.mono_grating_types = as_array(mono_grating_types, dtype=int, nelt=nelt)
-        self.mono_entrance_slit_widths = as_array(mono_entrance_slit_widths, dtype=float, nelt=nelt)
-        self.mono_exit_slit_widths = as_array(mono_exit_slit_widths, dtype=float, nelt=nelt)
-        self.image_types = as_array(image_types, dtype=str, nelt=nelt)
-        self.lamps = as_array(lamps, dtype=str, nelt=nelt)
+        self.wavelengths = as_array(self.config.wavelengths, dtype=float, nelt=nelt)
+        self.integration_times = as_array(self.config.integration_times, dtype=float, nelt=nelt)
+        self.mono_grating_types = as_array(self.config.mono_grating_types, dtype=int, nelt=nelt)
+        self.mono_entrance_slit_widths = as_array(
+            self.config.mono_entrance_slit_widths, dtype=float, nelt=nelt)
+        self.mono_exit_slit_widths = as_array(self.config.mono_exit_slit_widths, dtype=float, nelt=nelt)
+        self.image_types = as_array(self.config.image_types, dtype=str, nelt=nelt)
+        self.lamps = as_array(self.config.lamps, dtype=str, nelt=nelt)
         # Fiber spectrograph
-        self.fiber_spectrometer_delays = as_array(fiber_spectrometer_delays, dtype=float, nelt=nelt)
-        self.fiber_spectrograph_integration_times = as_array(fiber_spectrograph_integration_times, dtype=float, nelt=nelt)
+        self.fiber_spectrometer_delays = as_array(
+            self.config.fiber_spectrometer_delays, dtype=float, nelt=nelt)
+        self.fiber_spectrograph_integration_times = as_array(
+            self.config.fiber_spectrograph_integration_times, dtype=float, nelt=nelt)
         # ATSpectrograph Setup
-        self.latiss_filter = as_array(latiss_filter, dtype=int, nelt=nelt)
-        self.latiss_grating = as_array(latiss_grating, dtype=int, nelt=nelt)
-        self.latiss_stage_pos = as_array(latiss_stage_pos, dtype=int, nelt=nelt)
+        self.latiss_filter = as_array(self.config.latiss_filter, dtype=int, nelt=nelt)
+        self.latiss_grating = as_array(self.config.latiss_grating, dtype=int, nelt=nelt)
+        self.latiss_stage_pos = as_array(self.config.latiss_stage_pos, dtype=int, nelt=nelt)
         # ATCamera
-        self.image_sequence_name = as_array(image_sequence_name, dtype=str, nelt=nelt)
-        self.shutter = as_array(shutter, dtype=int, nelt=nelt)
-        self.nimages_per_wavelength = as_array(nimages_per_wavelength, dtype=int, nelt=nelt)
+        self.image_sequence_name = as_array(self.config.image_sequence_name, dtype=str, nelt=nelt)
+        self.shutter = as_array(self.config.shutter, dtype=int, nelt=nelt)
+        self.nimages_per_wavelength = as_array(self.config.nimages_per_wavelength, dtype=int, nelt=nelt)
         self.log.info("Configure completed")
         # note that the ATCamera exposure time uses self.integration_times for this version
 
@@ -150,9 +242,7 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
         """Run script."""
 
         await self.checkpoint("start")
-        electrometer_urls = []
-        fiber_spectrograph_urls = []
-        
+
         path = pathlib.Path(f"{self.file_location}")
         csv_filename = f"calsys_take_{self.script_type}_data_{datetime.date.today()}.csv"
         file_exists = pathlib.Path(f"{path}/{csv_filename}").is_file()
@@ -172,12 +262,12 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
         fieldnames.append("Monochromator Exit Slit Size")
         fieldnames.append("Fiber Spectrograph Fits File")
         fieldnames.append("Electrometer Fits File")
-        
-        with open(f"{path}/{csv_filename}","a",newline="") as csvfile:
-            data_writer = csv.DictWriter(csvfile,fieldnames=fieldnames)
+
+        with open(f"{path}/{csv_filename}", "a", newline="") as csvfile:
+            data_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             if not file_exists:
                 data_writer.writeheader()
-            
+
             nelt = len(self.wavelengths)
             for i in range(nelt):
                 self.log.info(f"take image {i} of {nelt}")
@@ -189,16 +279,17 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
                 self.log.debug(f"Changed monochromator wavelength to {self.wavelengths[i]}")
 
                 self.monochromator.cmd_changeSlitWidth.set(
-                    slit=SALPY_ATMonochromator.ATMonochromator_shared_Slit_FrontExit,
+                    slit=ATMonochromator.Slit.FRONTEXIT,
                     slitWidth=self.mono_exit_slit_widths[i])
                 await self.monochromator.cmd_changeSlitWidth.start(timeout=self.cmd_timeout)
                 self.log.debug(f"Changed monochromator exit slit width to {self.mono_exit_slit_widths[i]}")
 
                 self.monochromator.cmd_changeSlitWidth.set(
-                    slit=SALPY_ATMonochromator.ATMonochromator_shared_Slit_FrontEntrance,
+                    slit=ATMonochromator.Slit.FRONTENTRANCE,
                     slitWidth=self.mono_entrance_slit_widths[i])
                 await self.monochromator.cmd_changeSlitWidth.start(timeout=self.cmd_timeout)
-                self.log.debug(f"Changed monochromator entrance slit width to {self.mono_entrance_slit_widths[i]}")
+                self.log.debug(
+                    f"Changed monochromator entrance slit width to {self.mono_entrance_slit_widths[i]}")
 
                 self.monochromator.cmd_selectGrating.set(gratingType=self.mono_grating_types[i])
                 await self.monochromator.cmd_selectGrating.start(
@@ -228,15 +319,14 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
                 # The electrometer startScanDt command is not reported as done
                 # until the scan is done, so start the scan and then start
                 # taking the image data
-                coros = []
                 coro1 = self.start_electrometer_scan(i)
                 coro2 = self.start_take_spectrum(i)
                 if self.take_image:
                     coro3 = self.start_camera_take_image(i)
                 if self.take_image:
-                    results = await asyncio.gather(coro1,coro2,coro3)
+                    results = await asyncio.gather(coro1, coro2, coro3)
                 else:
-                    results = await asyncio.gather(coro1,coro2)
+                    results = await asyncio.gather(coro1, coro2)
                 await self.checkpoint("Write data to csv file")
                 electrometer_lfo_url = results[0].url
                 fiber_spectrograph_lfo_url = results[1].url
@@ -264,33 +354,36 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
                     row_dict["ATSpectrograph Grating"] = self.latiss_grating[i]
                     row_dict["ATSpectrograph Linear Stage Position"] = self.latiss_stage_pos[i]
                 data_writer.writerow(row_dict)
-        with open(f"{path}/{csv_filename}",newline='') as csvfile:
+        with open(f"{path}/{csv_filename}", newline='') as csvfile:
             data_reader = csv.DictReader(csvfile)
             self.log.debug(f"Reading CSV file")
             for row in data_reader:
                 fiber_spectrograph_url = row["Fiber Spectrograph Fits File"]
                 electrometer_url = row["Electrometer Fits File"]
                 electrometer_url += ".fits"
-                electrometer_url = electrometer_url.replace("https://127.0.0.1","http://10.0.100.133:8000")
+                electrometer_url = electrometer_url.replace("https://127.0.0.1", "http://10.0.100.133:8000")
                 self.log.debug(f"Fixed electrometer url")
                 electrometer_url_name = electrometer_url.split("/")[-1]
                 fiber_spectrograph_url_name = fiber_spectrograph_url.split("/")[-1]
                 fiber_spectrograph_fits_request = requests.get(fiber_spectrograph_url)
                 electrometer_fits_request = requests.get(electrometer_url)
-                with open(f"{self.file_location}/fiber_spectrograph_fits_files/{fiber_spectrograph_url_name}","wb") as file:
+                fiber_spectrograph_file = f"{self.file_location}/fiber_spectrograph_fits_files/" \
+                    f"{fiber_spectrograph_url_name}"
+                with open(fiber_spectrograph_file, "wb") as file:
                     file.write(fiber_spectrograph_fits_request.content)
                     self.log.debug(f"Download Fiber Spectrograph fits file")
-                with open(f"{self.file_location}/electrometer_fits_files/{electrometer_url_name}","wb") as file:
+                electrometer_file = f"{self.file_location}/electrometer_fits_files/{electrometer_url_name}"
+                with open(electrometer_file, "wb") as file:
                     file.write(electrometer_fits_request.content)
                     self.log.debug(f"Downloaded Electrometer fits file")
             self.log.info(f"Fits Files downloaded")
         await self.checkpoint("Done")
-            
-            
+
     async def start_electrometer_scan(self, index):
         self.electrometer.cmd_startScanDt.set(
-                scanDuration=self.integration_times[index] + self.fiber_spectrometer_delays[index]*2)
-        electrometer_lfo_coro = self.electrometer.evt_largeFileObjectAvailable.next(timeout=self.cmd_timeout,flush=True)
+            scanDuration=self.integration_times[index] + self.fiber_spectrometer_delays[index]*2)
+        electrometer_lfo_coro = self.electrometer.evt_largeFileObjectAvailable.next(
+            timeout=self.cmd_timeout, flush=True)
         await self.electrometer.cmd_startScanDt.start(timeout=self.cmd_timeout)
         self.log.debug(f"Electrometer finished scan")
         return await electrometer_lfo_coro
@@ -311,23 +404,26 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
         await asyncio.sleep(self.fiber_spectrometer_delays[index])
 
         timeout = self.integration_times[index] + self.cmd_timeout
-        fiber_spectrograph_lfo_coro = self.fiber_spectrograph.evt_largeFileObjectAvailable.next(timeout=self.cmd_timeout,flush=True)
+        fiber_spectrograph_lfo_coro = self.fiber_spectrograph.evt_largeFileObjectAvailable.next(
+            timeout=self.cmd_timeout, flush=True)
         self.fiber_spectrograph.cmd_captureSpectImage.set(
             imageType=self.image_types[index],
             integrationTime=self.fiber_spectrograph_integration_times[index],
-            lamp=self.lamps[index],
+            lamp=self.lamps[index]
         )
         self.log.info(f"take a {self.integration_times[index]} second exposure")
         await self.fiber_spectrograph.cmd_captureSpectImage.start(timeout=timeout)
         self.log.debug(f"Fiber Spectrograph captured spectrum image")
         return await fiber_spectrograph_lfo_coro
-    
+
     async def start_camera_take_image(self, index):
-        self.atcamera.cmd_takeImages.set(shutter=self.shutter[index],
-                                                 numImages=1,
-                                                 expTime=self.integration_times[index],
-                                                 imageSequenceName=self.image_sequence_name[index])
-        atarchiver_lfo_coro = self.atarchiver.evt_processingStatus.next(flush=True,timeout=(self.cmd_timeout*2)+self.integration_times[index])
+        self.atcamera.cmd_takeImages.set(
+            shutter=self.shutter[index],
+            numImages=1,
+            expTime=self.integration_times[index],
+            imageSequenceName=self.image_sequence_name[index])
+        atarchiver_lfo_coro = self.atarchiver.evt_processingStatus.next(flush=True, timeout=(
+            self.cmd_timeout*2)+self.integration_times[index])
         await self.atcamera.cmd_takeImages.start(timeout=self.cmd_timeout+self.integration_times[index])
         self.log.debug(f"Camera took image")
         return await atarchiver_lfo_coro
