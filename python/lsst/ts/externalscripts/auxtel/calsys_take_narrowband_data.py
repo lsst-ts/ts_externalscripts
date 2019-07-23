@@ -28,7 +28,7 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
                                "auxiliary telescope CalSystem.")
         self.cmd_timeout = 60
         self.change_grating_time = 60
-        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer")
+        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer", index=1)
         self.monochromator = salobj.Remote(domain=self.domain, name="ATMonochromator")
         self.fiber_spectrograph = salobj.Remote(domain=self.domain, name="FiberSpectrograph")
         self.atcamera = salobj.Remote(domain=self.domain, name="ATCamera")
@@ -145,7 +145,7 @@ class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
         required: [wavelengths, integration_times, fiber_spectrograph_integration_times]
         additionalProperties: false
         """
-        return yaml_schema
+        return yaml.safe_load(yaml_schema)
 
     async def configure(self, config):
         """Configure the script.

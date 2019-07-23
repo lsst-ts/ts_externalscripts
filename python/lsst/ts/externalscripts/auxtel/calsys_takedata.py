@@ -72,7 +72,7 @@ class CalSysTakeData(scriptqueue.BaseScript):
                                        'fiber_spectrograph': salobj.Remote(SALPY_FiberSpectrograph)})
         self.cmd_timeout = 10
         self.change_grating_time = 60
-        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer")
+        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer",index=1)
         self.monochromator = salobj.Remote(domain=self.domain, name="ATMonochromator")
         self.fiber_spectrograph = salobj.Remote(domain=self.domain, name="FiberSpectrograph")
 
@@ -141,7 +141,7 @@ class CalSysTakeData(scriptqueue.BaseScript):
             default: "~/develop/calsys_take_data_fits_files"
         additionalProperties: false
         """
-        return yaml_schema
+        return yaml.safe_load(yaml_schema)
 
     async def configure(self, config):
         """Configure the script.
