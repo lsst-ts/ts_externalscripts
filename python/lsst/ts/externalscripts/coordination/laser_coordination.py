@@ -1,14 +1,12 @@
 __all__ = ["LaserCoordination"]
 
-import SALPY_LinearStage
-import SALPY_Electrometer
-import SALPY_TunableLaser
 from lsst.ts import scriptqueue
 from lsst.ts import salobj
 import os
 import asyncio
 import logging
 import datetime
+import yaml
 
 log_file = logging.FileHandler("/home/saluser/develop/script.log")
 log_file.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
@@ -16,7 +14,7 @@ log_file.setLevel(logging.DEBUG)
 logging.getLogger().addHandler(log_file)
 
 
-class LaserCoordination(scriptqueue.BaseScript):
+class LaserCoordination(salobj.BaseScript):
     """ES-Coordination-Laser-001: Laser coordination
 
     A SAL script that is used for testing two lab LinearStages, the TunableLaser and an Electrometer.
@@ -45,12 +43,11 @@ class LaserCoordination(scriptqueue.BaseScript):
 
     """
     def __init__(self, index, descr=""):
-        super().__init__(index, descr="A laser coordination script", remotes_dict={
-            'linear_stage_1': salobj.Remote(SALPY_LinearStage, 1),
-            'linear_stage_2': salobj.Remote(SALPY_LinearStage, 2),
-            'electrometer': salobj.Remote(SALPY_Electrometer, 1),
-            'tunable_laser': salobj.Remote(SALPY_TunableLaser)
-        })
+        super().__init__(index, descr="A laser coordination script")
+        self.linear_stage_1 = salobj.Remote(self.domain, name="LinearStage", index=1)
+        self.linear_stage_2 = salobj.Remote(self.domain, name="LinearStage", index=2)
+        self.electrometer = salobj.Remote(self.domain, name="Electrometer", index=1)
+        self.tunable_laser = salobj.Remote(self.domain, name="TunableLaser")
         self.wanted_remotes = None
         self.wavelengths = None
         self.steps = None
@@ -68,6 +65,115 @@ class LaserCoordination(scriptqueue.BaseScript):
         self.log.setLevel(10)
         self.put_log_level()
         self.log.debug("END INIT")
+
+    @classmethod
+    def get_schema(cls):
+        schema = """
+            $schema: http://json-schema.org/draft-07/schema#
+            $id: https://github.com/lsst-ts/ts_externalscripts/auxtel/LaserCoordination.yaml
+            title: LaserCoordination v1
+            description: configuration for LaserCoordination
+            properties:
+                wanted_remote:
+                    description: A list of remote names that should be used for running the script.
+                    type: array
+                    items:
+                        type: string
+                        enum:
+                            - linear_stage_1_remote
+                            - linear_stage_2_remote
+                            - electrometer_remote
+                            - tunable_laser_remote
+                        additionalItems: false
+                wavelengths:
+                    description: min and max wavelengths
+                    type: array
+                    maxItems: 2
+                    items:
+                        type: integer
+                    additionalItems: false
+                file_location:
+                    type: string
+                    default: ~
+                steps:
+                    type: integer
+                    default: 5
+                max_linear_stage_position:
+                    type: integer
+                    default: 75
+                integration_time:
+                    type: number
+                    default: 0.2
+                scan_duration:
+                    type: number
+                    default: 10
+                timeout:
+                    type: number
+                    default: 20
+                stabilization:
+                    type: boolean
+                    default: false
+                number_of_scans:
+                    type: number
+                    default: 1440
+                requiredProperties: [wanted_remotes, wavelengths]
+                additionalProperties: False
+            """
+        return yaml.safe_dump(schema)
+
+    async def configure(self, config):
+        """Configures the script.
+
+        Parameters
+        ----------
+        wanted_remotes : `list` of `str`
+            A list of remotes_names that should be used for running the script.
+
+            full list:
+
+            * 'linear_stage_1_remote'
+            * 'linear_stage_2_remote'
+            * 'electrometer_remote'
+            * 'tunable_laser_remote'
+
+        wavelengths : `range`
+            A range of wavelengths to iterate through. Units: Nanometers
+        file_location
+        steps : `int` (the default is 5 mm)
+            The amount of mm to move the linear stages by.
+        max_linear_stage_position : `int`
+            Units: millimeters
+        integration_time : `int`
+            Units: seconds
+        scan_duration : `float`
+            Units: seconds
+        timeout : `int`
+            Units: seconds
+        """
+        try:
+            self.log.debug("START CONFIG")
+            self.wanted_remotes = self.config.wanted_remotes
+            self.wavelengths = range(self.config.wavelengths[0], self.config.wavelengths[1])
+            self.file_location = os.path.expanduser(self.config.file_location)
+            self.steps = self.config.steps
+            self.max_linear_stage_position = self.config.max_linear_stage_position
+            self.integration_time = self.config.integration_time
+            self.scan_duration = self.config.scan_duration
+            self.timeout = self.config.timeout
+            if 'linear_stage_1_remote' in self.wanted_remotes:
+                self.linear_stage_set = True
+            if 'linear_stage_2_remote' in self.wanted_remotes:
+                self.linear_stage_2_set = True
+            if 'electrometer_remote' in self.wanted_remotes:
+                self.electrometer_set = True
+            if 'tunable_laser_remote' in self.wanted_remotes:
+                self.tunable_laser_set = True
+            self.stablization = self.config.stablization
+            self.number_of_scans = self.config.number_of_scans
+            self.log.debug("END CONFIG")
+        except Exception as e:
+            self.log.exception(e)
+            raise
 
     def set_metadata(self, metadata):
         metadata = {'remotes_set': [self.linear_stage_set,
@@ -152,68 +258,4 @@ class LaserCoordination(scriptqueue.BaseScript):
                     f.write(f"{line[0]} {line[1]}, {line[2]}, {line[3]}, {line[4]}\n")
         except Exception as e:
             print(e)
-            raise
-
-    async def configure(self,
-                        wanted_remotes,
-                        wavelengths,
-                        file_location="~",
-                        steps=5,
-                        max_linear_stage_position=75,
-                        integration_time=0.2,
-                        scan_duration=10,
-                        timeout=20,
-                        stablization=False,
-                        number_of_scans=1440):
-        """Configures the script.
-
-        Parameters
-        ----------
-        wanted_remotes : `list` of `str`
-            A list of remotes_names that should be used for running the script.
-
-            full list:
-
-            * 'linear_stage_1_remote'
-            * 'linear_stage_2_remote'
-            * 'electrometer_remote'
-            * 'tunable_laser_remote'
-
-        wavelengths : `range`
-            A range of wavelengths to iterate through. Units: Nanometers
-        file_location
-        steps : `int` (the default is 5 mm)
-            The amount of mm to move the linear stages by.
-        max_linear_stage_position : `int`
-            Units: millimeters
-        integration_time : `int`
-            Units: seconds
-        scan_duration : `float`
-            Units: seconds
-        timeout : `int`
-            Units: seconds
-        """
-        try:
-            self.log.debug("START CONFIG")
-            self.wanted_remotes = wanted_remotes
-            self.wavelengths = range(wavelengths[0], wavelengths[1])
-            self.file_location = os.path.expanduser(file_location)
-            self.steps = steps
-            self.max_linear_stage_position = max_linear_stage_position
-            self.integration_time = integration_time
-            self.scan_duration = scan_duration
-            self.timeout = timeout
-            if 'linear_stage_1_remote' in self.wanted_remotes:
-                self.linear_stage_set = True
-            if 'linear_stage_2_remote' in self.wanted_remotes:
-                self.linear_stage_2_set = True
-            if 'electrometer_remote' in self.wanted_remotes:
-                self.electrometer_set = True
-            if 'tunable_laser_remote' in self.wanted_remotes:
-                self.tunable_laser_set = True
-            self.stablization = stablization
-            self.number_of_scans = number_of_scans
-            self.log.debug("END CONFIG")
-        except Exception as e:
-            self.log.exception(e)
             raise
