@@ -14,7 +14,7 @@ log_file.setLevel(logging.DEBUG)
 logging.getLogger().addHandler(log_file)
 
 
-class LaserCoordination(scriptqueue.BaseScript):
+class LaserCoordination(salobj.BaseScript):
     """ES-Coordination-Laser-001: Laser coordination
 
     A SAL script that is used for testing two lab LinearStages, the TunableLaser and an Electrometer.
