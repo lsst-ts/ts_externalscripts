@@ -223,11 +223,11 @@ class CalSysTakeData(salobj.BaseScript):
 
         await self.checkpoint("start")
 
-        path = pathlib.Path(f"{self.file_location}")
-        csv_filename = f"calsys_take_data_{datetime.date.today()}.csv"
-        file_exists = pathlib.Path(f"{path}/{csv_filename}").is_file()
+        csvdir = pathlib.Path(f"{self.file_location}")
+        csvpath = csvdir / f"calsys_take_data_{datetime.date.today()}.csv"
+        file_exists = csvpath.is_file()
 
-        with open(f"{path}/{csv_filename}", "a", newline="") as csvfile:
+        with open(csvpath, "a", newline="") as csvfile:
             fieldnames = [
                 "Exposure Time",
                 "Monochromator Grating",
@@ -285,9 +285,10 @@ class CalSysTakeData(salobj.BaseScript):
                     fieldnames[5]: fiber_spectrograph_lfo_url,
                     fieldnames[6]: electrometer_lfo_url
                 })
-        with open(f"{path}/{csv_filename}", newline='') as csvfile:
+        with open(csvpath, newline='') as csvfile:
             data_reader = csv.DictReader(csvfile)
             self.log.debug(f"Reading CSV file")
+
             for row in data_reader:
                 fiber_spectrograph_url = row["Fiber Spectrograph Fits File"]
                 electrometer_url = row["Electrometer Fits File"]
@@ -297,16 +298,16 @@ class CalSysTakeData(salobj.BaseScript):
                 fiber_spectrograph_url_name = fiber_spectrograph_url.split("/")[-1]
                 fiber_spectrograph_fits_request = requests.get(fiber_spectrograph_url)
                 electrometer_fits_request = requests.get(electrometer_url)
-                fiber_spectrograph_file = f"/home/saluser/develop/calsys_take_data_fits_files" \
-                    f"/fiber_spectrograph_fits_files/{fiber_spectrograph_url_name}"
-                with open(fiber_spectrograph_file, "wb") as file:
+                fiber_spectrograph_fits_path = self.file_location / \
+                    "fiber_spectrograph_fits_files" / fiber_spectrograph_url_name
+                with open(fiber_spectrograph_fits_path, "wb") as file:
                     file.write(fiber_spectrograph_fits_request.content)
-                    self.log.debug(f"Download Fiber Spectrograph fits file")
-                electrometer_file = f"/home/saluser/develop/calsys_take_data_fits_files" \
-                    f"/electrometer_fits_files/{electrometer_url_name}"
-                with open(electrometer_file, "wb") as file:
+                    self.log.debug(f"Wrote Fiber Spectrograph fits file to {fiber_spectrograph_fits_path}")
+                electrometer_fits_path = self.file_location \
+                    / "electrometer_fits_files" / electrometer_url_name
+                with open(electrometer_fits_path, "wb") as file:
                     file.write(electrometer_fits_request.content)
-                    self.log.debug(f"Downloaded Electrometer fits file")
+                    self.log.debug(f"Wrote Electrometer fits file to {electrometer_fits_path}")
             self.log.info(f"Fits Files downloaded")
         await self.checkpoint("Done")
 
