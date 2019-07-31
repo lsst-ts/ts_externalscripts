@@ -3,6 +3,7 @@
 import asyncio
 
 import numpy as np
+import yaml
 
 from lsst.ts import salobj
 from .calsys_takedata import is_sequence, as_array

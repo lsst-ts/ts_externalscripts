@@ -9,6 +9,7 @@ import csv
 import requests
 
 import numpy as np
+import yaml
 
 from lsst.ts import salobj
 
@@ -76,7 +77,7 @@ class CalSysTakeData(salobj.BaseScript):
         self.fiber_spectrograph = salobj.Remote(domain=self.domain, name="FiberSpectrograph")
 
     @classmethod
-    def schema(cls):
+    def get_schema(cls):
         yaml_schema = """
         $schema: http://json-schema/draft-07/schema#
         $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/CalSysTakeData.yaml
