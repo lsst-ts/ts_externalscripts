@@ -35,7 +35,7 @@ class TestLaserCoordination(unittest.TestCase):
             script = LaserCoordination(index=index)
             try:
                 async def run_configure(**kwargs):
-                    script.set_state(Script.ScriptState.UNCONFIGURED)
+                    script.set_state(salobj.Script.ScriptState.UNCONFIGURED)
                     config_data = script.cmd_configure.DataType()
                     if kwargs:
                         config_data.config = yaml.safe_dump(kwargs)
