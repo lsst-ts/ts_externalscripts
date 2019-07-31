@@ -12,10 +12,7 @@ import numpy as np
 import yaml
 
 from lsst.ts import salobj
-
-import SALPY_ATMonochromator
-import SALPY_Electrometer
-import SALPY_FiberSpectrograph
+from lsst.ts.idl.enums import ATMonochromator
 
 __all__ = ["CalSysTakeData"]
 
@@ -66,10 +63,7 @@ class CalSysTakeData(salobj.BaseScript):
 
     def __init__(self, index):
         super().__init__(index=index,
-                         descr="Configure and take data from the auxiliary telescope CalSystem.",
-                         remotes_dict={'electrometer': salobj.Remote(SALPY_Electrometer, 1),
-                                       'monochromator': salobj.Remote(SALPY_ATMonochromator),
-                                       'fiber_spectrograph': salobj.Remote(SALPY_FiberSpectrograph)})
+                         descr="Configure and take data from the auxiliary telescope CalSystem.")
         self.cmd_timeout = 10
         self.change_grating_time = 60
         self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer",index=1)
@@ -251,12 +245,12 @@ class CalSysTakeData(salobj.BaseScript):
                 await self.monochromator.cmd_changeWavelength.start(timeout=self.cmd_timeout)
 
                 self.monochromator.cmd_changeSlitWidth.set(
-                    slit=SALPY_ATMonochromator.ATMonochromator_shared_Slit_FrontExit,
+                    slit=ATMonochromator.Slit.FRONTEXIT,
                     slitWidth=self.exit_slit_widths[i])
                 await self.monochromator.cmd_changeSlitWidth.start(timeout=self.cmd_timeout)
 
                 self.monochromator.cmd_changeSlitWidth.set(
-                    slit=SALPY_ATMonochromator.ATMonochromator_shared_Slit_FrontEntrance,
+                    slit=ATMonochromator.Slit.FRONTENTRANCE,
                     slitWidth=self.entrance_slit_widths[i])
                 await self.monochromator.cmd_changeSlitWidth.start(timeout=self.cmd_timeout)
 
