@@ -38,113 +38,113 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
     @classmethod
     def get_schema(cls):
         yaml_schema = """
-        $schema: http://json-schema/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/CalSysTakeNarrowbandData.yaml
-        title: CalSysTakeNarrowbandData v1
-        description: Configuration for CalSysTakeNarrowbandData.
-        type: object
-        properties:
-          wavelengths:
-            type: array
-            items:
-              type: number
-              minItems: 1
-          integration_times:
-            type: array
-            items:
-              type: number
-              minItems: 1
-          fiber_spectrograph_integration_times:
-            type: array
-            items:
-              type: number
-              minItems: 1
-          mono_grating_types:
-            type: integer
-            minimum: 1
-            maximum: 3
-            default: [1]
-          mono_entrance_slit_widths:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [2]
-          mono_exit_slit_widths:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [4]
-          image_types:
-            type: array
-            items:
-              type: string
-              minItems: 1
-            default: ["Kilos"]
-          lamps:
-            type: array
-            items:
-              type: string
-              minItems: 1
-            default: ["lamps"]
-          fiber_spectrometer_delays:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [1]
-          latiss_filter:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [0]
-          latiss_grating:
-            type: array
-            items:
-              type: integer
-              minItems: 1
-            default: [0]
-          latiss_stage_pos:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [60]
-          nimages_per_wavelength:
-            type: array
-            items:
-              type: integer
-              minItems: 1
-            default: [1]
-          shutter:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [1]
-          image_sequence_name:
-            type: array
-            items:
-              type: string
-              minItems: 1
-            default: ["test"]
-          take_image:
-            type: boolean
-            default: true
-          setup_spectrograph:
-            type: boolean
-            default: true
-          file_location:
-            type: string
-            default: "~/develop"
-          script_type:
-            type: string
-            default: "narrowband"
-        required: [wavelengths, integration_times, fiber_spectrograph_integration_times]
-        additionalProperties: false
-        """
+            $schema: http://json-schema/draft-07/schema#
+            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/CalSysTakeNarrowbandData.yaml
+            title: CalSysTakeNarrowbandData v1
+            description: Configuration for CalSysTakeNarrowbandData.
+            type: object
+            properties:
+              wavelengths:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+              integration_times:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+              fiber_spectrograph_integration_times:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+              mono_grating_types:
+                type: integer
+                minimum: 1
+                maximum: 3
+                default: [1]
+              mono_entrance_slit_widths:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [2]
+              mono_exit_slit_widths:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [4]
+              image_types:
+                type: array
+                items:
+                  type: string
+                  minItems: 1
+                default: ["Kilos"]
+              lamps:
+                type: array
+                items:
+                  type: string
+                  minItems: 1
+                default: ["lamps"]
+              fiber_spectrometer_delays:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [1]
+              latiss_filter:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [0]
+              latiss_grating:
+                type: array
+                items:
+                  type: integer
+                  minItems: 1
+                default: [0]
+              latiss_stage_pos:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [60]
+              nimages_per_wavelength:
+                type: array
+                items:
+                  type: integer
+                  minItems: 1
+                default: [1]
+              shutter:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [1]
+              image_sequence_name:
+                type: array
+                items:
+                  type: string
+                  minItems: 1
+                default: ["test"]
+              take_image:
+                type: boolean
+                default: true
+              setup_spectrograph:
+                type: boolean
+                default: true
+              file_location:
+                type: string
+                default: "~/develop"
+              script_type:
+                type: string
+                default: "narrowband"
+            required: [wavelengths, integration_times, fiber_spectrograph_integration_times]
+            additionalProperties: false
+            """
         return yaml.safe_load(yaml_schema)
 
     async def configure(self, config):
@@ -311,8 +311,9 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
                     await self.atspectrograph.cmd_moveLinearStage.start(timeout=self.cmd_timeout)
 
                 # setup ATCamera
-                # Because we take ancillary data at the same time as the image, we can only take
-                # 1 image at a time, therefore numImages is hardcoded to be 1.
+                # Because we take ancillary data at the same time as the image,
+                # we can only take 1 image at a time.
+                # Thus numImages is hardcoded to be 1.
 
                 await self.checkpoint("expose")
 

@@ -73,68 +73,68 @@ class CalSysTakeData(salobj.BaseScript):
     @classmethod
     def get_schema(cls):
         yaml_schema = """
-        $schema: http://json-schema/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/CalSysTakeData.yaml
-        title: CalSysTakeData v1
-        description: Configuration for CalSysTakeData.
-        type: object
-        properties:
-          wavelengths:
-            type: array
-            items:
-              type: number
-              minItems: 1
-          integration_times:
-            type: array
-            items:
-              type: number
-              minItems: 1
-          grating_types:
-            type: integer
-            minimum: 1
-            maximum: 3
-            default: [1]
-          entrance_slit_widths:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [2]
-          exit_slit_widths:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [4]
-          image_types:
-            type: array
-            items:
-              type: string
-              minItems: 1
-            default: ["test"]
-          lamps:
-            type: array
-            items:
-              type: string
-              minItems: 1
-            default: ["lamps"]
-          spectrometer_delays:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [1]
-          fiber_spectrograph_times:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [1]
-          file_location:
-            type: string
-            default: "~/develop/calsys_take_data_fits_files"
-        additionalProperties: false
-        """
+            $schema: http://json-schema/draft-07/schema#
+            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/CalSysTakeData.yaml
+            title: CalSysTakeData v1
+            description: Configuration for CalSysTakeData.
+            type: object
+            properties:
+              wavelengths:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+              integration_times:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+              grating_types:
+                type: integer
+                minimum: 1
+                maximum: 3
+                default: [1]
+              entrance_slit_widths:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [2]
+              exit_slit_widths:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [4]
+              image_types:
+                type: array
+                items:
+                  type: string
+                  minItems: 1
+                default: ["test"]
+              lamps:
+                type: array
+                items:
+                  type: string
+                  minItems: 1
+                default: ["lamps"]
+              spectrometer_delays:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [1]
+              fiber_spectrograph_times:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [1]
+              file_location:
+                type: string
+                default: "~/develop/calsys_take_data_fits_files"
+            additionalProperties: false
+            """
         return yaml.safe_load(yaml_schema)
 
     async def configure(self, config):
