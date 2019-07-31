@@ -1,26 +1,20 @@
 __all__ = ["LaserCoordination"]
 
-from lsst.ts import scriptqueue
 from lsst.ts import salobj
 import os
 import asyncio
-import logging
 import datetime
 import yaml
-
-log_file = logging.FileHandler("/home/saluser/develop/script.log")
-log_file.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
-log_file.setLevel(logging.DEBUG)
-logging.getLogger().addHandler(log_file)
 
 
 class LaserCoordination(salobj.BaseScript):
     """ES-Coordination-Laser-001: Laser coordination
 
-    A SAL script that is used for testing two lab LinearStages, the TunableLaser and an Electrometer.
-    It propagates the laser at a wavelength while the two linear stages move in a grid pattern in a given
-    step increment. At each step, an electrometer will take a reading. The data will then be pushed into
-    a csv file and then plotted as coordinate vs. electrometer reading.
+    A SAL script that is used for testing two lab LinearStages, the
+    TunableLaser and an Electrometer. It propagates the laser while
+    the two linear stages move in a grid pattern with a given step increment.
+    At each step, an electrometer will take a reading. The data is written
+    to a csv file and then plotted as coordinate vs. electrometer reading.
 
     Parameters
     ----------
@@ -74,7 +68,7 @@ class LaserCoordination(salobj.BaseScript):
             title: LaserCoordination v1
             description: configuration for LaserCoordination
             properties:
-                wanted_remote:
+                wanted_remotes:
                     description: A list of remote names that should be used for running the script.
                     type: array
                     items:
@@ -116,10 +110,10 @@ class LaserCoordination(salobj.BaseScript):
                 number_of_scans:
                     type: number
                     default: 1440
-                requiredProperties: [wanted_remotes, wavelengths]
-                additionalProperties: False
+            required: [wanted_remotes, wavelengths]
+            additionalProperties: false
             """
-        return yaml.safe_dump(schema)
+        return yaml.safe_load(schema)
 
     async def configure(self, config):
         """Configures the script.
@@ -185,9 +179,8 @@ class LaserCoordination(salobj.BaseScript):
         async def setup_electrometers():
             self.electrometer.cmd_setMode.set(mode=1)
             self.electrometer.cmd_setIntegrationTime.set(intTime=self.integration_time)
-            set_electrometer_mode_ack_coro = await self.electrometer.cmd_setMode.start(timeout=self.timeout)
-            set_electrometer_integration_time_ack_coro = await self.electrometer.cmd_setIntegrationTime.start(
-                timeout=self.timeout)
+            await self.electrometer.cmd_setMode.start(timeout=self.timeout)
+            await self.electrometer.cmd_setIntegrationTime.start(timeout=self.timeout)
         setup_tasks = []
         if not self.tunable_laser_set and not self.stablization:
             self.wavelengths = [525, ]
@@ -214,7 +207,7 @@ class LaserCoordination(salobj.BaseScript):
         try:
             data_array = []
             self.log.debug(f"Setting up Script")
-            setup_ack = await asyncio.gather(*setup_tasks)
+            await asyncio.gather(*setup_tasks)
             await self.checkpoint(f"setup complete")
             self.log.debug(f"Finished setting up script")
             for wavelength in self.wavelengths:
@@ -222,14 +215,13 @@ class LaserCoordination(salobj.BaseScript):
                     if self.linear_stage_set:
                         self.linear_stage_1.cmd_moveAbsolute.set(distance=ls_pos)
                         self.log.debug("Moving linear stage 1")
-                        move_ls1_ack = await self.linear_stage_1.cmd_moveAbsolute.start(timeout=self.timeout)
+                        await self.linear_stage_1.cmd_moveAbsolute.start(timeout=self.timeout)
                     await self.checkpoint(f"ls 1 pos: {ls_pos}")
                     for ls_2_pos in range(1, self.max_linear_stage_position, self.steps):
                         if self.linear_stage_2_set:
                             self.linear_stage_2.cmd_moveAbsolute.set(distance=ls_2_pos)
                             self.log.debug("moving linear stage 2")
-                            move_ls2_ack = await self.linear_stage_2.cmd_moveAbsolute.start(
-                                timeout=self.timeout)
+                            await self.linear_stage_2.cmd_moveAbsolute.start(timeout=self.timeout)
                         elif not self.linear_stage_2_set and self.stablization:
                             await asyncio.sleep(10)
                         await self.checkpoint(f"ls 1 pos {ls_pos} ls 2 pos: {ls_2_pos}")
@@ -237,8 +229,7 @@ class LaserCoordination(salobj.BaseScript):
                             electrometer_data_coro = self.electrometer.evt_largeFileObjectAvailable.next(
                                 flush=True, timeout=self.timeout)
                             self.electrometer.cmd_startScanDt.set(scanDuration=self.scan_duration)
-                            electrometer_scan_ack = await self.electrometer.cmd_startScanDt.start(
-                                timeout=self.timeout)
+                            await self.electrometer.cmd_startScanDt.start(timeout=self.timeout)
                             electrometer_data = await electrometer_data_coro
                             await self.checkpoint(f"ls 1 pos {ls_pos} ls 2 pos {ls_2_pos} electr. data")
                             data_array.append([
@@ -249,8 +240,7 @@ class LaserCoordination(salobj.BaseScript):
                                 electrometer_data.url])
             if self.tunable_laser_set:
                 self.tunable_laser.cmd_stopPropagateLaser.set()
-                stop_propagate_ack = await self.tunable_laser.cmd_stopPropagateLaser.start(
-                    timeout=self.timeout)
+                await self.tunable_laser.cmd_stopPropagateLaser.start(timeout=self.timeout)
                 await self.checkpoint(f"Laser stopped propagating")
             with open(f"{self.file_location}laser_coordination.txt", "w") as f:
                 f.write("timestamp wavelength ls_pos ls_2_pos electrometer_data_url\n")

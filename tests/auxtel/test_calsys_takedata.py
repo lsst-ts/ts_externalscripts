@@ -2,11 +2,11 @@ import asyncio
 import logging
 import unittest
 
-import numpy as np 
+import numpy as np
 import yaml
 
 from lsst.ts import salobj
-from lsst.ts.externalscripts.auxtel.calsys_takedata import CalsysTakedata 
+from lsst.ts.externalscripts.auxtel import CalSysTakeData
 
 np.random.seed(71)
 
@@ -21,10 +21,10 @@ class Harness:
 
         self.test_index = next(index_gen)
 
-        self.script = CalsysTakedata(index=self.index)
+        self.script = CalSysTakeData(index=self.index)
 
 
-class TestCalsysTakedata(unittest.TestCase):
+class TestCalSysTakeData(unittest.TestCase):
     def setUp(self):
         salobj.test_utils.set_random_lsst_dds_domain()
 
@@ -32,7 +32,7 @@ class TestCalsysTakedata(unittest.TestCase):
         index = next(index_gen)
 
         async def doit():
-            script = CalsysTakedata(index=index)
+            script = CalSysTakeData(index=index)
             try:
                 async def run_configure(**kwargs):
                     script.set_state(salobj.Script.ScriptState.UNCONFIGURED)

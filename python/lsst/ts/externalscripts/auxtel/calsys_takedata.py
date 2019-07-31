@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+__all__ = ["CalSysTakeData"]
 
 import asyncio
 import collections
@@ -9,15 +9,10 @@ import csv
 import requests
 
 import numpy as np
+import yaml
 
 from lsst.ts import salobj
-from lsst.ts import scriptqueue
-
-import SALPY_ATMonochromator
-import SALPY_Electrometer
-import SALPY_FiberSpectrograph
-
-__all__ = ["CalSysTakeData"]
+from lsst.ts.idl.enums import ATMonochromator
 
 
 def is_sequence(value):
@@ -25,7 +20,7 @@ def is_sequence(value):
     """
     if isinstance(value, str) or isinstance(value, bytes):
         return False
-    return isinstance(value, collections.Sequence)
+    return isinstance(value, collections.abc.Sequence)
 
 
 def as_array(value, dtype, nelt):
@@ -60,87 +55,84 @@ def as_array(value, dtype, nelt):
     return np.array([value]*nelt, dtype=dtype)
 
 
-class CalSysTakeData(scriptqueue.BaseScript):
+class CalSysTakeData(salobj.BaseScript):
     """
     """
 
     def __init__(self, index):
         super().__init__(index=index,
-                         descr="Configure and take data from the auxiliary telescope CalSystem.",
-                         remotes_dict={'electrometer': salobj.Remote(SALPY_Electrometer, 1),
-                                       'monochromator': salobj.Remote(SALPY_ATMonochromator),
-                                       'fiber_spectrograph': salobj.Remote(SALPY_FiberSpectrograph)})
+                         descr="Configure and take data from the auxiliary telescope CalSystem.")
         self.cmd_timeout = 10
         self.change_grating_time = 60
-        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer",index=1)
+        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer", index=1)
         self.monochromator = salobj.Remote(domain=self.domain, name="ATMonochromator")
         self.fiber_spectrograph = salobj.Remote(domain=self.domain, name="FiberSpectrograph")
 
     @classmethod
-    def schema(cls):
+    def get_schema(cls):
         yaml_schema = """
-        $schema: http://json-schema/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/CalSysTakeData.yaml
-        title: CalSysTakeData v1
-        description: Configuration for CalSysTakeData.
-        type: object
-        properties:
-          wavelengths:
-            type: array
-            items:
-              type: number
-              minItems: 1
-          integration_times:
-            type: array
-            items:
-              type: number
-              minItems: 1
-          grating_types:
-            type: integer
-            minimum: 1
-            maximum: 3
-            default: [1]
-          entrance_slit_widths:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [2]
-          exit_slit_widths:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [4]
-          image_types:
-            type: array
-            items:
-              type: string
-              minItems: 1
-            default: ["test"]
-          lamps:
-            type: array
-            items:
-              type: string
-              minItems: 1
-            default: ["lamps"]
-          spectrometer_delays:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [1]
-          fiber_spectrograph_times:
-            type: array
-            items:
-              type: number
-              minItems: 1
-            default: [1]
-          file_location:
-            type: string
-            default: "~/develop/calsys_take_data_fits_files"
-        additionalProperties: false
-        """
+            $schema: http://json-schema/draft-07/schema#
+            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/CalSysTakeData.yaml
+            title: CalSysTakeData v1
+            description: Configuration for CalSysTakeData.
+            type: object
+            properties:
+              wavelengths:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+              integration_times:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+              grating_types:
+                type: integer
+                minimum: 1
+                maximum: 3
+                default: [1]
+              entrance_slit_widths:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [2]
+              exit_slit_widths:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [4]
+              image_types:
+                type: array
+                items:
+                  type: string
+                  minItems: 1
+                default: ["test"]
+              lamps:
+                type: array
+                items:
+                  type: string
+                  minItems: 1
+                default: ["lamps"]
+              spectrometer_delays:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [1]
+              fiber_spectrograph_times:
+                type: array
+                items:
+                  type: number
+                  minItems: 1
+                default: [1]
+              file_location:
+                type: string
+                default: "~/develop/calsys_take_data_fits_files"
+            additionalProperties: false
+            """
         return yaml.safe_load(yaml_schema)
 
     async def configure(self, config):
@@ -223,11 +215,11 @@ class CalSysTakeData(scriptqueue.BaseScript):
 
         await self.checkpoint("start")
 
-        path = pathlib.Path(f"{self.file_location}")
-        csv_filename = f"calsys_take_data_{datetime.date.today()}.csv"
-        file_exists = pathlib.Path(f"{path}/{csv_filename}").is_file()
+        csvdir = pathlib.Path(f"{self.file_location}")
+        csvpath = csvdir / f"calsys_take_data_{datetime.date.today()}.csv"
+        file_exists = csvpath.is_file()
 
-        with open(f"{path}/{csv_filename}", "a", newline="") as csvfile:
+        with open(csvpath, "a", newline="") as csvfile:
             fieldnames = [
                 "Exposure Time",
                 "Monochromator Grating",
@@ -251,12 +243,12 @@ class CalSysTakeData(scriptqueue.BaseScript):
                 await self.monochromator.cmd_changeWavelength.start(timeout=self.cmd_timeout)
 
                 self.monochromator.cmd_changeSlitWidth.set(
-                    slit=SALPY_ATMonochromator.ATMonochromator_shared_Slit_FrontExit,
+                    slit=ATMonochromator.Slit.FRONTEXIT,
                     slitWidth=self.exit_slit_widths[i])
                 await self.monochromator.cmd_changeSlitWidth.start(timeout=self.cmd_timeout)
 
                 self.monochromator.cmd_changeSlitWidth.set(
-                    slit=SALPY_ATMonochromator.ATMonochromator_shared_Slit_FrontEntrance,
+                    slit=ATMonochromator.Slit.FRONTENTRANCE,
                     slitWidth=self.entrance_slit_widths[i])
                 await self.monochromator.cmd_changeSlitWidth.start(timeout=self.cmd_timeout)
 
@@ -285,9 +277,10 @@ class CalSysTakeData(scriptqueue.BaseScript):
                     fieldnames[5]: fiber_spectrograph_lfo_url,
                     fieldnames[6]: electrometer_lfo_url
                 })
-        with open(f"{path}/{csv_filename}", newline='') as csvfile:
+        with open(csvpath, newline='') as csvfile:
             data_reader = csv.DictReader(csvfile)
             self.log.debug(f"Reading CSV file")
+
             for row in data_reader:
                 fiber_spectrograph_url = row["Fiber Spectrograph Fits File"]
                 electrometer_url = row["Electrometer Fits File"]
@@ -297,16 +290,16 @@ class CalSysTakeData(scriptqueue.BaseScript):
                 fiber_spectrograph_url_name = fiber_spectrograph_url.split("/")[-1]
                 fiber_spectrograph_fits_request = requests.get(fiber_spectrograph_url)
                 electrometer_fits_request = requests.get(electrometer_url)
-                fiber_spectrograph_file = f"/home/saluser/develop/calsys_take_data_fits_files" \
-                    f"/fiber_spectrograph_fits_files/{fiber_spectrograph_url_name}"
-                with open(fiber_spectrograph_file, "wb") as file:
+                fiber_spectrograph_fits_path = self.file_location / \
+                    "fiber_spectrograph_fits_files" / fiber_spectrograph_url_name
+                with open(fiber_spectrograph_fits_path, "wb") as file:
                     file.write(fiber_spectrograph_fits_request.content)
-                    self.log.debug(f"Download Fiber Spectrograph fits file")
-                electrometer_file = f"/home/saluser/develop/calsys_take_data_fits_files" \
-                    f"/electrometer_fits_files/{electrometer_url_name}"
-                with open(electrometer_file, "wb") as file:
+                    self.log.debug(f"Wrote Fiber Spectrograph fits file to {fiber_spectrograph_fits_path}")
+                electrometer_fits_path = self.file_location \
+                    / "electrometer_fits_files" / electrometer_url_name
+                with open(electrometer_fits_path, "wb") as file:
                     file.write(electrometer_fits_request.content)
-                    self.log.debug(f"Downloaded Electrometer fits file")
+                    self.log.debug(f"Wrote Electrometer fits file to {electrometer_fits_path}")
             self.log.info(f"Fits Files downloaded")
         await self.checkpoint("Done")
 
@@ -347,7 +340,3 @@ class CalSysTakeData(scriptqueue.BaseScript):
         await self.electrometer.cmd_startScanDt.start(timeout=self.cmd_timeout)
         self.log.debug(f"Electrometer finished scan")
         return await electrometer_lfo_coro
-
-
-if __name__ == '__main__':
-    CalSysTakeData.main()
