@@ -4,14 +4,8 @@ from lsst.ts import scriptqueue
 from lsst.ts import salobj
 import os
 import asyncio
-import logging
 import datetime
 import yaml
-
-log_file = logging.FileHandler("/home/saluser/develop/script.log")
-log_file.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
-log_file.setLevel(logging.DEBUG)
-logging.getLogger().addHandler(log_file)
 
 
 class LaserCoordination(salobj.BaseScript):
