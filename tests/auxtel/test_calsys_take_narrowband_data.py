@@ -6,7 +6,7 @@ import numpy as np
 import yaml
 
 from lsst.ts import salobj
-from lsst.ts.externalscripts.auxtel.calsys_take_narrowband_data import CalsysTakeNarrowbandData
+from lsst.ts.externalscripts.auxtel import CalSysTakeNarrowbandData
 
 np.random.seed(84)
 
@@ -21,10 +21,10 @@ class Harness:
 
         self.test_index = next(index_gen)
 
-        self.script = CalsysTakeNarrowbandData(index=self.index)
+        self.script = CalSysTakeNarrowbandData(index=self.index)
 
 
-class TestCalsysTakeNarrowbandData(unittest.TestCase):
+class TestCalSysTakeNarrowbandData(unittest.TestCase):
     def setUp(self):
         salobj.test_utils.set_random_lsst_dds_domain()
 
@@ -32,7 +32,7 @@ class TestCalsysTakeNarrowbandData(unittest.TestCase):
         index = next(index_gen)
 
         async def doit():
-            script = CalsysTakeNarrowbandData(index=index)
+            script = CalSysTakeNarrowbandData(index=index)
             try:
                 async def run_configure(**kwargs):
                     script.set_state(salobj.Script.ScriptState.UNCONFIGURED)
