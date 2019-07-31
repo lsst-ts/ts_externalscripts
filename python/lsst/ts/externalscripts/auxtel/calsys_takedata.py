@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+__all__ = ["CalSysTakeData"]
 
 import asyncio
 import collections
@@ -14,15 +14,13 @@ import yaml
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATMonochromator
 
-__all__ = ["CalSysTakeData"]
-
 
 def is_sequence(value):
     """Return True if value is a sequence that is not a `str` or `bytes`.
     """
     if isinstance(value, str) or isinstance(value, bytes):
         return False
-    return isinstance(value, collections.Sequence)
+    return isinstance(value, collections.abc.Sequence)
 
 
 def as_array(value, dtype, nelt):
@@ -66,7 +64,7 @@ class CalSysTakeData(salobj.BaseScript):
                          descr="Configure and take data from the auxiliary telescope CalSystem.")
         self.cmd_timeout = 10
         self.change_grating_time = 60
-        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer",index=1)
+        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer", index=1)
         self.monochromator = salobj.Remote(domain=self.domain, name="ATMonochromator")
         self.fiber_spectrograph = salobj.Remote(domain=self.domain, name="FiberSpectrograph")
 
@@ -342,7 +340,3 @@ class CalSysTakeData(salobj.BaseScript):
         await self.electrometer.cmd_startScanDt.start(timeout=self.cmd_timeout)
         self.log.debug(f"Electrometer finished scan")
         return await electrometer_lfo_coro
-
-
-if __name__ == '__main__':
-    CalSysTakeData.main()

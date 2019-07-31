@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+__all__ = ["CalSysTakeNarrowbandData"]
 
 import asyncio
 
@@ -14,8 +14,6 @@ import datetime
 import os
 import pathlib
 import requests
-
-__all__ = ["CalSysTakeNarrowbandData"]
 
 
 class CalSysTakeNarrowbandData(salobj.BaseScript):
@@ -225,7 +223,8 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         self.shutter = as_array(self.config.shutter, dtype=int, nelt=nelt)
         self.nimages_per_wavelength = as_array(self.config.nimages_per_wavelength, dtype=int, nelt=nelt)
         self.log.info("Configure completed")
-        # note that the ATCamera exposure time uses self.integration_times for this version
+        # note that the ATCamera exposure time
+        # uses self.integration_times for this version
 
     def set_metadata(self, metadata):
         """Compute estimated duration.
@@ -390,7 +389,8 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         return await electrometer_lfo_coro
 
     async def start_take_spectrum(self, index):
-        """Wait for `self.fiber_spectrometer_delays` then take a spectral image.
+        """Wait for `self.fiber_spectrometer_delays` then take
+        a spectral image.
 
         Parameters
         ----------
@@ -428,7 +428,3 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         await self.atcamera.cmd_takeImages.start(timeout=self.cmd_timeout+self.integration_times[index])
         self.log.debug(f"Camera took image")
         return await atarchiver_lfo_coro
-
-
-if __name__ == '__main__':
-    CalSysTakeNarrowbandData.main()

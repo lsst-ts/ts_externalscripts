@@ -2,7 +2,7 @@ import asyncio
 import logging
 import unittest
 
-import numpy as np 
+import numpy as np
 import yaml
 
 from lsst.ts import salobj
