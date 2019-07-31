@@ -68,7 +68,7 @@ class LaserCoordination(salobj.BaseScript):
             title: LaserCoordination v1
             description: configuration for LaserCoordination
             properties:
-                wanted_remote:
+                wanted_remotes:
                     description: A list of remote names that should be used for running the script.
                     type: array
                     items:
@@ -110,10 +110,10 @@ class LaserCoordination(salobj.BaseScript):
                 number_of_scans:
                     type: number
                     default: 1440
-                requiredProperties: [wanted_remotes, wavelengths]
-                additionalProperties: False
+            required: [wanted_remotes, wavelengths]
+            additionalProperties: false
             """
-        return yaml.safe_dump(schema)
+        return yaml.safe_load(schema)
 
     async def configure(self, config):
         """Configures the script.
