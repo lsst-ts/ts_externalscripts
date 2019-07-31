@@ -11,7 +11,6 @@ import requests
 import numpy as np
 
 from lsst.ts import salobj
-from lsst.ts import scriptqueue
 
 import SALPY_ATMonochromator
 import SALPY_Electrometer
@@ -60,7 +59,7 @@ def as_array(value, dtype, nelt):
     return np.array([value]*nelt, dtype=dtype)
 
 
-class CalSysTakeData(scriptqueue.BaseScript):
+class CalSysTakeData(salobj.BaseScript):
     """
     """
 

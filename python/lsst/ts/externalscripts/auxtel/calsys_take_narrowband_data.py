@@ -5,7 +5,6 @@ import asyncio
 import numpy as np
 
 from lsst.ts import salobj
-from lsst.ts import scriptqueue
 from .calsys_takedata import is_sequence, as_array
 
 from lsst.ts.idl.enums import ATMonochromator
@@ -18,7 +17,7 @@ import requests
 __all__ = ["CalSysTakeNarrowbandData"]
 
 
-class CalSysTakeNarrowbandData(scriptqueue.BaseScript):
+class CalSysTakeNarrowbandData(salobj.BaseScript):
     """
     """
 
