@@ -227,14 +227,14 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         # uses self.integration_times for this version
 
     def set_metadata(self, metadata):
-        """Compute estimated duration.
+        """Compute estimated timespan.
 
         Parameters
         ----------
         metadata : SAPY_Script.Script_logevent_metadataC
         """
         nimages = len(self.lamps)
-        metadata.duration = self.change_grating_time*nimages + \
+        metadata.timespan = self.change_grating_time*nimages + \
             np.sum((self.integration_times+2)*self.nimages_per_wavelength)
 
     async def run(self):

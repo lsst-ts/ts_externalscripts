@@ -201,14 +201,14 @@ class CalSysTakeData(salobj.BaseScript):
         self.log.info("Configure completed")
 
     def set_metadata(self, metadata):
-        """Compute estimated duration.
+        """Compute estimated timespan.
 
         Parameters
         ----------
         metadata : SAPY_Script.Script_logevent_metadataC
         """
         nimages = len(self.lamps)
-        metadata.duration = self.change_grating_time*nimages + np.sum(self.integration_times)
+        metadata.timespan = self.change_grating_time*nimages + np.sum(self.integration_times)
 
     async def run(self):
         """Run script."""
