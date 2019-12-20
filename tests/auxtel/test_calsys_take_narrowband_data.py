@@ -26,7 +26,7 @@ class Harness:
 
 class TestCalSysTakeNarrowbandData(asynctest.TestCase):
     def setUp(self):
-        salobj.test_utils.set_random_lsst_dds_domain()
+        salobj.set_random_lsst_dds_domain()
 
     async def test_configure(self):
         index = next(index_gen)
