@@ -138,7 +138,7 @@ class LatissCWFSAlign(salobj.BaseScript):
         self._dz = None
 
         self.pre_side = 300
-        self.side = 192  # size for dz=1.5
+        self._side = 192  # size for dz=1.5
 
         self.angle = None
 
@@ -170,6 +170,10 @@ class LatissCWFSAlign(salobj.BaseScript):
             self.dz = 0.8
         return self._dz
 
+    @property
+    def side(self):
+        return int(self._side * self._dz / 1.5)
+
     @dz.setter
     def dz(self, value):
         self._dz = float(value)
@@ -187,7 +191,7 @@ Pixel_size (m)				10.0e-6
         dest = path.joinpath(f"{config_index}.param")
         with open(dest, "w") as fp:
             fp.write(cwfs_config_template.format(self._dz * 0.041))
-        self.inst = Instrument(config_index, int(self.side * self._dz / 1.5))
+        self.inst = Instrument(config_index, self.side)
         self.algo = Algorithm('exp', self.inst, 1)
 
     async def take_intra_extra(self):
@@ -331,7 +335,7 @@ Pixel_size (m)				10.0e-6
 
         await self.select_cwfs_source()
 
-        await self.center_and_cut_image()
+        await self.center_and_cut_images()
 
         # Now we should be ready to run cwfs
 
@@ -379,12 +383,15 @@ Pixel_size (m)				10.0e-6
             return np.sum(exp[bbox].image.array)
 
         selected_source = 0
-        flux_selected = sum_source_flux(result.sources[selected_source], self.detection_exp)
+        flux_selected = sum_source_flux(result.sources[selected_source],
+                                        self.detection_exp,
+                                        min_size=self.pre_side)
         xy = [result.sources[selected_source].getFootprint().getCentroid().x,
               result.sources[selected_source].getFootprint().getCentroid().y]
 
         for i in range(1, len(result.sources)):
-            flux_i = sum_source_flux(result.sources[i], self.detection_exp)
+            flux_i = sum_source_flux(result.sources[i], self.detection_exp,
+                                     min_size=self.pre_side)
             if flux_i > flux_selected:
                 selected_source = i
                 flux_selected = flux_i
@@ -413,7 +420,7 @@ Pixel_size (m)				10.0e-6
         for selected_source in self.cwfs_selected_sources:
 
             # iter 1
-            source = self.result.sources[selected_source]
+            source = self.source_selection_result.sources[selected_source]
             bbox = source.getFootprint().getBBox()
             image = self.detection_exp[bbox].image.array
 
@@ -424,7 +431,7 @@ Pixel_size (m)				10.0e-6
             im_filtered[im_filtered > mean] = 1.
             ceny, cenx = np.array(ndimage.measurements.center_of_mass(im_filtered), dtype=int)
 
-            side = int(self.side * self.dz / 1.5)  # side length of image
+            side = self.side  # side length of image
             self.log.debug(f"Creating stamps of centroid [y,x] = [{ceny},{cenx}] with a side "
                            f"length of {side} pixels")
 
