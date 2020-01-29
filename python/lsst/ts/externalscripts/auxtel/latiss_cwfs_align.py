@@ -436,5 +436,89 @@ Pixel_size (m)				10.0e-6
             self.I1.append(Image(intra_square, self.fieldXY, Image.INTRA))
             self.I2.append(Image(extra_square, self.fieldXY, Image.EXTRA))
 
+    @classmethod
+    def get_schema(cls):
+        schema_yaml = """
+            $schema: http://json-schema.org/draft-07/schema#
+            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/ATCamTakeImage.yaml
+            title: ATCamTakeImage v1
+            description: Configuration for ATCamTakeImage.
+            type: object
+            properties:
+              nimages:
+                description: The number of images to take; if omitted then use the length of
+                    exp_times or take a single exposure if exp_times is a scalar.
+                anyOf:
+                  - type: integer
+                    minimum: 1
+                  - type: "null"
+                default: null
+              exp_times:
+                description: The exposure time of each image (sec). If a single value,
+                  then the same exposure time is used for each exposure.
+                anyOf:
+                  - type: array
+                    minItems: 1
+                    items:
+                      type: number
+                      minimum: 0
+                  - type: number
+                    minimum: 0
+                default: 0
+              shutter:
+                description: Open the shutter?
+                type: boolean
+                default: false
+              image_type:
+                description: Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
+                    XTALK, CCOB, SPOT...)
+                type: string
+                default: ""
+              groupid:
+                description: Value for the GROUPID entry in the image header.
+                type: string
+                default: ""
+              filter:
+                description: Filter name or ID; if omitted the filter is not changed.
+                anyOf:
+                  - type: string
+                  - type: integer
+                    minimum: 1
+                  - type: "null"
+                default: null
+              grating:
+                description: Grating name; if omitted the grating is not changed.
+                anyOf:
+                  - type: string
+                  - type: integer
+                    minimum: 1
+                  - type: "null"
+                default: null
+              linear_stage:
+                description: Linear stage position; if omitted the linear stage is not moved.
+                anyOf:
+                  - type: number
+                  - type: "null"
+                default: null
+            required: [nimages, exp_times, shutter, image_type, groupid, filter, grating,
+                       linear_stage]
+            additionalProperties: false
+        """
+        return yaml.safe_load(schema_yaml)
 
+    async def configure(self, config):
+        """Configure script.
+
+        Parameters
+        ----------
+        config : `types.SimpleNamespace`
+            Script configuration, as defined by `schema`.
+        """
+        pass
+
+    def set_metadata(self, metadata):
+        metadata.duration = 300
+
+    async def run(self):
+        pass
 
