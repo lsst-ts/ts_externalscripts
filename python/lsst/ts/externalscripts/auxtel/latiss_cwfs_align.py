@@ -126,7 +126,10 @@ class LatissCWFSAlign(salobj.BaseScript):
                                      [0., 0., 0.]]  # arcsec/mm (x-axis is elevation)
 
         # Angle between camera and bore-sight
-        self.camera_rotation_angle = 20.
+        self.camera_rotation_angle = 22.5660
+
+        # The following attributes can be configured:
+        #
 
         self.filter = 'KPNO_406_828nm'
         self.grating = 'empty_1'
@@ -137,9 +140,16 @@ class LatissCWFSAlign(salobj.BaseScript):
         # offset for the intra/extra images
         self._dz = None
 
+        # butler data path.
+        self.dataPath = '/mnt/dmcs/oods_butler_repo/repo/'
+
+        #
+        # end of configurable attributes
+
         self.pre_side = 300
         self._side = 192  # size for dz=1.5
 
+        # angle between elevation axis and nasmyth2 rotator
         self.angle = None
 
         self.intra_visit_id = None
@@ -162,7 +172,7 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.zern = None
         self.hexapod_corr = None
 
-        self.dataPath = '/mnt/dmcs/oods_butler_repo/repo/'
+        self.data_pool_sleep = 5.
 
     @property
     def dz(self):
@@ -172,7 +182,7 @@ class LatissCWFSAlign(salobj.BaseScript):
 
     @property
     def side(self):
-        return int(self._side * self._dz / 1.5)
+        return int(self._side * self.dz / 1.5)
 
     @dz.setter
     def dz(self, value):
@@ -184,14 +194,14 @@ Aperture_diameter (m)   		1.2
 Offset (m)				{}
 Pixel_size (m)				10.0e-6
 """
-        config_index = f"auxtel_{self.index}"
+        config_index = f"auxtel_latiss"
         path = Path(cwfs.__file__).resolve().parents[3].joinpath("data", config_index)
         if not path.exists():
             os.makedirs(path)
         dest = path.joinpath(f"{config_index}.param")
         with open(dest, "w") as fp:
             fp.write(cwfs_config_template.format(self._dz * 0.041))
-        self.inst = Instrument(config_index, self.side)
+        self.inst = Instrument(config_index, self.side*2)
         self.algo = Algorithm('exp', self.inst, 1)
 
     async def take_intra_extra(self):
@@ -345,16 +355,8 @@ Pixel_size (m)				10.0e-6
         self.zern = [self.algo.zer4UpNm[3],
                      self.algo.zer4UpNm[4],
                      self.algo.zer4UpNm[0]]
-        rot_zern = np.matmul(self.zern,
-                             self.rotation_matrix(self.angle+self.camera_rotation_angle))
-        hexapod_offset = np.matmul(rot_zern,
-                                   self.sensitivity_matrix)
-        tel_offset = np.matmul(hexapod_offset, self.hexapod_offset_scale)
 
-        self.log.info(f"Measured zernike coeficients: {self.zern}")
-        self.log.info(f"De-rotated zernike coeficients: {rot_zern}")
-        self.log.info(f"Hexapod offset: {hexapod_offset}")
-        self.log.info(f"Telescope offsets: {tel_offset}")
+        self.show_results()
 
     async def select_cwfs_source(self):
         """
@@ -372,7 +374,9 @@ Pixel_size (m)				10.0e-6
         config.thresholdValue = 10  # detection threshold after smoothing
         source_detection_task = SourceDetectionTask(schema=schema, config=config)
         tab = afwTable.SourceTable.make(schema)
+        await asyncio.sleep(self.data_pool_sleep)
         result = source_detection_task.run(tab, self.detection_exp, sigma=12.1)
+        await asyncio.sleep(self.data_pool_sleep)
 
         self.log.debug(f"Found {len(result)} sources. Selecting the brightest for CWFS analysis")
 
@@ -390,6 +394,7 @@ Pixel_size (m)				10.0e-6
               result.sources[selected_source].getFootprint().getCentroid().y]
 
         for i in range(1, len(result.sources)):
+            await asyncio.sleep(0.)
             flux_i = sum_source_flux(result.sources[i], self.detection_exp,
                                      min_size=self.pre_side)
             if flux_i > flux_selected:
@@ -409,7 +414,7 @@ Pixel_size (m)				10.0e-6
 
         return xy
 
-    def center_and_cut_images(self):
+    async def center_and_cut_images(self):
         """ After defining sources for cwfs cut snippet for cwfs analysis.
         """
 
@@ -443,72 +448,50 @@ Pixel_size (m)				10.0e-6
             self.I1.append(Image(intra_square, self.fieldXY, Image.INTRA))
             self.I2.append(Image(extra_square, self.fieldXY, Image.EXTRA))
 
+    def show_results(self):
+        rot_zern = np.matmul(self.zern,
+                             self.rotation_matrix(self.angle + self.camera_rotation_angle))
+        hexapod_offset = np.matmul(rot_zern,
+                                   self.sensitivity_matrix)
+        tel_offset = np.matmul(hexapod_offset, self.hexapod_offset_scale)
+
+        self.log.info(f"""==============================
+Measured zernike coeficients: {self.zern}
+De-rotated zernike coeficients: {rot_zern}
+Hexapod offset: {hexapod_offset}
+Telescope offsets: {tel_offset}
+==============================
+""")
+
     @classmethod
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
             $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/ATCamTakeImage.yaml
-            title: ATCamTakeImage v1
-            description: Configuration for ATCamTakeImage.
+            title: LatissCWFSAlign v1
+            description: Configuration for LatissCWFSAlign Script.
             type: object
-            properties:
-              nimages:
-                description: The number of images to take; if omitted then use the length of
-                    exp_times or take a single exposure if exp_times is a scalar.
-                anyOf:
-                  - type: integer
-                    minimum: 1
-                  - type: "null"
-                default: null
-              exp_times:
-                description: The exposure time of each image (sec). If a single value,
-                  then the same exposure time is used for each exposure.
-                anyOf:
-                  - type: array
-                    minItems: 1
-                    items:
-                      type: number
-                      minimum: 0
-                  - type: number
-                    minimum: 0
-                default: 0
-              shutter:
-                description: Open the shutter?
-                type: boolean
-                default: false
-              image_type:
-                description: Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-                    XTALK, CCOB, SPOT...)
-                type: string
-                default: ""
-              groupid:
-                description: Value for the GROUPID entry in the image header.
-                type: string
-                default: ""
+            properties:    
               filter:
-                description: Filter name or ID; if omitted the filter is not changed.
-                anyOf:
-                  - type: string
-                  - type: integer
-                    minimum: 1
-                  - type: "null"
-                default: null
+                description: Which filter to use when taking intra/extra focal images.
+                type: string
+                default: KPNO_406_828nm
               grating:
-                description: Grating name; if omitted the grating is not changed.
-                anyOf:
-                  - type: string
-                  - type: integer
-                    minimum: 1
-                  - type: "null"
-                default: null
-              linear_stage:
-                description: Linear stage position; if omitted the linear stage is not moved.
-                anyOf:
-                  - type: number
-                  - type: "null"
-                default: null
-            required: [nimages, exp_times, shutter, image_type, groupid, filter, grating,
-                       linear_stage]
+                description: Which grating to use when taking intra/extra focal images.
+                type: string
+                default: empty_1
+              exposure_time:
+                description: The exposure time to use when taking intra/extra focal images (sec).
+                  type: number
+                default: 30.
+              dz:
+                description: De-focus to apply when acquiring the intra/extra focal images (mm).
+                type: number
+                default: 0.8
+              dataPath:
+                description: Path to the butler data repository.
+                type: string
+                default: /mnt/dmcs/oods_butler_repo/repo/
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -521,11 +504,24 @@ Pixel_size (m)				10.0e-6
         config : `types.SimpleNamespace`
             Script configuration, as defined by `schema`.
         """
-        pass
+
+        # TODO: check that the filter/grating are mounted on the spectrograph
+        self.filter = config.filter
+        self.grating = config.grating
+
+        # exposure time for the intra/extra images (in seconds)
+        self.exposure_time = config.exposure_time
+
+        # offset for the intra/extra images
+        self.dz = config.dz
+
+        # butler data path.
+        self.dataPath = config.dataPath
 
     def set_metadata(self, metadata):
-        metadata.duration = 300
+        # It takes about 300s to run the cwfs code, plus the two exposures
+        metadata.duration = 300. + 2.*self.exposure_time
+        metadata.filter = f"{self.filter},{self.grating}"
 
     async def run(self):
         pass
-
