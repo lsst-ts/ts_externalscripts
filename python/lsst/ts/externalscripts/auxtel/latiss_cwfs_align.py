@@ -216,7 +216,7 @@ Pixel_size (m)				10.0e-6
 
         self.log.debug('Move to intra-focal position')
 
-        await self.offset(-self.dz)
+        await self.hexapod_offset(-self.dz)
 
         group_id = astropytime.Time.now().tai.isot
 
