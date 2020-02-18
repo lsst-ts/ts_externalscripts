@@ -255,7 +255,7 @@ Pixel_size (m)				10.0e-6
         self.extra_visit_id = int((e_prefix + e_suffix[1:]))
         self.log.info(message="extraImage visitID for target: {}".format(self.extra_visit_id))
 
-    async def hexapod_offsehexapod_t(self, offset):
+    async def hexapod_offset(self, offset):
         """
 
         Parameters
