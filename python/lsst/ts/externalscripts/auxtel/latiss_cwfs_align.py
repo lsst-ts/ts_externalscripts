@@ -220,9 +220,9 @@ Pixel_size (m)				10.0e-6
 
         group_id = astropytime.Time.now().tai.isot
 
-        intra_image = await self.latiss.take_image(exptime=self.exp_time, shutter=True,
-                                                   image_type='OBJECT', group_id=group_id,
-                                                   filter=self.filter, grating=self.grating)
+        intra_image = await self.latiss.take_engtest(exptime=self.exposure_time, n=1,
+                                                     group_id=group_id,
+                                                     filter=self.filter, grating=self.grating)
 
         self.log.debug('Move to extra-focal position')
 
@@ -230,9 +230,9 @@ Pixel_size (m)				10.0e-6
 
         self.log.debug('Take extra-focal image')
 
-        extra_image = await self.latiss.take_image(exptime=self.exp_time, shutter=True,
-                                                   image_type='OBJECT', group_id=group_id,
-                                                   filter=self.filter, grating=self.grating)
+        extra_image = await self.latiss.take_engtest(exptime=self.exposure_time, n=1,
+                                                     group_id=group_id,
+                                                     filter=self.filter, grating=self.grating)
 
         azel = await self.attcs.atmcs.tel_mount_AzEl_Encoders.aget()
         nasmyth = await self.attcs.atmcs.tel_mount_Nasmyth_Encoders.aget()
@@ -243,17 +243,13 @@ Pixel_size (m)				10.0e-6
 
         await self.hexapod_offset(-self.dz)
 
-        # parse out visitID from filename -
-        # (Patrick comment) this is highly annoying
-        _, _, i_prefix, i_suffix = intra_image.imageName.split("_")
+        self.intra_visit_id = intra_image[0]
 
-        self.intra_visit_id = int((i_prefix + i_suffix[1:]))
-        self.log.info(message="intraImage visitID for target: {}".format(self.intra_visit_id))
+        self.log.info(f"intraImage expId for target: {self.intra_visit_id}")
 
-        _, _, e_prefix, e_suffix = extra_image.imageName.split("_")
+        self.extra_visit_id = extra_image[0]
 
-        self.extra_visit_id = int((e_prefix + e_suffix[1:]))
-        self.log.info(message="extraImage visitID for target: {}".format(self.extra_visit_id))
+        self.log.info(f"extraImage expId for target: {self.extra_visit_id}")
 
     async def hexapod_offset(self, offset):
         """
@@ -317,7 +313,7 @@ Pixel_size (m)				10.0e-6
         while not got_intra:
             butler = dafPersist.Butler(self.dataPath)
             try:
-                data_ref = butler.dataRef('raw', **dict(visit=self.intra_visit_id))
+                data_ref = butler.dataRef('raw', **dict(expId=self.intra_visit_id))
             except RuntimeError:
                 self.log.warning(f"Could not get intra focus image from butler. Waiting "
                                  f"{self.data_pool_sleep}s and trying again.")
@@ -331,7 +327,7 @@ Pixel_size (m)				10.0e-6
         while not got_extra:
             butler = dafPersist.Butler(self.dataPath)
             try:
-                data_ref = butler.dataRef('raw', **dict(visit=self.extra_visit_id))
+                data_ref = butler.dataRef('raw', **dict(expId=self.extra_visit_id))
             except RuntimeError:
                 self.log.warning(f"Could not get extra focus image from butler. Waiting "
                                  f"{self.data_pool_sleep}s and trying again.")
