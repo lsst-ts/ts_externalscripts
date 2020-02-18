@@ -216,7 +216,7 @@ Pixel_size (m)				10.0e-6
 
         self.log.debug('Move to intra-focal position')
 
-        await self.hexapod_offset(-self.dz)
+        await self.offset(-self.dz)
 
         group_id = astropytime.Time.now().tai.isot
 
@@ -255,7 +255,7 @@ Pixel_size (m)				10.0e-6
         self.extra_visit_id = int((e_prefix + e_suffix[1:]))
         self.log.info(message="extraImage visitID for target: {}".format(self.extra_visit_id))
 
-    async def hexapod_offset(self, offset):
+    async def hexapod_offsehexapod_t(self, offset):
         """
 
         Parameters
@@ -482,7 +482,7 @@ Telescope offsets: {tel_offset}
                 default: empty_1
               exposure_time:
                 description: The exposure time to use when taking intra/extra focal images (sec).
-                  type: number
+                type: number
                 default: 30.
               dz:
                 description: De-focus to apply when acquiring the intra/extra focal images (mm).
