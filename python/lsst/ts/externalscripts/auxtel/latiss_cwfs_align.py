@@ -294,6 +294,7 @@ Pixel_size (m)				10.0e-6
 
         # get event loop to run blocking tasks
         loop = asyncio.get_event_loop()
+        executor = concurrent.futures.ThreadPoolExecutor()
 
         self.cwfs_selected_sources = []
 
@@ -331,7 +332,7 @@ Pixel_size (m)				10.0e-6
             else:
                 got_intra = True
 
-            task = await loop.run_in_executor(isrTask.runDataRef, data_ref)
+            task = await loop.run_in_executor(executor, isrTask.runDataRef, data_ref)
             self.intra_exposure = task.exposure
             self.detection_exp = self.intra_exposure.clone()
 
@@ -346,7 +347,7 @@ Pixel_size (m)				10.0e-6
                 await asyncio.sleep(self.data_pool_sleep)
             else:
                 got_extra = True
-            task = await loop.run_in_executor(isrTask.runDataRef, data_ref)
+            task = await loop.run_in_executor(executor, isrTask.runDataRef, data_ref)
             self.extra_exposure = task.exposure
 
         # Prepare detection exposure
@@ -362,7 +363,7 @@ Pixel_size (m)				10.0e-6
         self.algo.reset(self.I1[0], self.I2[0])
         self.log.info("Running CWFS code.")
 
-        await loop.run_in_executor(self.algo.runIt, self.I1[0], self.I2[0], 'onAxis')
+        await loop.run_in_executor(executor, self.algo.runIt, self.I1[0], self.I2[0], 'onAxis')
         # self.algo.runIt(self.inst, self.I1[0], self.I2[0], 'onAxis')
 
         self.zern = [self.algo.zer4UpNm[3],
