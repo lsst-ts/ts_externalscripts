@@ -129,7 +129,7 @@ class LatissCWFSAlign(salobj.BaseScript):
                                      [0., 0., 0.]]  # arcsec/mm (x-axis is elevation)
 
         # Angle between camera and bore-sight
-        self.camera_rotation_angle = 22.5660
+        self.camera_rotation_angle = 90.
 
         # The following attributes can be configured:
         #
@@ -292,6 +292,9 @@ Pixel_size (m)				10.0e-6
 
         """
 
+        # get event loop to run blocking tasks
+        loop = asyncio.get_event_loop()
+
         self.cwfs_selected_sources = []
 
         if self.intra_visit_id is None or self.extra_visit_id is None:
@@ -327,8 +330,10 @@ Pixel_size (m)				10.0e-6
                 await asyncio.sleep(self.data_pool_sleep)
             else:
                 got_intra = True
-            self.intra_exposure = isrTask.runDataRef(data_ref).exposure
-            self.detection_exp = isrTask.runDataRef(data_ref).exposure
+
+            task = await loop.run_in_executor(isrTask.runDataRef, data_ref)
+            self.intra_exposure = task.exposure
+            self.detection_exp = self.intra_exposure.clone()
 
         got_extra = False
         while not got_extra:
@@ -341,7 +346,8 @@ Pixel_size (m)				10.0e-6
                 await asyncio.sleep(self.data_pool_sleep)
             else:
                 got_extra = True
-            self.extra_exposure = isrTask.runDataRef(data_ref).exposure
+            task = await loop.run_in_executor(isrTask.runDataRef, data_ref)
+            self.extra_exposure = task.exposure
 
         # Prepare detection exposure
         self.detection_exp.image.array += self.extra_exposure.image.array
@@ -355,7 +361,9 @@ Pixel_size (m)				10.0e-6
 
         self.algo.reset(self.I1[0], self.I2[0])
         self.log.info("Running CWFS code.")
-        self.algo.runIt(self.inst, self.I1[0], self.I2[0], 'onAxis')
+
+        await loop.run_in_executor(self.algo.runIt, self.I1[0], self.I2[0], 'onAxis')
+        # self.algo.runIt(self.inst, self.I1[0], self.I2[0], 'onAxis')
 
         self.zern = [self.algo.zer4UpNm[3],
                      self.algo.zer4UpNm[4],
