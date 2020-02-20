@@ -359,9 +359,9 @@ Pixel_size (m)				10.0e-6
         self.detection_exp.image.array += self.extra_exposure.image.array
         self.detection_exp.image.array -= np.median(self.detection_exp.image.array)
 
-        await self.select_cwfs_source()
+        await loop.run_in_executor(executor, self.select_cwfs_source)
 
-        await self.center_and_cut_images()
+        await loop.run_in_executor(executor, self.center_and_cut_images)
 
         # Now we should be ready to run cwfs
 
@@ -381,7 +381,7 @@ Pixel_size (m)				10.0e-6
 
         self.show_results()
 
-    async def select_cwfs_source(self):
+    def select_cwfs_source(self):
         """
         """
 
@@ -397,9 +397,7 @@ Pixel_size (m)				10.0e-6
         config.thresholdValue = 10  # detection threshold after smoothing
         source_detection_task = SourceDetectionTask(schema=schema, config=config)
         tab = afwTable.SourceTable.make(schema)
-        await asyncio.sleep(self.data_pool_sleep)
         result = source_detection_task.run(tab, self.detection_exp, sigma=12.1)
-        await asyncio.sleep(self.data_pool_sleep)
 
         self.log.debug(f"Found {len(result)} sources. Selecting the brightest for CWFS analysis")
 
@@ -417,7 +415,6 @@ Pixel_size (m)				10.0e-6
               result.sources[selected_source].getFootprint().getCentroid().y]
 
         for i in range(1, len(result.sources)):
-            await asyncio.sleep(0.)
             flux_i = sum_source_flux(result.sources[i], self.detection_exp,
                                      min_size=self.pre_side)
             if flux_i > flux_selected:
@@ -437,7 +434,7 @@ Pixel_size (m)				10.0e-6
 
         return xy
 
-    async def center_and_cut_images(self):
+    def center_and_cut_images(self):
         """ After defining sources for cwfs cut snippet for cwfs analysis.
         """
 
