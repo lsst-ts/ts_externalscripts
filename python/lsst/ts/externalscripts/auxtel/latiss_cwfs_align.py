@@ -368,7 +368,11 @@ Pixel_size (m)				10.0e-6
         self.algo.reset(self.I1[0], self.I2[0])
         self.log.info("Running CWFS code.")
 
-        await loop.run_in_executor(executor, self.algo.runIt, self.I1[0], self.I2[0], 'onAxis')
+        await loop.run_in_executor(executor, self.algo.runIt,
+                                   self.inst,
+                                   self.I1[0],
+                                   self.I2[0],
+                                   'onAxis')
         # self.algo.runIt(self.inst, self.I1[0], self.I2[0], 'onAxis')
 
         self.zern = [self.algo.zer4UpNm[3],
