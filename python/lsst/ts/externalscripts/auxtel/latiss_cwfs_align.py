@@ -282,6 +282,47 @@ Pixel_size (m)				10.0e-6
         await self.attcs.athexapod.evt_positionUpdate.next(flush=False,
                                                            timeout=self.long_timeout)
 
+    def get_isr_exposure(self, exp_id):
+        """Get ISR exposure."""
+
+        isrConfig = IsrTask.ConfigClass()
+        isrConfig.doLinearize = False
+        isrConfig.doBias = True
+        isrConfig.doFlat = False
+        isrConfig.doDark = False
+        isrConfig.doFringe = False
+        isrConfig.doDefect = True
+        isrConfig.doAddDistortionModel = False
+        isrConfig.doSaturationInterpolation = False
+        isrConfig.doSaturation = False
+        isrConfig.doWrite = False
+
+        isrTask = IsrTask(config=isrConfig)
+
+        got_exposure = False
+
+        ntries = 0
+
+        data_ref = None
+        while not got_exposure:
+            butler = dafPersist.Butler(self.dataPath)
+            try:
+                data_ref = butler.dataRef('raw', **dict(expId=exp_id))
+            except RuntimeError as e:
+                self.log.warning(f"Could not get intra focus image from butler. Waiting "
+                                 f"{self.data_pool_sleep}s and trying again.")
+                time.sleep(self.data_pool_sleep)
+                if ntries > 10:
+                    raise e
+                ntries += 1
+            else:
+                got_exposure = True
+
+        if data_ref is not None:
+            return isrTask.runDataRef(data_ref).exposure
+        else:
+            raise RuntimeError(f"No data ref for {exp_id}.")
+
     async def run_cwfs(self):
         """ Runs CWFS code on intra/extra focal images.
 
@@ -305,50 +346,14 @@ Pixel_size (m)				10.0e-6
             self.log.info(f"Running cwfs in "
                           f"{self.intra_visit_id}/{self.extra_visit_id}.")
 
-        isrConfig = IsrTask.ConfigClass()
-        isrConfig.doLinearize = False
-        isrConfig.doBias = True
-        isrConfig.doFlat = False
-        isrConfig.doDark = False
-        isrConfig.doFringe = False
-        isrConfig.doDefect = True
-        isrConfig.doAddDistortionModel = False
-        isrConfig.doSaturationInterpolation = False
-        isrConfig.doSaturation = False
-        isrConfig.doWrite = False
+        self.intra_exposure = await loop.run_in_executor(executor,
+                                                         self.get_isr_exposure,
+                                                         self.intra_visit_id)
+        self.detection_exp = self.intra_exposure.clone()
 
-        isrTask = IsrTask(config=isrConfig)
-
-        got_intra = False
-
-        while not got_intra:
-            butler = dafPersist.Butler(self.dataPath)
-            try:
-                data_ref = butler.dataRef('raw', **dict(expId=self.intra_visit_id))
-            except RuntimeError:
-                self.log.warning(f"Could not get intra focus image from butler. Waiting "
-                                 f"{self.data_pool_sleep}s and trying again.")
-                await asyncio.sleep(self.data_pool_sleep)
-            else:
-                got_intra = True
-
-            task = await loop.run_in_executor(executor, isrTask.runDataRef, data_ref)
-            self.intra_exposure = task.exposure
-            self.detection_exp = self.intra_exposure.clone()
-
-        got_extra = False
-        while not got_extra:
-            butler = dafPersist.Butler(self.dataPath)
-            try:
-                data_ref = butler.dataRef('raw', **dict(expId=self.extra_visit_id))
-            except RuntimeError:
-                self.log.warning(f"Could not get extra focus image from butler. Waiting "
-                                 f"{self.data_pool_sleep}s and trying again.")
-                await asyncio.sleep(self.data_pool_sleep)
-            else:
-                got_extra = True
-            task = await loop.run_in_executor(executor, isrTask.runDataRef, data_ref)
-            self.extra_exposure = task.exposure
+        self.extra_exposure = await loop.run_in_executor(executor,
+                                                         self.get_isr_exposure,
+                                                         self.extra_visit_id)
 
         # Prepare detection exposure
         self.detection_exp.image.array += self.extra_exposure.image.array
