@@ -96,22 +96,25 @@ class LatissCWFSAlign(salobj.BaseScript):
 
     __test__ = False  # stop pytest from warning that this is not a test
 
-    def __init__(self, index):
+    def __init__(self, index, remotes=True):
 
         super().__init__(index=index,
                          descr="Perform optical alignment procedure on LATISS data.")
 
-        self.attcs = ATTCS(self.domain)
-        self.latiss = LATISS(self.domain)
+        self.attcs = None
+        self.latiss = None
+        if remotes:
+            self.attcs = ATTCS(self.domain)
+            self.latiss = LATISS(self.domain)
 
         self.short_timeout = 5.
         self.long_timeout = 30.
 
         # Sensitivity matrix: mm of hexapod motion for nm of wfs. To figure out
         # the hexapod correction multiply
-        self.sensitivity_matrix = [[-1./131., 0., 0.],
-                                   [0., 1./131., 0.],
-                                   [0., 0., -1./4200.]]
+        self.sensitivity_matrix = [[-1. / 131., 0., 0.],
+                                   [0., 1. / 131., 0.],
+                                   [0., 0., -1. / 4200.]]
 
         # Rotation matrix to take into account angle between camera and
         # boresight
@@ -201,7 +204,7 @@ Pixel_size (m)				10.0e-6
         dest = path.joinpath(f"{config_index}.param")
         with open(dest, "w") as fp:
             fp.write(cwfs_config_template.format(self._dz * 0.041))
-        self.inst = Instrument(config_index, self.side*2)
+        self.inst = Instrument(config_index, self.side * 2)
         self.algo = Algorithm('exp', self.inst, 1)
 
     async def take_intra_extra(self):
@@ -237,17 +240,17 @@ Pixel_size (m)				10.0e-6
         azel = await self.attcs.atmcs.tel_mount_AzEl_Encoders.aget()
         nasmyth = await self.attcs.atmcs.tel_mount_Nasmyth_Encoders.aget()
 
-        self.angle = np.mean(azel.elevationCalculatedAngle)+np.mean(nasmyth.nasmyth2CalculatedAngle)
+        self.angle = np.mean(azel.elevationCalculatedAngle) + np.mean(nasmyth.nasmyth2CalculatedAngle)
 
         self.log.debug("Move hexapod to zero position")
 
         await self.hexapod_offset(-self.dz)
 
-        self.intra_visit_id = intra_image[0]
+        self.intra_visit_id = int(intra_image[0])
 
         self.log.info(f"intraImage expId for target: {self.intra_visit_id}")
 
-        self.extra_visit_id = extra_image[0]
+        self.extra_visit_id = int(extra_image[0])
 
         self.log.info(f"extraImage expId for target: {self.extra_visit_id}")
 
@@ -289,6 +292,8 @@ Pixel_size (m)				10.0e-6
 
         """
 
+        self.cwfs_selected_sources = []
+
         if self.intra_visit_id is None or self.extra_visit_id is None:
             self.log.warning("Intra/Extra images not taken. Running take image sequence.")
             await self.take_intra_extra()
@@ -302,8 +307,10 @@ Pixel_size (m)				10.0e-6
         isrConfig.doFlat = False
         isrConfig.doDark = False
         isrConfig.doFringe = False
-        isrConfig.doDefect = False
+        isrConfig.doDefect = True
         isrConfig.doAddDistortionModel = False
+        isrConfig.doSaturationInterpolation = False
+        isrConfig.doSaturation = False
         isrConfig.doWrite = False
 
         isrTask = IsrTask(config=isrConfig)
@@ -338,6 +345,7 @@ Pixel_size (m)				10.0e-6
 
         # Prepare detection exposure
         self.detection_exp.image.array += self.extra_exposure.image.array
+        self.detection_exp.image.array -= np.median(self.detection_exp.image.array)
 
         await self.select_cwfs_source()
 
@@ -345,6 +353,7 @@ Pixel_size (m)				10.0e-6
 
         # Now we should be ready to run cwfs
 
+        self.algo.reset(self.I1[0], self.I2[0])
         self.log.info("Running CWFS code.")
         self.algo.runIt(self.inst, self.I1[0], self.I2[0], 'onAxis')
 
@@ -419,7 +428,6 @@ Pixel_size (m)				10.0e-6
         self.I2 = []
 
         for selected_source in self.cwfs_selected_sources:
-
             # iter 1
             source = self.source_selection_result.sources[selected_source]
             bbox = source.getFootprint().getBBox()
@@ -516,7 +524,7 @@ Telescope offsets: {tel_offset}
 
     def set_metadata(self, metadata):
         # It takes about 300s to run the cwfs code, plus the two exposures
-        metadata.duration = 300. + 2.*self.exposure_time
+        metadata.duration = 300. + 2. * self.exposure_time
         metadata.filter = f"{self.filter},{self.grating}"
 
     async def run(self):
