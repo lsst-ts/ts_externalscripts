@@ -395,6 +395,7 @@ Pixel_size (m)				10.0e-6
         schema = afwTable.SourceTable.makeMinimalSchema()
         config = SourceDetectionTask.ConfigClass()
         config.thresholdValue = 10  # detection threshold after smoothing
+        config.minPixels = 500
         source_detection_task = SourceDetectionTask(schema=schema, config=config)
         tab = afwTable.SourceTable.make(schema)
         result = source_detection_task.run(tab, self.detection_exp, sigma=12.1)
