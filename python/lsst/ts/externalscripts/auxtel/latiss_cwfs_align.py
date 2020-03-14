@@ -177,6 +177,25 @@ class LatissCWFSAlign(salobj.BaseScript):
 
         self.data_pool_sleep = 5.
 
+        self.source_detection_config = SourceDetectionTask.ConfigClass()
+        self.source_detection_config.thresholdValue = 30  # detection threshold after smoothing
+        self.source_detection_config.minPixels = self.pre_side
+        self.source_detection_config.combinedGrow = True
+        self.source_detection_config.nSigmaToGrow = 1.2
+
+        self.isr_config = IsrTask.ConfigClass()
+        self.isr_config.doLinearize = False
+        self.isr_config.doBias = True
+        self.isr_config.doFlat = False
+        self.isr_config.doDark = False
+        self.isr_config.doFringe = False
+        self.isr_config.doDefect = True
+        self.isr_config.doAddDistortionModel = False
+        self.isr_config.doSaturationInterpolation = False
+        self.isr_config.doSaturation = False
+        self.isr_config.doWrite = False
+
+
     @property
     def dz(self):
         if self._dz is None:
@@ -285,19 +304,7 @@ Pixel_size (m)				10.0e-6
     def get_isr_exposure(self, exp_id):
         """Get ISR exposure."""
 
-        isrConfig = IsrTask.ConfigClass()
-        isrConfig.doLinearize = False
-        isrConfig.doBias = True
-        isrConfig.doFlat = False
-        isrConfig.doDark = False
-        isrConfig.doFringe = False
-        isrConfig.doDefect = True
-        isrConfig.doAddDistortionModel = False
-        isrConfig.doSaturationInterpolation = False
-        isrConfig.doSaturation = False
-        isrConfig.doWrite = False
-
-        isrTask = IsrTask(config=isrConfig)
+        isrTask = IsrTask(config=self.isr_config)
 
         got_exposure = False
 
@@ -393,10 +400,9 @@ Pixel_size (m)				10.0e-6
 
         # create the output table for source detection
         schema = afwTable.SourceTable.makeMinimalSchema()
-        config = SourceDetectionTask.ConfigClass()
-        config.thresholdValue = 10  # detection threshold after smoothing
-        config.minPixels = 500
-        source_detection_task = SourceDetectionTask(schema=schema, config=config)
+        source_detection_task = SourceDetectionTask(schema=schema,
+                                                    config=self.source_detection_config)
+
         tab = afwTable.SourceTable.make(schema)
         result = source_detection_task.run(tab, self.detection_exp, sigma=12.1)
 
