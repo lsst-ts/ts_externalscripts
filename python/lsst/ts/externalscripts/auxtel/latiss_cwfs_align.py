@@ -493,7 +493,7 @@ Telescope offsets: {tel_offset}
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/ATCamTakeImage.yaml
+            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/LatissCWFSAlign.yaml
             title: LatissCWFSAlign v1
             description: Configuration for LatissCWFSAlign Script.
             type: object

@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["EnableLATISS"]
+__all__ = ["StandbyLATISS"]
 
 import yaml
 
@@ -26,8 +26,8 @@ from lsst.ts import salobj
 from lsst.ts.standardscripts.auxtel.latiss import LATISS
 
 
-class EnableLATISS(salobj.BaseScript):
-    """ Enable all LATISS components.
+class StandbyLATISS(salobj.BaseScript):
+    """ Put LATISS components in standby.
 
     Parameters
     ----------
@@ -55,7 +55,7 @@ class EnableLATISS(salobj.BaseScript):
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/EnableLATISS.yaml
+            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/StandbyLATISS.yaml
             title: EnableLATISS v1
             description: Enable LATISS.
             type: object

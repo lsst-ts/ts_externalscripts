@@ -54,7 +54,7 @@ class EnableATTCS(salobj.BaseScript):
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/ATCamTakeImage.yaml
+            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/EnableATTCS.yaml
             title: EnableLATISS v1
             description: Enable LATISS.
             type: object
