@@ -1,4 +1,4 @@
-# This file is part of ts_standardscripts
+# This file is part of ts_externalscripts
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -41,7 +41,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
     """ TODO: update docs
     Perform an acquisition of a target on LATISS with the AuxTel.
     This sets up the instrument and puts the brightest target on a
-    specific pixel.
+    specific pixel, then takes a sequence of exposures for a given
+    set of instrument configurations.
 
     Parameters
     ----------
@@ -51,8 +52,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
     Notes
     -----
     **Checkpoints**
-
-    * post-offset: after offset determination but before slew
 
     **Details**
 

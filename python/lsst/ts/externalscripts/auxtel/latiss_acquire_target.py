@@ -1,4 +1,4 @@
-# This file is part of ts_standardscripts
+# This file is part of ts_externalscripts
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -186,7 +186,6 @@ class LatissAcquireTarget(salobj.BaseScript):
             Script configuration, as defined by `schema`.
         """
 
-        # TODO: check that the filter/grating are mounted on the spectrograph
         self.filter = config.filter
         self.grating = config.grating
 
@@ -215,7 +214,7 @@ class LatissAcquireTarget(salobj.BaseScript):
         metadata.filter = f"{self.filter},{self.grating}"
 
     async def run(self):
-        """ Perform acquisition. This just wraps Robert's method
+        """ Perform acquisition. This just wraps Robert's method in the observing repo
 
         Returns
         -------

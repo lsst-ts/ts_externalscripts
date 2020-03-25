@@ -1,4 +1,4 @@
-# This file is part of ts_standardscripts
+# This file is part of ts_externalscripts
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -74,9 +74,9 @@ import lsst.observing.commands.calibrationStarVisit as calibrationStarVisit
 
 
 class LatissTakeSequence(salobj.BaseScript):
-    """ Perform an acquisition of a target on LATISS with the Auxiliary Telescope.
-    This sets up the instrument and puts the brightest target on a
-    specific pixel.
+    """ Perform an sequence of exposures for given instrument setups.
+    This script is expected to be deprecated upon reformatting of the
+    repos and the introduction of a utilities repo.
 
     Parameters
     ----------
@@ -90,8 +90,6 @@ class LatissTakeSequence(salobj.BaseScript):
     * post-offset: after offset determination but before slew
 
     **Details**
-
-    This script is used to put the brightest target in a field on a specific pixel.
 
     """
 
@@ -206,7 +204,6 @@ class LatissTakeSequence(salobj.BaseScript):
             Script configuration, as defined by `schema`.
         """
 
-        # TODO: check that the filter/grating are mounted on the spectrograph
         self.filter = config.filter
         self.grating = config.grating
 
