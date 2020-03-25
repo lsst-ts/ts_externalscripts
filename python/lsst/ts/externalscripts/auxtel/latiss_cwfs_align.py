@@ -72,7 +72,7 @@ import lsst.cwfs.plots as plots
 
 class LatissCWFSAlign(salobj.BaseScript):
     """ Perform an optical alignment procedure of Auxiliary Telescope with
-    the GenericCamera CSC.
+    the LATISS instrument (ATSpectrograph and ATCamera CSCs).
 
     Parameters
     ----------
@@ -89,9 +89,10 @@ class LatissCWFSAlign(salobj.BaseScript):
 
     **Details**
 
-    This is what the script does:
+    This script is used to perform measurements of the wavefront error, then
+    propose hexapod offsets based on an input sensitivity matrix to minimize
+    the errors.
 
-    * TBD
     """
 
     __test__ = False  # stop pytest from warning that this is not a test
@@ -112,8 +113,8 @@ class LatissCWFSAlign(salobj.BaseScript):
 
         # Sensitivity matrix: mm of hexapod motion for nm of wfs. To figure out
         # the hexapod correction multiply
-        self.sensitivity_matrix = [[-1. / 131., 0., 0.],
-                                   [0., 1. / 131., 0.],
+        self.sensitivity_matrix = [[1. / 131., 0., 0.],
+                                   [0., -1. / 131., 0.],
                                    [0., 0., -1. / 4200.]]
 
         # Rotation matrix to take into account angle between camera and
@@ -123,13 +124,14 @@ class LatissCWFSAlign(salobj.BaseScript):
             [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0.],
             [0., 0., 1.]])
 
-        # Matrix to map hexapod offset to alt/az offset units are arcsec/mm
+        # Matrix to map hexapod offset to alt/az offset in the focal plane
+        # units are arcsec/mm. X-axis is Elevation
         self.hexapod_offset_scale = [[60., 0., 0.],
                                      [0., 60., 0.],
-                                     [0., 0., 0.]]  # arcsec/mm (x-axis is elevation)
+                                     [0., 0., 0.]]
 
-        # Angle between camera and bore-sight
-        self.camera_rotation_angle = 90.
+        # Angle between camera and boresight
+        self.camera_rotation_angle = 0.
 
         # The following attributes can be configured:
         #
@@ -170,6 +172,7 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.fieldXY = [0.0, 0.0]
 
         self.inst = None
+        self._binning=2 # set binning of images to increase processing speed at the expense of resolution
         self.algo = None
 
         self.zern = None
@@ -195,12 +198,21 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.isr_config.doSaturation = False
         self.isr_config.doWrite = False
 
-
+    # define the method that sets the hexapod offset to create intra/extra focal images
     @property
     def dz(self):
         if self._dz is None:
             self.dz = 0.8
         return self._dz
+
+    @property
+    def binning(self):
+        return self._binning
+
+    @binning.setter
+    def binning(self, value):
+        self._binning=value
+        self.dz = self.dz
 
     @property
     def side(self):
@@ -209,12 +221,13 @@ class LatissCWFSAlign(salobj.BaseScript):
     @dz.setter
     def dz(self, value):
         self._dz = float(value)
+        self.log.info('Using binning factor of {}'.format(self.binning))
         cwfs_config_template = """#Auxiliary Telescope parameters:
 Obscuration 				0.3525
 Focal_length (m)			21.6
 Aperture_diameter (m)   		1.2
 Offset (m)				{}
-Pixel_size (m)				10.0e-6
+Pixel_size (m)			{}	
 """
         config_index = f"auxtel_latiss"
         path = Path(cwfs.__file__).resolve().parents[3].joinpath("data", config_index)
@@ -222,8 +235,8 @@ Pixel_size (m)				10.0e-6
             os.makedirs(path)
         dest = path.joinpath(f"{config_index}.param")
         with open(dest, "w") as fp:
-            fp.write(cwfs_config_template.format(self._dz * 0.041))
-        self.inst = Instrument(config_index, self.side * 2)
+            fp.write(cwfs_config_template.format(self._dz * 0.041, 10e-6 * self.binning))
+        self.inst = Instrument(config_index, int(self.side * 2 / self.binning) )
         self.algo = Algorithm('exp', self.inst, 1)
 
     async def take_intra_extra(self):
@@ -262,7 +275,8 @@ Pixel_size (m)				10.0e-6
         self.angle = np.mean(azel.elevationCalculatedAngle) + np.mean(nasmyth.nasmyth2CalculatedAngle)
 
         self.log.debug("Move hexapod to zero position")
-
+        # This is performed such that the telescope is left in the
+        # same position it was before running the script
         await self.hexapod_offset(-self.dz)
 
         self.intra_visit_id = int(intra_image[0])
@@ -278,8 +292,8 @@ Pixel_size (m)				10.0e-6
 
         Parameters
         ----------
-        offset
-        use_ataos
+        offset: `float`
+             Focus offset to the hexapod in mm
 
         Returns
         -------
@@ -369,11 +383,12 @@ Pixel_size (m)				10.0e-6
         await loop.run_in_executor(executor, self.select_cwfs_source)
 
         await loop.run_in_executor(executor, self.center_and_cut_images)
+        if self.binning !=1:
+            self.log.info("Running CWFS code USING BINNED IMAGES.")
 
         # Now we should be ready to run cwfs
 
         self.algo.reset(self.I1[0], self.I2[0])
-        self.log.info("Running CWFS code.")
 
         await loop.run_in_executor(executor, self.algo.runIt,
                                    self.inst,
@@ -471,8 +486,25 @@ Pixel_size (m)				10.0e-6
             intra_square = intra_exp[ceny - side:ceny + side, cenx - side:cenx + side]
             extra_square = extra_exp[ceny - side:ceny + side, cenx - side:cenx + side]
 
+            # Bin the images
+            if self.binning != 1:
+                intra_square0 = copy.deepcopy(intra_square)
+                extra_square0 = copy.deepcopy(extra_square)
+                # get tuple array from shape array (which is a tuple) and make an integer
+                new_shape = tuple(np.asarray(np.asarray(intra_square0.shape)/self.binning, dtype=np.int32))
+                intra_square = self.rebin(intra_square0, new_shape)
+                extra_square = self.rebin(extra_square0, new_shape)
+                self.log.info(f"intra_square shape is {intra_square.shape}")
+                self.log.info(f"extra_square shape is {extra_square.shape}")
+
             self.I1.append(Image(intra_square, self.fieldXY, Image.INTRA))
             self.I2.append(Image(extra_square, self.fieldXY, Image.EXTRA))
+
+    def rebin(self, arr, new_shape):
+        # rebins image to new form
+        shape = (new_shape[0], arr.shape[0] // new_shape[0], new_shape[1], arr.shape[1] // new_shape[1])
+        return arr.reshape(shape).mean(-1).mean(1)
+
 
     def show_results(self):
         rot_zern = np.matmul(self.zern,
