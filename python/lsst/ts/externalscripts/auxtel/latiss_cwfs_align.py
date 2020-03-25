@@ -21,13 +21,9 @@
 __all__ = ["LatissCWFSAlign"]
 
 import os
-import copy
 import time
 import yaml
-import wget
 import asyncio
-import warnings
-import logging
 
 import concurrent.futures
 
@@ -35,39 +31,28 @@ from pathlib import Path
 
 import numpy as np
 from astropy import time as astropytime
-from astropy.io import fits
 
 from scipy import ndimage
 from scipy.signal import medfilt
-from scipy.ndimage.filters import gaussian_filter
-from astropy.modeling import models, fitting
 
 from lsst.ts import salobj
 from lsst.ts.standardscripts.auxtel.attcs import ATTCS
 from lsst.ts.standardscripts.auxtel.latiss import LATISS
-from lsst.ts.idl.enums.Script import ScriptState
 
 import lsst.daf.persistence as dafPersist
 
 # Source detection libraries
 from lsst.meas.algorithms.detection import SourceDetectionTask
 
-# cosmic ray rejection
-from lsst.pipe.tasks.characterizeImage import CharacterizeImageTask
-
 import lsst.afw.table as afwTable
 
-from operator import itemgetter
 from lsst.ip.isr.isrTask import IsrTask
-
-import matplotlib.pyplot as plt
 
 # Import CWFS package
 from lsst import cwfs
 from lsst.cwfs.instrument import Instrument
 from lsst.cwfs.algorithm import Algorithm
-from lsst.cwfs.image import Image, readFile, aperture2image, showProjection
-import lsst.cwfs.plots as plots
+from lsst.cwfs.image import Image
 
 
 class LatissCWFSAlign(salobj.BaseScript):
@@ -587,7 +572,7 @@ Telescope offsets: {tel_offset}
             title: LatissCWFSAlign v1
             description: Configuration for LatissCWFSAlign Script.
             type: object
-            properties:    
+            properties:
               filter:
                 description: Which filter to use when taking intra/extra focal images.
                 type: string
