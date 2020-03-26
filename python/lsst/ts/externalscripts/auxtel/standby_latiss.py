@@ -46,8 +46,7 @@ class StandbyLATISS(salobj.BaseScript):
 
     def __init__(self, index):
 
-        super().__init__(index=index,
-                         descr="Enable LATISS.")
+        super().__init__(index=index, descr="Enable LATISS.")
 
         self.latiss = LATISS(self.domain)
 
@@ -74,7 +73,7 @@ class StandbyLATISS(salobj.BaseScript):
         pass
 
     def set_metadata(self, metadata):
-        metadata.duration = 60.
+        metadata.duration = 60.0
 
     async def run(self):
 

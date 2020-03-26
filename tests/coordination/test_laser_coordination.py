@@ -32,6 +32,7 @@ class TestLaserCoordination(asynctest.TestCase):
         index = next(index_gen)
 
         async with LaserCoordination(index=index) as script:
+
             async def run_configure(**kwargs):
                 script.set_state(salobj.Script.ScriptState.UNCONFIGURED)
                 config_data = script.cmd_configure.DataType()

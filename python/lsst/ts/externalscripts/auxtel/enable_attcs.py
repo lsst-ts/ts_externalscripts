@@ -45,8 +45,7 @@ class EnableATTCS(salobj.BaseScript):
     __test__ = False  # stop pytest from warning that this is not a test
 
     def __init__(self, index):
-        super().__init__(index=index,
-                         descr="Enable ATTCS.")
+        super().__init__(index=index, descr="Enable ATTCS.")
 
         self.attcs = ATTCS(self.domain)
 
@@ -73,7 +72,7 @@ class EnableATTCS(salobj.BaseScript):
         pass
 
     def set_metadata(self, metadata):
-        metadata.duration = 60.
+        metadata.duration = 60.0
 
     async def run(self):
         await self.attcs.enable()

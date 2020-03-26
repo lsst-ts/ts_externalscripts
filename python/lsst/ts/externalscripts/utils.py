@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ['get_scripts_dir']
+__all__ = ["get_scripts_dir"]
 
 import pathlib
 

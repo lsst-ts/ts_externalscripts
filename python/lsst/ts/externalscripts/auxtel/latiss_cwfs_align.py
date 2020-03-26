@@ -99,8 +99,9 @@ class LatissCWFSAlign(salobj.BaseScript):
 
     def __init__(self, index, remotes=True):
 
-        super().__init__(index=index,
-                         descr="Perform optical alignment procedure on LATISS data.")
+        super().__init__(
+            index=index, descr="Perform optical alignment procedure on LATISS data."
+        )
 
         self.attcs = None
         self.latiss = None
@@ -108,45 +109,52 @@ class LatissCWFSAlign(salobj.BaseScript):
             self.attcs = ATTCS(self.domain)
             self.latiss = LATISS(self.domain)
 
-        self.short_timeout = 5.
-        self.long_timeout = 30.
+        self.short_timeout = 5.0
+        self.long_timeout = 30.0
 
         # Sensitivity matrix: mm of hexapod motion for nm of wfs. To figure out
         # the hexapod correction multiply
-        self.sensitivity_matrix = [[1. / 131., 0., 0.],
-                                   [0., -1. / 131., 0.],
-                                   [0., 0., -1. / 4200.]]
+        self.sensitivity_matrix = [
+            [1.0 / 131.0, 0.0, 0.0],
+            [0.0, -1.0 / 131.0, 0.0],
+            [0.0, 0.0, -1.0 / 4200.0],
+        ]
 
         # Rotation matrix to take into account angle between camera and
         # boresight
-        self.rotation_matrix = lambda angle: np.array([
-            [np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0.],
-            [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0.],
-            [0., 0., 1.]])
+        self.rotation_matrix = lambda angle: np.array(
+            [
+                [np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0.0],
+                [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+        )
 
         # Matrix to map hexapod offset to alt/az offset in the focal plane
         # units are arcsec/mm. X-axis is Elevation
-        self.hexapod_offset_scale = [[60., 0., 0.],
-                                     [0., 60., 0.],
-                                     [0., 0., 0.]]
+        self.hexapod_offset_scale = [
+            [60.0, 0.0, 0.0],
+            [0.0, 60.0, 0.0],
+            [0.0, 0.0, 0.0],
+        ]
 
         # Angle between camera and boresight
-        self.camera_rotation_angle = 0.
+        self.camera_rotation_angle = 0.0
 
         # The following attributes can be configured:
         #
 
-        self.filter = 'KPNO_406_828nm'
-        self.grating = 'empty_1'
+        self.filter = "KPNO_406_828nm"
+        self.grating = "empty_1"
 
         # exposure time for the intra/extra images (in seconds)
-        self.exposure_time = 30.
+        self.exposure_time = 30.0
 
         # offset for the intra/extra images
         self._dz = None
 
         # butler data path.
-        self.dataPath = '/mnt/dmcs/oods_butler_repo/repo/'
+        self.dataPath = "/mnt/dmcs/oods_butler_repo/repo/"
 
         #
         # end of configurable attributes
@@ -172,16 +180,18 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.fieldXY = [0.0, 0.0]
 
         self.inst = None
-        self._binning=2 # set binning of images to increase processing speed at the expense of resolution
+        self._binning = 2  # set binning of images to increase processing speed at the expense of resolution
         self.algo = None
 
         self.zern = None
         self.hexapod_corr = None
 
-        self.data_pool_sleep = 5.
+        self.data_pool_sleep = 5.0
 
         self.source_detection_config = SourceDetectionTask.ConfigClass()
-        self.source_detection_config.thresholdValue = 30  # detection threshold after smoothing
+        self.source_detection_config.thresholdValue = (
+            30  # detection threshold after smoothing
+        )
         self.source_detection_config.minPixels = self.pre_side
         self.source_detection_config.combinedGrow = True
         self.source_detection_config.nSigmaToGrow = 1.2
@@ -211,7 +221,7 @@ class LatissCWFSAlign(salobj.BaseScript):
 
     @binning.setter
     def binning(self, value):
-        self._binning=value
+        self._binning = value
         self.dz = self.dz
 
     @property
@@ -221,7 +231,7 @@ class LatissCWFSAlign(salobj.BaseScript):
     @dz.setter
     def dz(self, value):
         self._dz = float(value)
-        self.log.info('Using binning factor of {}'.format(self.binning))
+        self.log.info("Using binning factor of {}".format(self.binning))
         cwfs_config_template = """#Auxiliary Telescope parameters:
 Obscuration 				0.3525
 Focal_length (m)			21.6
@@ -235,9 +245,11 @@ Pixel_size (m)			{}
             os.makedirs(path)
         dest = path.joinpath(f"{config_index}.param")
         with open(dest, "w") as fp:
-            fp.write(cwfs_config_template.format(self._dz * 0.041, 10e-6 * self.binning))
-        self.inst = Instrument(config_index, int(self.side * 2 / self.binning) )
-        self.algo = Algorithm('exp', self.inst, 1)
+            fp.write(
+                cwfs_config_template.format(self._dz * 0.041, 10e-6 * self.binning)
+            )
+        self.inst = Instrument(config_index, int(self.side * 2 / self.binning))
+        self.algo = Algorithm("exp", self.inst, 1)
 
     async def take_intra_extra(self):
         """ Take Intra/Extra images.
@@ -249,30 +261,40 @@ Pixel_size (m)			{}
 
         """
 
-        self.log.debug('Move to intra-focal position')
+        self.log.debug("Move to intra-focal position")
 
         await self.hexapod_offset(-self.dz)
 
         group_id = astropytime.Time.now().tai.isot
 
-        intra_image = await self.latiss.take_engtest(exptime=self.exposure_time, n=1,
-                                                     group_id=group_id,
-                                                     filter=self.filter, grating=self.grating)
+        intra_image = await self.latiss.take_engtest(
+            exptime=self.exposure_time,
+            n=1,
+            group_id=group_id,
+            filter=self.filter,
+            grating=self.grating,
+        )
 
-        self.log.debug('Move to extra-focal position')
+        self.log.debug("Move to extra-focal position")
 
-        await self.hexapod_offset(self.dz * 2.)
+        await self.hexapod_offset(self.dz * 2.0)
 
-        self.log.debug('Take extra-focal image')
+        self.log.debug("Take extra-focal image")
 
-        extra_image = await self.latiss.take_engtest(exptime=self.exposure_time, n=1,
-                                                     group_id=group_id,
-                                                     filter=self.filter, grating=self.grating)
+        extra_image = await self.latiss.take_engtest(
+            exptime=self.exposure_time,
+            n=1,
+            group_id=group_id,
+            filter=self.filter,
+            grating=self.grating,
+        )
 
         azel = await self.attcs.atmcs.tel_mount_AzEl_Encoders.aget()
         nasmyth = await self.attcs.atmcs.tel_mount_Nasmyth_Encoders.aget()
 
-        self.angle = np.mean(azel.elevationCalculatedAngle) + np.mean(nasmyth.nasmyth2CalculatedAngle)
+        self.angle = np.mean(azel.elevationCalculatedAngle) + np.mean(
+            nasmyth.nasmyth2CalculatedAngle
+        )
 
         self.log.debug("Move hexapod to zero position")
         # This is performed such that the telescope is left in the
@@ -300,20 +322,23 @@ Pixel_size (m)			{}
 
         """
 
-        offset = {'m1': 0.0,
-                  'm2': 0.0,
-                  'x': 0.0,
-                  'y': 0.0,
-                  'z': offset,
-                  'u': 0.0,
-                  'v': 0.0
-                  }
+        offset = {
+            "m1": 0.0,
+            "m2": 0.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": offset,
+            "u": 0.0,
+            "v": 0.0,
+        }
 
         self.attcs.athexapod.evt_positionUpdate.flush()
-        await self.attcs.ataos.cmd_offset.set_start(**offset,
-                                                    timeout=self.short_timeout)
-        await self.attcs.athexapod.evt_positionUpdate.next(flush=False,
-                                                           timeout=self.long_timeout)
+        await self.attcs.ataos.cmd_offset.set_start(
+            **offset, timeout=self.short_timeout
+        )
+        await self.attcs.athexapod.evt_positionUpdate.next(
+            flush=False, timeout=self.long_timeout
+        )
 
     def get_isr_exposure(self, exp_id):
         """Get ISR exposure."""
@@ -328,10 +353,12 @@ Pixel_size (m)			{}
         while not got_exposure:
             butler = dafPersist.Butler(self.dataPath)
             try:
-                data_ref = butler.dataRef('raw', **dict(expId=exp_id))
+                data_ref = butler.dataRef("raw", **dict(expId=exp_id))
             except RuntimeError as e:
-                self.log.warning(f"Could not get intra focus image from butler. Waiting "
-                                 f"{self.data_pool_sleep}s and trying again.")
+                self.log.warning(
+                    f"Could not get intra focus image from butler. Waiting "
+                    f"{self.data_pool_sleep}s and trying again."
+                )
                 time.sleep(self.data_pool_sleep)
                 if ntries > 10:
                     raise e
@@ -361,20 +388,23 @@ Pixel_size (m)			{}
         self.cwfs_selected_sources = []
 
         if self.intra_visit_id is None or self.extra_visit_id is None:
-            self.log.warning("Intra/Extra images not taken. Running take image sequence.")
+            self.log.warning(
+                "Intra/Extra images not taken. Running take image sequence."
+            )
             await self.take_intra_extra()
         else:
-            self.log.info(f"Running cwfs in "
-                          f"{self.intra_visit_id}/{self.extra_visit_id}.")
+            self.log.info(
+                f"Running cwfs in " f"{self.intra_visit_id}/{self.extra_visit_id}."
+            )
 
-        self.intra_exposure = await loop.run_in_executor(executor,
-                                                         self.get_isr_exposure,
-                                                         self.intra_visit_id)
+        self.intra_exposure = await loop.run_in_executor(
+            executor, self.get_isr_exposure, self.intra_visit_id
+        )
         self.detection_exp = self.intra_exposure.clone()
 
-        self.extra_exposure = await loop.run_in_executor(executor,
-                                                         self.get_isr_exposure,
-                                                         self.extra_visit_id)
+        self.extra_exposure = await loop.run_in_executor(
+            executor, self.get_isr_exposure, self.extra_visit_id
+        )
 
         # Prepare detection exposure
         self.detection_exp.image.array += self.extra_exposure.image.array
@@ -383,23 +413,23 @@ Pixel_size (m)			{}
         await loop.run_in_executor(executor, self.select_cwfs_source)
 
         await loop.run_in_executor(executor, self.center_and_cut_images)
-        if self.binning !=1:
+        if self.binning != 1:
             self.log.info("Running CWFS code USING BINNED IMAGES.")
 
         # Now we should be ready to run cwfs
 
         self.algo.reset(self.I1[0], self.I2[0])
 
-        await loop.run_in_executor(executor, self.algo.runIt,
-                                   self.inst,
-                                   self.I1[0],
-                                   self.I2[0],
-                                   'onAxis')
+        await loop.run_in_executor(
+            executor, self.algo.runIt, self.inst, self.I1[0], self.I2[0], "onAxis"
+        )
         # self.algo.runIt(self.inst, self.I1[0], self.I2[0], 'onAxis')
 
-        self.zern = [self.algo.zer4UpNm[3],
-                     self.algo.zer4UpNm[4],
-                     self.algo.zer4UpNm[0]]
+        self.zern = [
+            self.algo.zer4UpNm[3],
+            self.algo.zer4UpNm[4],
+            self.algo.zer4UpNm[0],
+        ]
 
         self.show_results()
 
@@ -408,42 +438,52 @@ Pixel_size (m)			{}
         """
 
         if self.detection_exp is None:
-            raise RuntimeError("No detection exposure define. Run take_intra_extra or"
-                               "manually define sources before running.")
+            raise RuntimeError(
+                "No detection exposure define. Run take_intra_extra or"
+                "manually define sources before running."
+            )
 
         self.log.info("Running source detection algorithm")
 
         # create the output table for source detection
         schema = afwTable.SourceTable.makeMinimalSchema()
-        source_detection_task = SourceDetectionTask(schema=schema,
-                                                    config=self.source_detection_config)
+        source_detection_task = SourceDetectionTask(
+            schema=schema, config=self.source_detection_config
+        )
 
         tab = afwTable.SourceTable.make(schema)
         result = source_detection_task.run(tab, self.detection_exp, sigma=12.1)
 
-        self.log.debug(f"Found {len(result)} sources. Selecting the brightest for CWFS analysis")
+        self.log.debug(
+            f"Found {len(result)} sources. Selecting the brightest for CWFS analysis"
+        )
 
         def sum_source_flux(_source, exp, min_size):
             bbox = _source.getFootprint().getBBox()
             if bbox.getDimensions().x < min_size or bbox.getDimensions().y < min_size:
-                return -1.
+                return -1.0
             return np.sum(exp[bbox].image.array)
 
         selected_source = 0
-        flux_selected = sum_source_flux(result.sources[selected_source],
-                                        self.detection_exp,
-                                        min_size=self.pre_side)
-        xy = [result.sources[selected_source].getFootprint().getCentroid().x,
-              result.sources[selected_source].getFootprint().getCentroid().y]
+        flux_selected = sum_source_flux(
+            result.sources[selected_source], self.detection_exp, min_size=self.pre_side
+        )
+        xy = [
+            result.sources[selected_source].getFootprint().getCentroid().x,
+            result.sources[selected_source].getFootprint().getCentroid().y,
+        ]
 
         for i in range(1, len(result.sources)):
-            flux_i = sum_source_flux(result.sources[i], self.detection_exp,
-                                     min_size=self.pre_side)
+            flux_i = sum_source_flux(
+                result.sources[i], self.detection_exp, min_size=self.pre_side
+            )
             if flux_i > flux_selected:
                 selected_source = i
                 flux_selected = flux_i
-                xy = [result.sources[selected_source].getFootprint().getCentroid().x,
-                      result.sources[selected_source].getFootprint().getCentroid().y]
+                xy = [
+                    result.sources[selected_source].getFootprint().getCentroid().x,
+                    result.sources[selected_source].getFootprint().getCentroid().y,
+                ]
 
         self.log.debug(f"Selected source {selected_source} @ [{xy[0]}, {xy[1]}]")
 
@@ -473,25 +513,37 @@ Pixel_size (m)			{}
             im_filtered = medfilt(image, [3, 3])
             im_filtered -= int(np.median(im_filtered))
             mean = np.mean(im_filtered)
-            im_filtered[im_filtered < mean] = 0.
-            im_filtered[im_filtered > mean] = 1.
-            ceny, cenx = np.array(ndimage.measurements.center_of_mass(im_filtered), dtype=int)
+            im_filtered[im_filtered < mean] = 0.0
+            im_filtered[im_filtered > mean] = 1.0
+            ceny, cenx = np.array(
+                ndimage.measurements.center_of_mass(im_filtered), dtype=int
+            )
 
             side = self.side  # side length of image
-            self.log.debug(f"Creating stamps of centroid [y,x] = [{ceny},{cenx}] with a side "
-                           f"length of {side} pixels")
+            self.log.debug(
+                f"Creating stamps of centroid [y,x] = [{ceny},{cenx}] with a side "
+                f"length of {side} pixels"
+            )
 
             intra_exp = self.intra_exposure[bbox].image.array
             extra_exp = self.extra_exposure[bbox].image.array
-            intra_square = intra_exp[ceny - side:ceny + side, cenx - side:cenx + side]
-            extra_square = extra_exp[ceny - side:ceny + side, cenx - side:cenx + side]
+            intra_square = intra_exp[
+                ceny - side : ceny + side, cenx - side : cenx + side
+            ]
+            extra_square = extra_exp[
+                ceny - side : ceny + side, cenx - side : cenx + side
+            ]
 
             # Bin the images
             if self.binning != 1:
                 intra_square0 = copy.deepcopy(intra_square)
                 extra_square0 = copy.deepcopy(extra_square)
                 # get tuple array from shape array (which is a tuple) and make an integer
-                new_shape = tuple(np.asarray(np.asarray(intra_square0.shape)/self.binning, dtype=np.int32))
+                new_shape = tuple(
+                    np.asarray(
+                        np.asarray(intra_square0.shape) / self.binning, dtype=np.int32
+                    )
+                )
                 intra_square = self.rebin(intra_square0, new_shape)
                 extra_square = self.rebin(extra_square0, new_shape)
                 self.log.info(f"intra_square shape is {intra_square.shape}")
@@ -502,24 +554,30 @@ Pixel_size (m)			{}
 
     def rebin(self, arr, new_shape):
         # rebins image to new form
-        shape = (new_shape[0], arr.shape[0] // new_shape[0], new_shape[1], arr.shape[1] // new_shape[1])
+        shape = (
+            new_shape[0],
+            arr.shape[0] // new_shape[0],
+            new_shape[1],
+            arr.shape[1] // new_shape[1],
+        )
         return arr.reshape(shape).mean(-1).mean(1)
 
-
     def show_results(self):
-        rot_zern = np.matmul(self.zern,
-                             self.rotation_matrix(self.angle + self.camera_rotation_angle))
-        hexapod_offset = np.matmul(rot_zern,
-                                   self.sensitivity_matrix)
+        rot_zern = np.matmul(
+            self.zern, self.rotation_matrix(self.angle + self.camera_rotation_angle)
+        )
+        hexapod_offset = np.matmul(rot_zern, self.sensitivity_matrix)
         tel_offset = np.matmul(hexapod_offset, self.hexapod_offset_scale)
 
-        self.log.info(f"""==============================
+        self.log.info(
+            f"""==============================
 Measured zernike coeficients: {self.zern}
 De-rotated zernike coeficients: {rot_zern}
 Hexapod offset: {hexapod_offset}
 Telescope offsets: {tel_offset}
 ==============================
-""")
+"""
+        )
 
     @classmethod
     def get_schema(cls):
@@ -578,7 +636,7 @@ Telescope offsets: {tel_offset}
 
     def set_metadata(self, metadata):
         # It takes about 300s to run the cwfs code, plus the two exposures
-        metadata.duration = 300. + 2. * self.exposure_time
+        metadata.duration = 300.0 + 2.0 * self.exposure_time
         metadata.filter = f"{self.filter},{self.grating}"
 
     async def run(self):

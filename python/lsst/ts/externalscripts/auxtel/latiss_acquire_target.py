@@ -37,10 +37,10 @@ import numpy as np
 from astropy import time as astropytime
 from astropy.io import fits
 
-#from scipy import ndimage
-#from scipy.signal import medfilt
-#from scipy.ndimage.filters import gaussian_filter
-#from astropy.modeling import models, fitting
+# from scipy import ndimage
+# from scipy.signal import medfilt
+# from scipy.ndimage.filters import gaussian_filter
+# from astropy.modeling import models, fitting
 
 from lsst.ts import salobj
 from lsst.ts.standardscripts.auxtel.attcs import ATTCS
@@ -63,13 +63,13 @@ from lsst.ip.isr.isrTask import IsrTask
 import matplotlib.pyplot as plt
 
 # Import CWFS package
-#from lsst import cwfs
-#from lsst.cwfs.instrument import Instrument
-#from lsst.cwfs.algorithm import Algorithm
-#from lsst.cwfs.image import Image, readFile, aperture2image, showProjection
-#import lsst.cwfs.plots as plots
+# from lsst import cwfs
+# from lsst.cwfs.instrument import Instrument
+# from lsst.cwfs.algorithm import Algorithm
+# from lsst.cwfs.image import Image, readFile, aperture2image, showProjection
+# import lsst.cwfs.plots as plots
 
-#Import Robert's CalibrationStarVisit method 
+# Import Robert's CalibrationStarVisit method
 import lsst.observing.commands.calibrationStarVisit as calibrationStarVisit
 
 
@@ -99,8 +99,9 @@ class LatissAcquireTarget(salobj.BaseScript):
 
     def __init__(self, index, remotes=True):
 
-        super().__init__(index=index,
-                         descr="Perform target acquisition for LATISS instrument.")
+        super().__init__(
+            index=index, descr="Perform target acquisition for LATISS instrument."
+        )
 
         self.attcs = None
         self.latiss = None
@@ -108,32 +109,31 @@ class LatissAcquireTarget(salobj.BaseScript):
             self.attcs = ATTCS(self.domain)
             self.latiss = LATISS(self.domain)
 
-        self.short_timeout = 5.
-        self.long_timeout = 30.
+        self.short_timeout = 5.0
+        self.long_timeout = 30.0
 
         # Create a accessible copy of the config:
         self.config = None
 
         # Update Focus based on filter/grating glass thickness
-        self.updateFocus=True
+        self.updateFocus = True
 
         # Automatically accept calculated offset to sweetspot
-        self.alwaysAcceptMove=True
+        self.alwaysAcceptMove = True
 
         # Display the results in Firefly
-        self.display=None
+        self.display = None
 
         # Grab data for pointing model
-        #self.doPointingModel=False
+        # self.doPointingModel=False
 
         # Suppress verbosity
-        self.silent=False
+        self.silent = False
 
         #
         # end of configurable attributes
 
-
-# define required methods
+    # define required methods
     #
 
     @classmethod
@@ -207,10 +207,10 @@ class LatissAcquireTarget(salobj.BaseScript):
         # Update Focus to adjust for glass thickness variations
         self.updateFocus = config.updateFocus
 
-# This bit is required for ScriptQueue
+    # This bit is required for ScriptQueue
     def set_metadata(self, metadata):
         # It takes about 300s to run the cwfs code, plus the two exposures
-        metadata.duration = 300. + 2. * self.exposure_time
+        metadata.duration = 300.0 + 2.0 * self.exposure_time
         metadata.filter = f"{self.filter},{self.grating}"
 
     async def run(self):
@@ -222,14 +222,21 @@ class LatissAcquireTarget(salobj.BaseScript):
 
         """
 
-        self.log.debug('Beginning Acquisition')
+        self.log.debug("Beginning Acquisition")
 
         # Create the array of tuples for the exposures
         exposures = [(self.filter, self.exposure_time, self.grating)]
 
-        await calibrationStarVisit.takeData(self.attcs, self.latiss, self.butler,
-                                            self.object_name, exposures, updateFocus=self.updateFocus,
-                                            alwaysAcceptMove=self.alwaysAcceptMove, 
-                                            logger=self.log, display=None,
-                                            doPointingModel=self.doPointingModel, silent=self.silent)
-
+        await calibrationStarVisit.takeData(
+            self.attcs,
+            self.latiss,
+            self.butler,
+            self.object_name,
+            exposures,
+            updateFocus=self.updateFocus,
+            alwaysAcceptMove=self.alwaysAcceptMove,
+            logger=self.log,
+            display=None,
+            doPointingModel=self.doPointingModel,
+            silent=self.silent,
+        )
