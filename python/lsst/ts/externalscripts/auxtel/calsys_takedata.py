@@ -52,7 +52,7 @@ def as_array(value, dtype, nelt):
         if len(value) != nelt:
             raise ValueError(f"len={len(value)} != {nelt}")
         return np.array(value, dtype=dtype)
-    return np.array([value]*nelt, dtype=dtype)
+    return np.array([value] * nelt, dtype=dtype)
 
 
 class CalSysTakeData(salobj.BaseScript):
@@ -60,13 +60,19 @@ class CalSysTakeData(salobj.BaseScript):
     """
 
     def __init__(self, index):
-        super().__init__(index=index,
-                         descr="Configure and take data from the auxiliary telescope CalSystem.")
+        super().__init__(
+            index=index,
+            descr="Configure and take data from the auxiliary telescope CalSystem.",
+        )
         self.cmd_timeout = 10
         self.change_grating_time = 60
-        self.electrometer = salobj.Remote(domain=self.domain, name="Electrometer", index=1)
+        self.electrometer = salobj.Remote(
+            domain=self.domain, name="Electrometer", index=1
+        )
         self.monochromator = salobj.Remote(domain=self.domain, name="ATMonochromator")
-        self.fiber_spectrograph = salobj.Remote(domain=self.domain, name="FiberSpectrograph")
+        self.fiber_spectrograph = salobj.Remote(
+            domain=self.domain, name="FiberSpectrograph"
+        )
 
     @classmethod
     def get_schema(cls):
@@ -176,26 +182,40 @@ class CalSysTakeData(salobj.BaseScript):
 
         nelt = 1
         kwargs = locals()
-        for argname in ("wavelengths", "integration_times", "grating_types",
-                        "entrance_slit_widths", "exit_slit_widths",
-                        "image_types", "lamps", "spectrometer_delays"):
+        for argname in (
+            "wavelengths",
+            "integration_times",
+            "grating_types",
+            "entrance_slit_widths",
+            "exit_slit_widths",
+            "image_types",
+            "lamps",
+            "spectrometer_delays",
+        ):
             value = kwargs[argname]
             if is_sequence(value):
                 nelt = len(value)
                 break
 
         self.wavelengths = as_array(self.config.wavelengths, dtype=float, nelt=nelt)
-        self.integration_times = as_array(self.config.integration_times, dtype=float, nelt=nelt)
+        self.integration_times = as_array(
+            self.config.integration_times, dtype=float, nelt=nelt
+        )
         self.grating_types = as_array(self.config.grating_types, dtype=int, nelt=nelt)
-        self.entrance_slit_widths = as_array(self.config.entrance_slit_widths, dtype=float, nelt=nelt)
-        self.exit_slit_widths = as_array(self.config.exit_slit_widths, dtype=float, nelt=nelt)
+        self.entrance_slit_widths = as_array(
+            self.config.entrance_slit_widths, dtype=float, nelt=nelt
+        )
+        self.exit_slit_widths = as_array(
+            self.config.exit_slit_widths, dtype=float, nelt=nelt
+        )
         self.image_types = as_array(self.config.image_types, dtype=str, nelt=nelt)
         self.fiber_spectrograph_integration_times = as_array(
-            self.config.fiber_spectrograph_integration_times,
-            dtype=float,
-            nelt=nelt)
+            self.config.fiber_spectrograph_integration_times, dtype=float, nelt=nelt
+        )
         self.lamps = as_array(self.config.lamps, dtype=str, nelt=nelt)
-        self.spectrometer_delays = as_array(self.config.spectrometer_delays, dtype=float, nelt=nelt)
+        self.spectrometer_delays = as_array(
+            self.config.spectrometer_delays, dtype=float, nelt=nelt
+        )
         self.file_location = os.path.expanduser(self.config.file_location)
 
         self.log.info("Configure completed")
@@ -208,7 +228,9 @@ class CalSysTakeData(salobj.BaseScript):
         metadata : SAPY_Script.Script_logevent_metadataC
         """
         nimages = len(self.lamps)
-        metadata.duration = self.change_grating_time*nimages + np.sum(self.integration_times)
+        metadata.duration = self.change_grating_time * nimages + np.sum(
+            self.integration_times
+        )
 
     async def run(self):
         """Run script."""
@@ -227,7 +249,7 @@ class CalSysTakeData(salobj.BaseScript):
                 "Monochromator Entrance Slit Size",
                 "Monochromator Exit Slit Size",
                 "Fiber Spectrograph Fits File",
-                "Electrometer Fits File"
+                "Electrometer Fits File",
             ]
             data_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             if not file_exists:
@@ -235,26 +257,41 @@ class CalSysTakeData(salobj.BaseScript):
 
             nelt = len(self.wavelengths)
             for i in range(nelt):
-                self.log.info(f"collecting electrometer and fiber_spectrograph scan {i} of {nelt}")
+                self.log.info(
+                    f"collecting electrometer and fiber_spectrograph scan {i} of {nelt}"
+                )
 
                 await self.checkpoint("setup")
 
-                self.monochromator.cmd_changeWavelength.set(wavelength=self.wavelengths[i])
-                await self.monochromator.cmd_changeWavelength.start(timeout=self.cmd_timeout)
+                self.monochromator.cmd_changeWavelength.set(
+                    wavelength=self.wavelengths[i]
+                )
+                await self.monochromator.cmd_changeWavelength.start(
+                    timeout=self.cmd_timeout
+                )
 
                 self.monochromator.cmd_changeSlitWidth.set(
                     slit=ATMonochromator.Slit.FRONTEXIT,
-                    slitWidth=self.exit_slit_widths[i])
-                await self.monochromator.cmd_changeSlitWidth.start(timeout=self.cmd_timeout)
+                    slitWidth=self.exit_slit_widths[i],
+                )
+                await self.monochromator.cmd_changeSlitWidth.start(
+                    timeout=self.cmd_timeout
+                )
 
                 self.monochromator.cmd_changeSlitWidth.set(
                     slit=ATMonochromator.Slit.FRONTENTRANCE,
-                    slitWidth=self.entrance_slit_widths[i])
-                await self.monochromator.cmd_changeSlitWidth.start(timeout=self.cmd_timeout)
+                    slitWidth=self.entrance_slit_widths[i],
+                )
+                await self.monochromator.cmd_changeSlitWidth.start(
+                    timeout=self.cmd_timeout
+                )
 
-                self.monochromator.cmd_selectGrating.set(gratingType=self.grating_types[i])
+                self.monochromator.cmd_selectGrating.set(
+                    gratingType=self.grating_types[i]
+                )
                 await self.monochromator.cmd_selectGrating.start(
-                    timeout=self.cmd_timeout+self.change_grating_time)
+                    timeout=self.cmd_timeout + self.change_grating_time
+                )
 
                 await self.checkpoint("expose")
 
@@ -268,16 +305,18 @@ class CalSysTakeData(salobj.BaseScript):
                 electrometer_lfo_url = results[0].url
                 fiber_spectrograph_lfo_url = results[1].url
                 self.log.debug(f"Writing csv file")
-                data_writer.writerow({
-                    fieldnames[0]: self.integration_times[i],
-                    fieldnames[1]: self.grating_types[i],
-                    fieldnames[2]: self.wavelengths[i],
-                    fieldnames[3]: self.entrance_slit_widths[i],
-                    fieldnames[4]: self.exit_slit_widths[i],
-                    fieldnames[5]: fiber_spectrograph_lfo_url,
-                    fieldnames[6]: electrometer_lfo_url
-                })
-        with open(csvpath, newline='') as csvfile:
+                data_writer.writerow(
+                    {
+                        fieldnames[0]: self.integration_times[i],
+                        fieldnames[1]: self.grating_types[i],
+                        fieldnames[2]: self.wavelengths[i],
+                        fieldnames[3]: self.entrance_slit_widths[i],
+                        fieldnames[4]: self.exit_slit_widths[i],
+                        fieldnames[5]: fiber_spectrograph_lfo_url,
+                        fieldnames[6]: electrometer_lfo_url,
+                    }
+                )
+        with open(csvpath, newline="") as csvfile:
             data_reader = csv.DictReader(csvfile)
             self.log.debug(f"Reading CSV file")
 
@@ -285,21 +324,33 @@ class CalSysTakeData(salobj.BaseScript):
                 fiber_spectrograph_url = row["Fiber Spectrograph Fits File"]
                 electrometer_url = row["Electrometer Fits File"]
                 electrometer_url += ".fits"
-                electrometer_url = electrometer_url.replace("https://127.0.0.1", "http://10.0.100.133:8000")
+                electrometer_url = electrometer_url.replace(
+                    "https://127.0.0.1", "http://10.0.100.133:8000"
+                )
                 electrometer_url_name = electrometer_url.split("/")[-1]
                 fiber_spectrograph_url_name = fiber_spectrograph_url.split("/")[-1]
                 fiber_spectrograph_fits_request = requests.get(fiber_spectrograph_url)
                 electrometer_fits_request = requests.get(electrometer_url)
-                fiber_spectrograph_fits_path = self.file_location / \
-                    "fiber_spectrograph_fits_files" / fiber_spectrograph_url_name
+                fiber_spectrograph_fits_path = (
+                    self.file_location
+                    / "fiber_spectrograph_fits_files"
+                    / fiber_spectrograph_url_name
+                )
                 with open(fiber_spectrograph_fits_path, "wb") as file:
                     file.write(fiber_spectrograph_fits_request.content)
-                    self.log.debug(f"Wrote Fiber Spectrograph fits file to {fiber_spectrograph_fits_path}")
-                electrometer_fits_path = self.file_location \
-                    / "electrometer_fits_files" / electrometer_url_name
+                    self.log.debug(
+                        f"Wrote Fiber Spectrograph fits file to {fiber_spectrograph_fits_path}"
+                    )
+                electrometer_fits_path = (
+                    self.file_location
+                    / "electrometer_fits_files"
+                    / electrometer_url_name
+                )
                 with open(electrometer_fits_path, "wb") as file:
                     file.write(electrometer_fits_request.content)
-                    self.log.debug(f"Wrote Electrometer fits file to {electrometer_fits_path}")
+                    self.log.debug(
+                        f"Wrote Electrometer fits file to {electrometer_fits_path}"
+                    )
             self.log.info(f"Fits Files downloaded")
         await self.checkpoint("Done")
 
@@ -315,13 +366,15 @@ class CalSysTakeData(salobj.BaseScript):
         -------
         cmd_captureSpectImage.start : coro
         """
-        await self.electrometer.evt_detailedState.next(flush=True, timeout=self.cmd_timeout)
+        await self.electrometer.evt_detailedState.next(
+            flush=True, timeout=self.cmd_timeout
+        )
         await asyncio.sleep(self.spectrometer_delays[index])
 
         timeout = self.integration_times[index] + self.cmd_timeout
         fiber_spectrograph_lfo_coro = self.fiber_spectrograph.evt_largeFileObjectAvailable.next(
-            timeout=self.cmd_timeout,
-            flush=True)
+            timeout=self.cmd_timeout, flush=True
+        )
         self.fiber_spectrograph.cmd_captureSpectImage.set(
             imageType=self.image_types[index],
             integrationTime=self.integration_times[index],
@@ -333,10 +386,12 @@ class CalSysTakeData(salobj.BaseScript):
 
     async def start_electrometer_scan(self, index):
         self.electrometer.cmd_startScanDt.set(
-            scanDuration=self.integration_times[index] + self.spectrometer_delays[index]*2)
+            scanDuration=self.integration_times[index]
+            + self.spectrometer_delays[index] * 2
+        )
         electrometer_lfo_coro = self.electrometer.evt_largeFileObjectAvailable.next(
-            timeout=self.cmd_timeout,
-            flush=True)
+            timeout=self.cmd_timeout, flush=True
+        )
         await self.electrometer.cmd_startScanDt.start(timeout=self.cmd_timeout)
         self.log.debug(f"Electrometer finished scan")
         return await electrometer_lfo_coro

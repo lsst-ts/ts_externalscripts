@@ -27,6 +27,7 @@ import numpy as np
 from lsst.ts import salobj
 from lsst.ts.standardscripts.auxtel.attcs import ATTCS
 from lsst.ts.standardscripts.auxtel.latiss import LATISS
+
 # from lsst.ts.idl.enums.Script import ScriptState
 
 from lsst.observing.utils.audio import playSound
@@ -64,8 +65,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
     def __init__(self, index, silent=False):
 
-        super().__init__(index=index,
-                         descr="Perform target acquisition for LATISS instrument.")
+        super().__init__(
+            index=index, descr="Perform target acquisition for LATISS instrument."
+        )
 
         self.attcs = ATTCS(self.domain)
         self.latiss = LATISS(self.domain)
@@ -208,7 +210,11 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # relevant sweet spot
         self.target_pointing_tolerance = config.target_pointing_tolerance
 
-        self.acq_visit_config = (self.acq_filter, self.acq_exposure_time, self.acq_grating)
+        self.acq_visit_config = (
+            self.acq_filter,
+            self.acq_exposure_time,
+            self.acq_grating,
+        )
 
         # Adjust sweet-spot to do pointing model
         # self.doPointingModel = config.doPointingModel
@@ -216,9 +222,14 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # self._expTimes = exposure_time_sequence  # convenience for estimate total integration time
 
         # make a list of tuples from the filter, exptime and grating lists
-        self.visit_configs = [(f, e, g) for f, e, g in zip(config.filter_sequence,
-                                                           config.exposure_time_sequence,
-                                                           config.grating_sequence)]
+        self.visit_configs = [
+            (f, e, g)
+            for f, e, g in zip(
+                config.filter_sequence,
+                config.exposure_time_sequence,
+                config.grating_sequence,
+            )
+        ]
 
         print(self.visit_configs)
 
@@ -244,33 +255,46 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # the script queue so make it always True
         _alwaysAcceptMove = True
 
-        await asyncio.gather(self.attcs.slew_object(name=self.object_name, pa_ang=0, slew_timeout=240),
-                             self.latiss.setup_atspec(grating=self.acq_grating, filter=self.acq_filter))
+        await asyncio.gather(
+            self.attcs.slew_object(name=self.object_name, pa_ang=0, slew_timeout=240),
+            self.latiss.setup_atspec(grating=self.acq_grating, filter=self.acq_filter),
+        )
 
         success = False
         iterNum = -1  # heinous to support max_acq_iter = 0 working TODO: fix this!
         for iterNum in range(self.max_acq_iter):
 
-            retvals = await asyncio.gather(findOffsetsAndMove(self.attcs, targetPosition, self.latiss,
-                                                              dataId=None, butler=self.butler,
-                                                              doMove=True,
-                                                              alwaysAcceptMove=_alwaysAcceptMove),
-                                           self.latiss.take_object(exptime=self.acq_exposure_time, n=1))
+            retvals = await asyncio.gather(
+                findOffsetsAndMove(
+                    self.attcs,
+                    targetPosition,
+                    self.latiss,
+                    dataId=None,
+                    butler=self.butler,
+                    doMove=True,
+                    alwaysAcceptMove=_alwaysAcceptMove,
+                ),
+                self.latiss.take_object(exptime=self.acq_exposure_time, n=1),
+            )
 
             exp, dx_arcsec, dy_arcsec, peakVal = retvals[0]
-            dr_arcsec = np.sqrt(dx_arcsec**2.0+dy_arcsec**2.0)
-            print(f'Calculated offsets [dx,dy] are [{dx_arcsec},{dy_arcsec}] arcsec')
-            print(f'Current radial pointing error is {dr_arcsec}')
+            dr_arcsec = np.sqrt(dx_arcsec ** 2.0 + dy_arcsec ** 2.0)
+            print(f"Calculated offsets [dx,dy] are [{dx_arcsec},{dy_arcsec}] arcsec")
+            print(f"Current radial pointing error is {dr_arcsec}")
 
             if dr_arcsec < self.target_pointing_tolerance:
                 success = True
                 break
 
         if success:
-            self.log.info('Achieved centering accuracy')
+            self.log.info("Achieved centering accuracy")
         else:
-            if iterNum != -1:  # also heinous to support max_acq_iter = 0 working TODO: fix this!
-                self.log.info(f'Failed to center star on boresight after {iterNum+1} iterations')
+            if (
+                iterNum != -1
+            ):  # also heinous to support max_acq_iter = 0 working TODO: fix this!
+                self.log.info(
+                    f"Failed to center star on boresight after {iterNum+1} iterations"
+                )
             return
 
         if not silent:
@@ -282,7 +306,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         # Update pointing model
         if doPointingModel:
-            self.log.info('Adding datapoint to pointing model')
+            self.log.info("Adding datapoint to pointing model")
             await self.attcs.add_point_data()
 
         return
@@ -296,32 +320,37 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # NB: changeFilterAndGrating also does a focus offset
             # and a nod to keep the star in position
             # TODO: this needs pushing down into the LATISS class
-            await changeFilterAndGrating(self.attcs, self.latiss, filter=filt, grating=grating)
+            await changeFilterAndGrating(
+                self.attcs, self.latiss, filter=filt, grating=grating
+            )
             await self.latiss.take_object(exptime=expTime, n=1)
 
             # this is quick, so pull each time for logger to deal with Nones
             current_filter, current_grating = await getFilterAndGrating(self.latiss)
-            self.log.info(f"Took {expTime:6.1f}s exposure ({current_filter}/{current_grating})")
+            self.log.info(
+                f"Took {expTime:6.1f}s exposure ({current_filter}/{current_grating})"
+            )
             if not silent:
-                playSound('ding' if i < nexp - 1 else "gong")
+                playSound("ding" if i < nexp - 1 else "gong")
 
     async def run(self):
         """"""
         if self.do_acquire:
-            self.log.debug('Beginning target acquisition and data taking')
+            self.log.debug("Beginning target acquisition and data taking")
             await self.latiss_acquire()
 
         if self.do_take_sequence:
             # Grab hexapod offsets such that we can change it back upon completion
             hex_offsets = await self.attcs.ataos.evt_correctionOffsets.aget(timeout=5)
             print("hex_offset before starting sequence is {}".format(hex_offsets))
-            self.log.debug('Beginning taking data for target sequence')
+            self.log.debug("Beginning taking data for target sequence")
             try:
                 await self.latiss_take_sequence()
             except Exception as e:
-                print('grabbed exception from latiss_take_sequence(): ')
+                print("grabbed exception from latiss_take_sequence(): ")
                 raise e
             finally:
                 # apply hexapod offsets to be the same as before to conserve focus
-                await self.attcs.ataos.cmd_applyAxisOffset.set_start(axis='z', offset=hex_offsets.z,
-                                                                     timeout=20)
+                await self.attcs.ataos.cmd_applyAxisOffset.set_start(
+                    axis="z", offset=hex_offsets.z, timeout=20
+                )

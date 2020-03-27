@@ -36,6 +36,7 @@ class LaserCoordination(salobj.BaseScript):
     timeout : `int`
 
     """
+
     def __init__(self, index, descr=""):
         super().__init__(index, descr="A laser coordination script")
         self.linear_stage_1 = salobj.Remote(self.domain, name="LinearStage", index=1)
@@ -147,20 +148,22 @@ class LaserCoordination(salobj.BaseScript):
         try:
             self.log.debug("START CONFIG")
             self.wanted_remotes = self.config.wanted_remotes
-            self.wavelengths = range(self.config.wavelengths[0], self.config.wavelengths[1])
+            self.wavelengths = range(
+                self.config.wavelengths[0], self.config.wavelengths[1]
+            )
             self.file_location = os.path.expanduser(self.config.file_location)
             self.steps = self.config.steps
             self.max_linear_stage_position = self.config.max_linear_stage_position
             self.integration_time = self.config.integration_time
             self.scan_duration = self.config.scan_duration
             self.timeout = self.config.timeout
-            if 'linear_stage_1_remote' in self.wanted_remotes:
+            if "linear_stage_1_remote" in self.wanted_remotes:
                 self.linear_stage_set = True
-            if 'linear_stage_2_remote' in self.wanted_remotes:
+            if "linear_stage_2_remote" in self.wanted_remotes:
                 self.linear_stage_2_set = True
-            if 'electrometer_remote' in self.wanted_remotes:
+            if "electrometer_remote" in self.wanted_remotes:
                 self.electrometer_set = True
-            if 'tunable_laser_remote' in self.wanted_remotes:
+            if "tunable_laser_remote" in self.wanted_remotes:
                 self.tunable_laser_set = True
             self.stablization = self.config.stablization
             self.number_of_scans = self.config.number_of_scans
@@ -170,20 +173,29 @@ class LaserCoordination(salobj.BaseScript):
             raise
 
     def set_metadata(self, metadata):
-        metadata = {'remotes_set': [self.linear_stage_set,
-                    self.linear_stage_2_set, self.electrometer_set, self.tunable_laser_set], 'time': 'NaN'}
+        metadata = {
+            "remotes_set": [
+                self.linear_stage_set,
+                self.linear_stage_2_set,
+                self.electrometer_set,
+                self.tunable_laser_set,
+            ],
+            "time": "NaN",
+        }
         return metadata
 
     async def run(self):
-
         async def setup_electrometers():
             self.electrometer.cmd_setMode.set(mode=1)
             self.electrometer.cmd_setIntegrationTime.set(intTime=self.integration_time)
             await self.electrometer.cmd_setMode.start(timeout=self.timeout)
             await self.electrometer.cmd_setIntegrationTime.start(timeout=self.timeout)
+
         setup_tasks = []
         if not self.tunable_laser_set and not self.stablization:
-            self.wavelengths = [525, ]
+            self.wavelengths = [
+                525,
+            ]
         if self.stablization:
             self.wavelengths = range(0, self.number_of_scans)
             self.linear_stage_set = False
@@ -199,7 +211,9 @@ class LaserCoordination(salobj.BaseScript):
             self.max_linear_stage_position = 2
             self.steps = 1
         if self.tunable_laser_set:
-            propagate_state_ack = self.tunable_laser.cmd_startPropagateLaser.start(timeout=self.timeout)
+            propagate_state_ack = self.tunable_laser.cmd_startPropagateLaser.start(
+                timeout=self.timeout
+            )
             setup_tasks.append(propagate_state_ack)
         if self.electrometer_set:
             setup_electrometer_ack_coro = setup_electrometers()
@@ -215,32 +229,50 @@ class LaserCoordination(salobj.BaseScript):
                     if self.linear_stage_set:
                         self.linear_stage_1.cmd_moveAbsolute.set(distance=ls_pos)
                         self.log.debug("Moving linear stage 1")
-                        await self.linear_stage_1.cmd_moveAbsolute.start(timeout=self.timeout)
+                        await self.linear_stage_1.cmd_moveAbsolute.start(
+                            timeout=self.timeout
+                        )
                     await self.checkpoint(f"ls 1 pos: {ls_pos}")
-                    for ls_2_pos in range(1, self.max_linear_stage_position, self.steps):
+                    for ls_2_pos in range(
+                        1, self.max_linear_stage_position, self.steps
+                    ):
                         if self.linear_stage_2_set:
                             self.linear_stage_2.cmd_moveAbsolute.set(distance=ls_2_pos)
                             self.log.debug("moving linear stage 2")
-                            await self.linear_stage_2.cmd_moveAbsolute.start(timeout=self.timeout)
+                            await self.linear_stage_2.cmd_moveAbsolute.start(
+                                timeout=self.timeout
+                            )
                         elif not self.linear_stage_2_set and self.stablization:
                             await asyncio.sleep(10)
                         await self.checkpoint(f"ls 1 pos {ls_pos} ls 2 pos: {ls_2_pos}")
                         if self.electrometer_set:
                             electrometer_data_coro = self.electrometer.evt_largeFileObjectAvailable.next(
-                                flush=True, timeout=self.timeout)
-                            self.electrometer.cmd_startScanDt.set(scanDuration=self.scan_duration)
-                            await self.electrometer.cmd_startScanDt.start(timeout=self.timeout)
+                                flush=True, timeout=self.timeout
+                            )
+                            self.electrometer.cmd_startScanDt.set(
+                                scanDuration=self.scan_duration
+                            )
+                            await self.electrometer.cmd_startScanDt.start(
+                                timeout=self.timeout
+                            )
                             electrometer_data = await electrometer_data_coro
-                            await self.checkpoint(f"ls 1 pos {ls_pos} ls 2 pos {ls_2_pos} electr. data")
-                            data_array.append([
-                                datetime.datetime.now(),
-                                wavelength,
-                                ls_pos,
-                                ls_2_pos,
-                                electrometer_data.url])
+                            await self.checkpoint(
+                                f"ls 1 pos {ls_pos} ls 2 pos {ls_2_pos} electr. data"
+                            )
+                            data_array.append(
+                                [
+                                    datetime.datetime.now(),
+                                    wavelength,
+                                    ls_pos,
+                                    ls_2_pos,
+                                    electrometer_data.url,
+                                ]
+                            )
             if self.tunable_laser_set:
                 self.tunable_laser.cmd_stopPropagateLaser.set()
-                await self.tunable_laser.cmd_stopPropagateLaser.start(timeout=self.timeout)
+                await self.tunable_laser.cmd_stopPropagateLaser.start(
+                    timeout=self.timeout
+                )
                 await self.checkpoint(f"Laser stopped propagating")
             with open(f"{self.file_location}laser_coordination.txt", "w") as f:
                 f.write("timestamp wavelength ls_pos ls_2_pos electrometer_data_url\n")

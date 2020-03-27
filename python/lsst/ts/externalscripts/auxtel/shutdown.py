@@ -45,8 +45,7 @@ class Shutdown(salobj.BaseScript):
     __test__ = False  # stop pytest from warning that this is not a test
 
     def __init__(self, index):
-        super().__init__(index=index,
-                         descr="Run ATTCS shutdown.")
+        super().__init__(index=index, descr="Run ATTCS shutdown.")
 
         self.attcs = ATTCS(self.domain)
 
@@ -73,7 +72,7 @@ class Shutdown(salobj.BaseScript):
         pass
 
     def set_metadata(self, metadata):
-        metadata.duration = 600.
+        metadata.duration = 600.0
 
     async def run(self):
         await self.attcs.shutdown()
