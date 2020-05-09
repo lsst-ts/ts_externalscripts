@@ -54,10 +54,13 @@ from lsst.cwfs.instrument import Instrument
 from lsst.cwfs.algorithm import Algorithm
 from lsst.cwfs.image import Image
 
+import copy # used to support binning
 
 class LatissCWFSAlign(salobj.BaseScript):
     """ Perform an optical alignment procedure of Auxiliary Telescope with
-    the LATISS instrument (ATSpectrograph and ATCamera CSCs).
+    the LATISS instrument (ATSpectrograph and ATCamera CSCs). This is for
+    use with in-focus images and is performed using Curvature-Wavefront
+    Sensing Techniques.
 
     Parameters
     ----------
@@ -68,24 +71,23 @@ class LatissCWFSAlign(salobj.BaseScript):
     -----
     **Checkpoints**
 
-    * intra: when taking intra focus image.
-    * extra: when taking extra focus image.
-    * cwfs: when running CWFS code.
-
+    None
+    
     **Details**
 
     This script is used to perform measurements of the wavefront error, then
     propose hexapod offsets based on an input sensitivity matrix to minimize
-    the errors.
+    the errors. The hexapod offsets are not applied automatically and must be
+    performed by the user.
 
     """
 
     __test__ = False  # stop pytest from warning that this is not a test
 
-    def __init__(self, index, remotes=True):
+    def __init__(self, index=1, remotes=False):
 
         super().__init__(
-            index=index, descr="Perform optical alignment procedure on LATISS data."
+            index=index, descr="Perform optical alignment procedure of the Rubin Auxiliary Telescope with LATISS using Curvature-Wavefront Sensing Techniques."
         )
 
         self.attcs = None
@@ -94,15 +96,22 @@ class LatissCWFSAlign(salobj.BaseScript):
             self.attcs = ATTCS(self.domain)
             self.latiss = LATISS(self.domain)
 
-        self.short_timeout = 5.0
-        self.long_timeout = 30.0
+        # Timeouts used for telescope commands
+        self.short_timeout = 5.0 # used with hexapod offset command
+        self.long_timeout = 30.0 # used to wait for in-position event from hexapod
 
         # Sensitivity matrix: mm of hexapod motion for nm of wfs. To figure out
-        # the hexapod correction multiply
+        # the hexapod correction multiply the calculcated zernikes by this.
+        # Note that the zernikes must be derotated to 
+#         self.sensitivity_matrix = [
+#         [1.0 / 161.0, 0.0, 0.0],
+#         [0.0, -1.0 / 161.0, (107.0/161.0)/4200],
+#         [0.0, 0.0, -1.0 / 4200.0]
+#         ]
         self.sensitivity_matrix = [
-            [1.0 / 131.0, 0.0, 0.0],
-            [0.0, -1.0 / 131.0, 0.0],
-            [0.0, 0.0, -1.0 / 4200.0],
+        [1.0 / 206.0, 0.0, 0.0],
+        [0.0, -1.0 / 206.0, (109.0/206.0)/4200],
+        [0.0, 0.0, -1.0 / 4200.0]
         ]
 
         # Rotation matrix to take into account angle between camera and
@@ -124,6 +133,7 @@ class LatissCWFSAlign(salobj.BaseScript):
         ]
 
         # Angle between camera and boresight
+        # Assume perfect mechanical mounting
         self.camera_rotation_angle = 0.0
 
         # The following attributes can be configured:
@@ -139,13 +149,18 @@ class LatissCWFSAlign(salobj.BaseScript):
         self._dz = None
 
         # butler data path.
-        self.dataPath = "/mnt/dmcs/oods_butler_repo/repo/"
+        self.dataPath = "/project/shared/auxTel/"
 
         #
         # end of configurable attributes
 
+        # Set (oversized) stamp size for centroid estimation
         self.pre_side = 300
-        self._side = 192  # size for dz=1.5
+        # Set stamp size for WFE estimation
+        # 192 pix is size for dz=1.5, but gets automatically
+        # scaled based on dz later, so can multiply by an
+        # arbitrary factor here to make it larger
+        self._side = 192 * 1.1  
 
         # angle between elevation axis and nasmyth2 rotator
         self.angle = None
@@ -173,6 +188,8 @@ class LatissCWFSAlign(salobj.BaseScript):
 
         self.data_pool_sleep = 5.0
 
+        # Source detection setup
+        self.src_detection_sigma=12.1
         self.source_detection_config = SourceDetectionTask.ConfigClass()
         self.source_detection_config.thresholdValue = (
             30  # detection threshold after smoothing
@@ -180,7 +197,8 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.source_detection_config.minPixels = self.pre_side
         self.source_detection_config.combinedGrow = True
         self.source_detection_config.nSigmaToGrow = 1.2
-
+        
+        # ISR setup
         self.isr_config = IsrTask.ConfigClass()
         self.isr_config.doLinearize = False
         self.isr_config.doBias = True
@@ -217,8 +235,10 @@ class LatissCWFSAlign(salobj.BaseScript):
     def dz(self, value):
         self._dz = float(value)
         self.log.info("Using binning factor of {}".format(self.binning))
+        
+        # Create configuration file with the proper parameters
         cwfs_config_template = """#Auxiliary Telescope parameters:
-Obscuration 				0.3525
+Obscuration 				0.423
 Focal_length (m)			21.6
 Aperture_diameter (m)   		1.2
 Offset (m)				{}
@@ -230,14 +250,17 @@ Pixel_size (m)			{}
             os.makedirs(path)
         dest = path.joinpath(f"{config_index}.param")
         with open(dest, "w") as fp:
+            # Write the file and set the offset and pixel size parameters
             fp.write(
                 cwfs_config_template.format(self._dz * 0.041, 10e-6 * self.binning)
             )
+
         self.inst = Instrument(config_index, int(self.side * 2 / self.binning))
         self.algo = Algorithm("exp", self.inst, 1)
 
     async def take_intra_extra(self):
-        """ Take Intra/Extra images.
+        """ Take pair of Intra/Extra focal images to be used to determine
+        the measured wavefront error.
 
         Returns
         -------
@@ -246,10 +269,13 @@ Pixel_size (m)			{}
 
         """
 
-        self.log.debug("Move to intra-focal position")
+        self.log.debug("Moving to intra-focal position")
 
         await self.hexapod_offset(-self.dz)
-
+        
+        # Set groupID to have the same timestamp as this
+        # is used to show the images are a pair and meant
+        # to be analyzed as a group 
         group_id = astropytime.Time.now().tai.isot
 
         intra_image = await self.latiss.take_engtest(
@@ -260,11 +286,13 @@ Pixel_size (m)			{}
             grating=self.grating,
         )
 
-        self.log.debug("Move to extra-focal position")
-
+        self.log.debug("Moving to extra-focal position")
+        
+        # Hexapod offsets are relative, so need to move 2x the offset
+        # to get from the intra- to the extra-focal position.
         await self.hexapod_offset(self.dz * 2.0)
 
-        self.log.debug("Take extra-focal image")
+        self.log.debug("Taking extra-focal image")
 
         extra_image = await self.latiss.take_engtest(
             exptime=self.exposure_time,
@@ -277,11 +305,10 @@ Pixel_size (m)			{}
         azel = await self.attcs.atmcs.tel_mount_AzEl_Encoders.aget()
         nasmyth = await self.attcs.atmcs.tel_mount_Nasmyth_Encoders.aget()
 
-        self.angle = np.mean(azel.elevationCalculatedAngle) + np.mean(
-            nasmyth.nasmyth2CalculatedAngle
-        )
+        #self.angle = np.mean(nasmyth.nasmyth2CalculatedAngle) - np.mean(azel.elevationCalculatedAngle)
+        self.angle = np.mean(nasmyth.nasmyth2CalculatedAngle) + np.mean(azel.elevationCalculatedAngle)
 
-        self.log.debug("Move hexapod to zero position")
+        self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the
         # same position it was before running the script
         await self.hexapod_offset(-self.dz)
@@ -295,8 +322,9 @@ Pixel_size (m)			{}
         self.log.info(f"extraImage expId for target: {self.extra_visit_id}")
 
     async def hexapod_offset(self, offset):
-        """
-
+        """ Applies z-offset to the hexapod to move between intra/extra/in-focus
+        positions.
+i
         Parameters
         ----------
         offset: `float`
@@ -326,7 +354,17 @@ Pixel_size (m)			{}
         )
 
     def get_isr_exposure(self, exp_id):
-        """Get ISR exposure."""
+        """Get ISR corrected exposure.
+        
+        Parameters
+        ----------
+        exp_id: `string`
+             Exposure ID for butler image retrieval
+
+        Returns
+        -------
+        ISR corrected exposure as an lsst.afw.image.exposure.exposure object
+        """
 
         isrTask = IsrTask(config=self.isr_config)
 
@@ -358,11 +396,17 @@ Pixel_size (m)			{}
 
     async def run_cwfs(self):
         """ Runs CWFS code on intra/extra focal images.
+        Inputs:
+        -------
+        None
 
         Returns
         -------
-        zern: list
-            List of zernike coefficients.
+        Dictionary of calculated values
+        results = {'zerns' : (self.zern),
+                  'rot_zerns': (rot_zern),
+                  'hex_offset': (hexapod_offset),
+                  'tel_offset': (tel_offset)}
 
         """
 
@@ -385,46 +429,55 @@ Pixel_size (m)			{}
         self.intra_exposure = await loop.run_in_executor(
             executor, self.get_isr_exposure, self.intra_visit_id
         )
+        
+        # create a clone to be used for detection
         self.detection_exp = self.intra_exposure.clone()
 
         self.extra_exposure = await loop.run_in_executor(
             executor, self.get_isr_exposure, self.extra_visit_id
         )
 
-        # Prepare detection exposure
+        # Prepare detection exposure, which adds two donuts together
         self.detection_exp.image.array += self.extra_exposure.image.array
         self.detection_exp.image.array -= np.median(self.detection_exp.image.array)
 
+        # Run source detection
         await loop.run_in_executor(executor, self.select_cwfs_source)
 
         await loop.run_in_executor(executor, self.center_and_cut_images)
+        
         if self.binning != 1:
-            self.log.info("Running CWFS code USING BINNED IMAGES.")
+            self.log.info(f"Running CWFS code using images binned by {self.binning} in each dimension.")
 
         # Now we should be ready to run cwfs
 
+        # reset inputs just incase 
         self.algo.reset(self.I1[0], self.I2[0])
 
+        # for a slow telescope, should be running in paraxial mode
         await loop.run_in_executor(
-            executor, self.algo.runIt, self.inst, self.I1[0], self.I2[0], "onAxis"
+            executor, self.algo.runIt, self.inst, self.I1[0], self.I2[0], "paraxial"
         )
-        # self.algo.runIt(self.inst, self.I1[0], self.I2[0], 'onAxis')
 
+        self.log.warning(" TODO: Negative sign being used infront of calculated Coma-X Zernike! Artifact tha appeared while checking at NCSA. Needs investigation on other platforms!")
         self.zern = [
-            self.algo.zer4UpNm[3],
-            self.algo.zer4UpNm[4],
-            self.algo.zer4UpNm[0],
+            -self.algo.zer4UpNm[3], # Coma-X (in detector axes, TBC)
+            self.algo.zer4UpNm[4], # Coma-Y (in detector axes, TBC)
+            self.algo.zer4UpNm[0], # defocus 
         ]
 
-        self.show_results()
+        results_dict = self.calculate_results()
+        
+        return results_dict
 
     def select_cwfs_source(self):
-        """
+        """Finds donut sources and selects the brightest to be used
+        in the cwfs analysis
         """
 
         if self.detection_exp is None:
             raise RuntimeError(
-                "No detection exposure define. Run take_intra_extra or"
+                "No detection exposure defined. Run take_intra_extra or"
                 "manually define sources before running."
             )
 
@@ -437,7 +490,7 @@ Pixel_size (m)			{}
         )
 
         tab = afwTable.SourceTable.make(schema)
-        result = source_detection_task.run(tab, self.detection_exp, sigma=12.1)
+        result = source_detection_task.run(tab, self.detection_exp, sigma=self.src_detection_sigma)
 
         self.log.debug(
             f"Found {len(result)} sources. Selecting the brightest for CWFS analysis"
@@ -483,6 +536,9 @@ Pixel_size (m)			{}
 
     def center_and_cut_images(self):
         """ After defining sources for cwfs cut snippet for cwfs analysis.
+        This is used create a cutout of the image to provide to the CWFS analysis code.
+        The speed of the algorithm if proportional to the number of pixels in the image so having the
+        smallest image, but without any clipping, is ideal.
         """
 
         # reset I1 and I2
@@ -538,7 +594,8 @@ Pixel_size (m)			{}
             self.I2.append(Image(extra_square, self.fieldXY, Image.EXTRA))
 
     def rebin(self, arr, new_shape):
-        # rebins image to new form
+        """ rebins the array to a new shape
+        """
         shape = (
             new_shape[0],
             arr.shape[0] // new_shape[0],
@@ -547,7 +604,24 @@ Pixel_size (m)			{}
         )
         return arr.reshape(shape).mean(-1).mean(1)
 
-    def show_results(self):
+        
+    def calculate_results(self, silent=False):
+        """ Calculates hexapod and telescope offsets based on 
+        derotated zernikes.
+        
+        Inputs:
+        -------
+        None
+
+        Returns
+        -------
+        Dictionary of calculated values
+        results = {'zerns' : (self.zern),
+                  'rot_zerns': (rot_zern),
+                  'hex_offset': (hexapod_offset),
+                  'tel_offset': (tel_offset)}
+                  
+        """
         rot_zern = np.matmul(
             self.zern, self.rotation_matrix(self.angle + self.camera_rotation_angle)
         )
@@ -556,13 +630,20 @@ Pixel_size (m)			{}
 
         self.log.info(
             f"""==============================
-Measured zernike coeficients: {self.zern}
-De-rotated zernike coeficients: {rot_zern}
-Hexapod offset: {hexapod_offset}
+Measured [coma-X, coma-Y, focus] zernike coefficients in nm : {self.zern}
+De-rotated zernike coefficients: {rot_zern}
+Hexapod offset : {hexapod_offset}
 Telescope offsets: {tel_offset}
 ==============================
 """
         )
+        
+        results = {'zerns' : (self.zern),
+                  'rot_zerns': (rot_zern),
+                  'hex_offset': (hexapod_offset),
+                  'tel_offset': (tel_offset)}
+        
+        return results
 
     @classmethod
     def get_schema(cls):
@@ -592,7 +673,7 @@ Telescope offsets: {tel_offset}
               dataPath:
                 description: Path to the butler data repository.
                 type: string
-                default: /mnt/dmcs/oods_butler_repo/repo/
+                default: /project/shared/auxTel/
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
