@@ -36,8 +36,8 @@ from scipy import ndimage
 from scipy.signal import medfilt
 
 from lsst.ts import salobj
-from lsst.ts.standardscripts.auxtel.attcs import ATTCS
-from lsst.ts.standardscripts.auxtel.latiss import LATISS
+from lsst.ts.observatory.control.auxtel.atcs import ATCS
+from lsst.ts.observatory.control.auxtel.latiss import LATISS
 
 import lsst.daf.persistence as dafPersist
 
@@ -89,13 +89,15 @@ class LatissCWFSAlign(salobj.BaseScript):
 
         super().__init__(
             index=index,
-            descr="Perform optical alignment procedure of the Rubin Auxiliary Telescope with LATISS using Curvature-Wavefront Sensing Techniques.",
+            descr="Perform optical alignment procedure of the Rubin Auxiliary "
+            "Telescope with LATISS using Curvature-Wavefront Sensing "
+            "Techniques.",
         )
 
         self.attcs = None
         self.latiss = None
         if remotes:
-            self.attcs = ATTCS(self.domain)
+            self.attcs = ATCS(self.domain)
             self.latiss = LATISS(self.domain)
 
         # Timeouts used for telescope commands

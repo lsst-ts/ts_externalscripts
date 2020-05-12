@@ -33,6 +33,7 @@ test:
     - pyyaml
     - boto3
     - moto
+    - scipy
     - ts-idl
     - ts-salobj
     - ts-atdome
