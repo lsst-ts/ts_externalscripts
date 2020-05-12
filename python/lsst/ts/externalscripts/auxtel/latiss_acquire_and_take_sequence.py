@@ -216,11 +216,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             self.acq_grating,
         )
 
-        # Adjust sweet-spot to do pointing model
-        # self.doPointingModel = config.doPointingModel
-
-        # self._expTimes = exposure_time_sequence  # convenience for estimate total integration time
-
         # make a list of tuples from the filter, exptime and grating lists
         self.visit_configs = [
             (f, e, g)
@@ -340,7 +335,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.latiss_acquire()
 
         if self.do_take_sequence:
-            # Grab hexapod offsets such that we can change it back upon completion
+            # Grab hexapod offsets such that we can change it back upon
+            # completion
             hex_offsets = await self.attcs.ataos.evt_correctionOffsets.aget(timeout=5)
             print("hex_offset before starting sequence is {}".format(hex_offsets))
             self.log.debug("Beginning taking data for target sequence")
@@ -350,7 +346,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 print("grabbed exception from latiss_take_sequence(): ")
                 raise e
             finally:
-                # apply hexapod offsets to be the same as before to conserve focus
+                # apply hexapod offsets to be the same as before to conserve
+                # focus
                 await self.attcs.ataos.cmd_applyAxisOffset.set_start(
                     axis="z", offset=hex_offsets.z, timeout=20
                 )
