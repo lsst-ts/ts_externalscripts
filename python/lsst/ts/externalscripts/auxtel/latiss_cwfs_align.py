@@ -24,6 +24,7 @@ import os
 import time
 import yaml
 import asyncio
+import warnings
 
 import concurrent.futures
 
@@ -49,10 +50,15 @@ import lsst.afw.table as afwTable
 from lsst.ip.isr.isrTask import IsrTask
 
 # Import CWFS package
-from lsst import cwfs
-from lsst.cwfs.instrument import Instrument
-from lsst.cwfs.algorithm import Algorithm
-from lsst.cwfs.image import Image
+try:
+    # TODO: (DM-24904) Remove this try/except clause when develop env ships
+    # with cwfs
+    from lsst import cwfs
+    from lsst.cwfs.instrument import Instrument
+    from lsst.cwfs.algorithm import Algorithm
+    from lsst.cwfs.image import Image
+except ImportError:
+    warnings.warn("Could not import cwfs code.")
 
 import copy  # used to support binning
 
@@ -73,7 +79,7 @@ class LatissCWFSAlign(salobj.BaseScript):
     **Checkpoints**
 
     None
-    
+
     **Details**
 
     This script is used to perform measurements of the wavefront error, then
@@ -215,7 +221,8 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.isr_config.doSaturation = False
         self.isr_config.doWrite = False
 
-    # define the method that sets the hexapod offset to create intra/extra focal images
+    # define the method that sets the hexapod offset to create intra/extra
+    # focal images
     @property
     def dz(self):
         if self._dz is None:
@@ -246,7 +253,7 @@ Obscuration 				0.423
 Focal_length (m)			21.6
 Aperture_diameter (m)   		1.2
 Offset (m)				{}
-Pixel_size (m)			{}	
+Pixel_size (m)			{}
 """
         config_index = f"auxtel_latiss"
         path = Path(cwfs.__file__).resolve().parents[3].joinpath("data", config_index)
@@ -309,7 +316,6 @@ Pixel_size (m)			{}
         azel = await self.attcs.atmcs.tel_mount_AzEl_Encoders.aget()
         nasmyth = await self.attcs.atmcs.tel_mount_Nasmyth_Encoders.aget()
 
-        # self.angle = np.mean(nasmyth.nasmyth2CalculatedAngle) - np.mean(azel.elevationCalculatedAngle)
         self.angle = np.mean(nasmyth.nasmyth2CalculatedAngle) + np.mean(
             azel.elevationCalculatedAngle
         )
@@ -328,9 +334,9 @@ Pixel_size (m)			{}
         self.log.info(f"extraImage expId for target: {self.extra_visit_id}")
 
     async def hexapod_offset(self, offset):
-        """ Applies z-offset to the hexapod to move between intra/extra/in-focus
-        positions.
-i
+        """ Applies z-offset to the hexapod to move between
+        intra/extra/in-focus positions.
+
         Parameters
         ----------
         offset: `float`
@@ -361,7 +367,7 @@ i
 
     def get_isr_exposure(self, exp_id):
         """Get ISR corrected exposure.
-        
+
         Parameters
         ----------
         exp_id: `string`
@@ -468,7 +474,8 @@ i
         )
 
         self.log.warning(
-            " TODO: Negative sign being used infront of calculated Coma-X Zernike! Artifact tha appeared while checking at NCSA. Needs investigation on other platforms!"
+            "TODO: Negative sign being used infront of calculated Coma-X Zernike! Artifact tha "
+            "appeared while checking at NCSA. Needs investigation on other platforms!"
         )
         self.zern = [
             -self.algo.zer4UpNm[3],  # Coma-X (in detector axes, TBC)
@@ -548,9 +555,10 @@ i
 
     def center_and_cut_images(self):
         """ After defining sources for cwfs cut snippet for cwfs analysis.
-        This is used create a cutout of the image to provide to the CWFS analysis code.
-        The speed of the algorithm if proportional to the number of pixels in the image so having the
-        smallest image, but without any clipping, is ideal.
+        This is used create a cutout of the image to provide to the CWFS
+        analysis code. The speed of the algorithm if proportional to the number
+        of pixels in the image so having the smallest image, but without any
+        clipping, is ideal.
         """
 
         # reset I1 and I2
@@ -591,7 +599,8 @@ i
             if self.binning != 1:
                 intra_square0 = copy.deepcopy(intra_square)
                 extra_square0 = copy.deepcopy(extra_square)
-                # get tuple array from shape array (which is a tuple) and make an integer
+                # get tuple array from shape array (which is a tuple) and make
+                # an integer
                 new_shape = tuple(
                     np.asarray(
                         np.asarray(intra_square0.shape) / self.binning, dtype=np.int32
@@ -617,9 +626,9 @@ i
         return arr.reshape(shape).mean(-1).mean(1)
 
     def calculate_results(self, silent=False):
-        """ Calculates hexapod and telescope offsets based on 
+        """ Calculates hexapod and telescope offsets based on
         derotated zernikes.
-        
+
         Inputs:
         -------
         None
@@ -631,7 +640,6 @@ i
                   'rot_zerns': (rot_zern),
                   'hex_offset': (hexapod_offset),
                   'tel_offset': (tel_offset)}
-                  
         """
         rot_zern = np.matmul(
             self.zern, self.rotation_matrix(self.angle + self.camera_rotation_angle)

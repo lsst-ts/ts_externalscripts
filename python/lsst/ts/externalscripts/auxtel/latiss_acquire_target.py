@@ -20,61 +20,21 @@
 
 __all__ = ["LatissAcquireTarget"]
 
-import os
-import copy
-import time
 import yaml
-import wget
-import asyncio
-import warnings
-import logging
-
-import concurrent.futures
-
-from pathlib import Path
-
-import numpy as np
-from astropy import time as astropytime
-from astropy.io import fits
-
-# from scipy import ndimage
-# from scipy.signal import medfilt
-# from scipy.ndimage.filters import gaussian_filter
-# from astropy.modeling import models, fitting
 
 from lsst.ts import salobj
 from lsst.ts.standardscripts.auxtel.attcs import ATTCS
 from lsst.ts.standardscripts.auxtel.latiss import LATISS
-from lsst.ts.idl.enums.Script import ScriptState
 
 import lsst.daf.persistence as dafPersist
-
-# Source detection libraries
-from lsst.meas.algorithms.detection import SourceDetectionTask
-
-# cosmic ray rejection
-from lsst.pipe.tasks.characterizeImage import CharacterizeImageTask
-
-import lsst.afw.table as afwTable
-
-from operator import itemgetter
-from lsst.ip.isr.isrTask import IsrTask
-
-import matplotlib.pyplot as plt
-
-# Import CWFS package
-# from lsst import cwfs
-# from lsst.cwfs.instrument import Instrument
-# from lsst.cwfs.algorithm import Algorithm
-# from lsst.cwfs.image import Image, readFile, aperture2image, showProjection
-# import lsst.cwfs.plots as plots
 
 # Import Robert's CalibrationStarVisit method
 import lsst.observing.commands.calibrationStarVisit as calibrationStarVisit
 
 
 class LatissAcquireTarget(salobj.BaseScript):
-    """ Perform an acquisition of a target on LATISS with the Auxiliary Telescope.
+    """ Perform an acquisition of a target on LATISS with the Auxiliary
+    Telescope.
     This sets up the instrument and puts the brightest target on a
     specific pixel.
 
@@ -91,7 +51,8 @@ class LatissAcquireTarget(salobj.BaseScript):
 
     **Details**
 
-    This script is used to put the brightest target in a field on a specific pixel.
+    This script is used to put the brightest target in a field on a specific
+    pixel.
 
     """
 
@@ -144,7 +105,7 @@ class LatissAcquireTarget(salobj.BaseScript):
             title: LatissAcquireTarget v1
             description: Configuration for LatissAcquireTarget Script.
             type: object
-            properties:    
+            properties:
               object_name:
                 description: SIMBAD queryable object name
                 type: string
@@ -173,7 +134,7 @@ class LatissAcquireTarget(salobj.BaseScript):
                 type: boolean
                 default: True
             additionalProperties: false
-            required: [object_name] 
+            required: [object_name]
         """
         return yaml.safe_load(schema_yaml)
 
@@ -214,7 +175,8 @@ class LatissAcquireTarget(salobj.BaseScript):
         metadata.filter = f"{self.filter},{self.grating}"
 
     async def run(self):
-        """ Perform acquisition. This just wraps Robert's method in the observing repo
+        """ Perform acquisition. This just wraps Robert's method in the
+        observing repo
 
         Returns
         -------
