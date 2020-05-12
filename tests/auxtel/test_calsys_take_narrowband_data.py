@@ -32,6 +32,7 @@ class TestCalSysTakeNarrowbandData(asynctest.TestCase):
         index = next(index_gen)
 
         async with CalSysTakeNarrowbandData(index=index) as script:
+
             async def run_configure(**kwargs):
                 script.set_state(salobj.Script.ScriptState.UNCONFIGURED)
                 config_data = script.cmd_configure.DataType()

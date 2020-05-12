@@ -34,5 +34,5 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(scripts_dir.samefile(predicted_path))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

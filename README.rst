@@ -1,7 +1,18 @@
-#############
-ts_salscripts
-#############
+##################
+ts_externalscripts
+##################
 
-``ts_salscripts`` is a package in the `LSST Science Pipelines <https://pipelines.lsst.io>`_.
+Non-supported SAL scripts for operating the LSST via the `lsst.ts.scriptqueue.ScriptQueue`.
+Each script is a subclass of `lsst.ts.scriptqueue.ScriptBase`.
 
-.. Add a brief (few sentence) description of what this package provides.
+Supported SAL scripts go in ``ts_standardscripts``.
+
+Put common code and complicated implementations in ``python/lsst/ts/externalscripts``
+(or the equivalent location in ``ts_standardscripts``),
+and the actual scripts in ``scripts`` in the desired hierarchy.
+
+This code is automatically formatted by ``black`` using a git pre-commit hook.
+To enable this:
+
+* Install the ``black`` Python package.
+* Run ``git config core.hooksPath .githooks`` once in this repository.
