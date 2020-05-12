@@ -34,6 +34,7 @@ test:
     - boto3
     - moto
     - scipy
+    - lsst-daf-persistence
     - ts-idl
     - ts-salobj
     - ts-atdome
@@ -63,3 +64,4 @@ requirements:
     - ts-idl
     - ts-salobj
     - ts-observatory-control
+    - lsst-daf-persistence
