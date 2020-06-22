@@ -324,7 +324,7 @@ class CalSysTakeData(salobj.BaseScript):
                 await self.checkpoint("Write data to csv file")
                 electrometer_lfo_url = results[0].url
                 fiber_spectrograph_lfo_url = results[1].url
-                self.log.debug(f"Writing csv file")
+                self.log.debug("Writing csv file")
                 data_writer.writerow(
                     {
                         fieldnames[0]: self.integration_times[i],
@@ -338,7 +338,7 @@ class CalSysTakeData(salobj.BaseScript):
                 )
         with open(csvpath, newline="") as csvfile:
             data_reader = csv.DictReader(csvfile)
-            self.log.debug(f"Reading CSV file")
+            self.log.debug("Reading CSV file")
 
             for row in data_reader:
                 fiber_spectrograph_url = row["Fiber Spectrograph Fits File"]
@@ -371,7 +371,7 @@ class CalSysTakeData(salobj.BaseScript):
                     self.log.debug(
                         f"Wrote Electrometer fits file to {electrometer_fits_path}"
                     )
-            self.log.info(f"Fits Files downloaded")
+            self.log.info("Fits Files downloaded")
         await self.checkpoint("Done")
 
     async def start_take_spectrum(self, index):
@@ -413,5 +413,5 @@ class CalSysTakeData(salobj.BaseScript):
             timeout=self.cmd_timeout, flush=True
         )
         await self.electrometer.cmd_startScanDt.start(timeout=self.cmd_timeout)
-        self.log.debug(f"Electrometer finished scan")
+        self.log.debug("Electrometer finished scan")
         return await electrometer_lfo_coro

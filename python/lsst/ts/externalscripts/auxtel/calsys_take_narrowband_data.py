@@ -421,7 +421,7 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
                     atcamera_ps_description = results[2].description
                     atcamera_image_name_list = atcamera_ps_description.split(" ")
                     atcamera_image_name = atcamera_image_name_list[1]
-                self.log.debug(f"Writing csv file")
+                self.log.debug("Writing csv file")
                 row_dict = {}
                 for fieldname in fieldnames:
                     row_dict[fieldname] = None
@@ -451,7 +451,7 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
                 data_writer.writerow(row_dict)
         with open(f"{path}/{csv_filename}", newline="") as csvfile:
             data_reader = csv.DictReader(csvfile)
-            self.log.debug(f"Reading CSV file")
+            self.log.debug("Reading CSV file")
             for row in data_reader:
                 fiber_spectrograph_url = row["Fiber Spectrograph Fits File"]
                 electrometer_url = row["Electrometer Fits File"]
@@ -459,7 +459,7 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
                 electrometer_url = electrometer_url.replace(
                     "https://127.0.0.1", "http://10.0.100.133:8000"
                 )
-                self.log.debug(f"Fixed electrometer url")
+                self.log.debug("Fixed electrometer url")
                 electrometer_url_name = electrometer_url.split("/")[-1]
                 fiber_spectrograph_url_name = fiber_spectrograph_url.split("/")[-1]
                 fiber_spectrograph_fits_request = requests.get(fiber_spectrograph_url)
@@ -470,12 +470,12 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
                 )
                 with open(fiber_spectrograph_file, "wb") as file:
                     file.write(fiber_spectrograph_fits_request.content)
-                    self.log.debug(f"Download Fiber Spectrograph fits file")
+                    self.log.debug("Download Fiber Spectrograph fits file")
                 electrometer_file = f"{self.file_location}/electrometer_fits_files/{electrometer_url_name}"
                 with open(electrometer_file, "wb") as file:
                     file.write(electrometer_fits_request.content)
-                    self.log.debug(f"Downloaded Electrometer fits file")
-            self.log.info(f"Fits Files downloaded")
+                    self.log.debug("Downloaded Electrometer fits file")
+            self.log.info("Fits Files downloaded")
         await self.checkpoint("Done")
 
     async def start_electrometer_scan(self, index):
@@ -487,7 +487,7 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
             timeout=self.cmd_timeout, flush=True
         )
         await self.electrometer.cmd_startScanDt.start(timeout=self.cmd_timeout)
-        self.log.debug(f"Electrometer finished scan")
+        self.log.debug("Electrometer finished scan")
         return await electrometer_lfo_coro
 
     async def start_take_spectrum(self, index):
@@ -519,7 +519,7 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         )
         self.log.info(f"take a {self.integration_times[index]} second exposure")
         await self.fiber_spectrograph.cmd_captureSpectImage.start(timeout=timeout)
-        self.log.debug(f"Fiber Spectrograph captured spectrum image")
+        self.log.debug("Fiber Spectrograph captured spectrum image")
         return await fiber_spectrograph_lfo_coro
 
     async def start_camera_take_image(self, index):
@@ -535,5 +535,5 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         await self.atcamera.cmd_takeImages.start(
             timeout=self.cmd_timeout + self.integration_times[index]
         )
-        self.log.debug(f"Camera took image")
+        self.log.debug("Camera took image")
         return await atarchiver_lfo_coro

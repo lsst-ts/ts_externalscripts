@@ -240,10 +240,10 @@ class LaserCoordination(salobj.BaseScript):
             setup_tasks.append(setup_electrometer_ack_coro)
         try:
             data_array = []
-            self.log.debug(f"Setting up Script")
+            self.log.debug("Setting up Script")
             await asyncio.gather(*setup_tasks)
-            await self.checkpoint(f"setup complete")
-            self.log.debug(f"Finished setting up script")
+            await self.checkpoint("setup complete")
+            self.log.debug("Finished setting up script")
             for wavelength in self.wavelengths:
                 for ls_pos in range(1, self.max_linear_stage_position, self.steps):
                     if self.linear_stage_set:
@@ -293,7 +293,7 @@ class LaserCoordination(salobj.BaseScript):
                 await self.tunable_laser.cmd_stopPropagateLaser.start(
                     timeout=self.timeout
                 )
-                await self.checkpoint(f"Laser stopped propagating")
+                await self.checkpoint("Laser stopped propagating")
             with open(f"{self.file_location}laser_coordination.txt", "w") as f:
                 f.write("timestamp wavelength ls_pos ls_2_pos electrometer_data_url\n")
                 for line in data_array:
