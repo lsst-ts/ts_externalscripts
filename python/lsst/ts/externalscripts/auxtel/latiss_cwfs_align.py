@@ -255,7 +255,7 @@ Aperture_diameter (m)   		1.2
 Offset (m)				{}
 Pixel_size (m)			{}
 """
-        config_index = f"auxtel_latiss"
+        config_index = "auxtel_latiss"
         path = Path(cwfs.__file__).resolve().parents[3].joinpath("data", config_index)
         if not path.exists():
             os.makedirs(path)

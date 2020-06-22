@@ -1,3 +1,23 @@
+# This file is part of ts_externalscripts
+#
+# Developed for the LSST Telescope and Site Systems.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+
 __all__ = ["LaserCoordination"]
 
 from lsst.ts import salobj
@@ -220,10 +240,10 @@ class LaserCoordination(salobj.BaseScript):
             setup_tasks.append(setup_electrometer_ack_coro)
         try:
             data_array = []
-            self.log.debug(f"Setting up Script")
+            self.log.debug("Setting up Script")
             await asyncio.gather(*setup_tasks)
-            await self.checkpoint(f"setup complete")
-            self.log.debug(f"Finished setting up script")
+            await self.checkpoint("setup complete")
+            self.log.debug("Finished setting up script")
             for wavelength in self.wavelengths:
                 for ls_pos in range(1, self.max_linear_stage_position, self.steps):
                     if self.linear_stage_set:
@@ -273,7 +293,7 @@ class LaserCoordination(salobj.BaseScript):
                 await self.tunable_laser.cmd_stopPropagateLaser.start(
                     timeout=self.timeout
                 )
-                await self.checkpoint(f"Laser stopped propagating")
+                await self.checkpoint("Laser stopped propagating")
             with open(f"{self.file_location}laser_coordination.txt", "w") as f:
                 f.write("timestamp wavelength ls_pos ls_2_pos electrometer_data_url\n")
                 for line in data_array:
