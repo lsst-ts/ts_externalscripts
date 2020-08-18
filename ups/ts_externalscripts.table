@@ -1,5 +1,4 @@
 setupRequired(sconsUtils)
-setupRequired(ts_sal)
 setupRequired(ts_salobj)
 setupRequired(ts_observatory_control)
 

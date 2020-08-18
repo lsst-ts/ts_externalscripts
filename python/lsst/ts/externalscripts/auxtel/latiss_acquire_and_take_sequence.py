@@ -21,19 +21,21 @@
 __all__ = ["LatissAcquireAndTakeSequence"]
 
 import yaml
+import warnings
 import asyncio
 import numpy as np
 
 from lsst.ts import salobj
-from lsst.ts.standardscripts.auxtel.attcs import ATTCS
-from lsst.ts.standardscripts.auxtel.latiss import LATISS
+from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 
-# from lsst.ts.idl.enums.Script import ScriptState
+try:
+    from lsst.observing.utils.audio import playSound
+    from lsst.observing.utils.filters import changeFilterAndGrating, getFilterAndGrating
+    from lsst.observing.utils.offsets import findOffsetsAndMove
+    from lsst.observing.constants import boreSight, sweetSpots
+except ImportError:
+    warnings.warn("Cannot import lsst.observing. Script will not work.")
 
-from lsst.observing.utils.audio import playSound
-from lsst.observing.utils.filters import changeFilterAndGrating, getFilterAndGrating
-from lsst.observing.utils.offsets import findOffsetsAndMove
-from lsst.observing.constants import boreSight, sweetSpots
 
 import lsst.daf.persistence as dafPersist
 
@@ -69,7 +71,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             index=index, descr="Perform target acquisition for LATISS instrument."
         )
 
-        self.attcs = ATTCS(self.domain)
+        self.attcs = ATCS(self.domain)
         self.latiss = LATISS(self.domain)
 
         # Suppress verbosity
