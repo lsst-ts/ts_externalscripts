@@ -21,15 +21,19 @@
 __all__ = ["LatissAcquireTarget"]
 
 import yaml
+import warnings
 
 from lsst.ts import salobj
-from lsst.ts.standardscripts.auxtel.attcs import ATTCS
-from lsst.ts.standardscripts.auxtel.latiss import LATISS
+from lsst.ts.observatory.control.auxtel import ATCS
+from lsst.ts.observatory.control.auxtel import LATISS
 
 import lsst.daf.persistence as dafPersist
 
 # Import Robert's CalibrationStarVisit method
-import lsst.observing.commands.calibrationStarVisit as calibrationStarVisit
+try:
+    import lsst.observing.commands.calibrationStarVisit as calibrationStarVisit
+except ImportError:
+    warnings.warn("Cannot import lsst.observing. Script will not work.")
 
 
 class LatissAcquireTarget(salobj.BaseScript):
@@ -67,7 +71,7 @@ class LatissAcquireTarget(salobj.BaseScript):
         self.attcs = None
         self.latiss = None
         if remotes:
-            self.attcs = ATTCS(self.domain)
+            self.attcs = ATCS(self.domain)
             self.latiss = LATISS(self.domain)
 
         self.short_timeout = 5.0
