@@ -28,7 +28,11 @@ import numpy as np
 from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants, atcs_constants
-from lsst.ts.observing.utilities.auxtel.latiss.getters import get_latiss_setup, get_next_image, get_next_image_dataId
+from lsst.ts.observing.utilities.auxtel.latiss.getters import (
+    get_latiss_setup,
+    get_image,
+    get_next_image_dataId,
+)
 from lsst.ts.observing.utilities.auxtel.latiss.utils import calculate_xy_offsets
 from lsst.rapid.analysis.quickFrameMeasurement import QuickFrameMeasurement
 from lsst.geom import ExtentD, PointD
@@ -301,7 +305,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             gratings.add(grating)
         metadata.filter = f"{filters},{gratings}"
 
-    async def latiss_acquire(self, silent=True, doPointingModel=False):
+    async def latiss_acquire(self, doPointingModel=False):
 
         if doPointingModel:
             target_position = latiss_constants.boresight
@@ -314,75 +318,66 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             self.latiss.setup_atspec(grating=self.acq_grating, filter=self.acq_filter),
         )
 
+        # instantiate the quick measurement class
         qm = QuickFrameMeasurement()
 
-        # Always accept move ?
-
-        self.log.info(f"Entering Acquisition Iterative Loop, with a maximum amount of iterations set to {self.max_acq_iter}")
+        self.log.info(
+            f"Entering Acquisition Iterative Loop, with a maximum amount of iterations set to {self.max_acq_iter}"
+        )
         iter_num = 0
         while iter_num < self.max_acq_iter:
             # Take image
-            self.log.debug(f'Starting iteration number {iter_num+1}')
-            tmp, exp = await asyncio.gather(
+            self.log.debug(f"Starting iteration number {iter_num+1}")
+            tmp, data_id = await asyncio.gather(
                 self.latiss.take_object(exptime=self.acq_exposure_time, n=1),
-                get_next_image(
-                    self.latiss,
-                    dataset="quickLookExp",
-                    datapath="/project/shared/auxTel/",
-                    timeout=self.acq_exposure_time + STD_TIMEOUT,
-                    runBestEffortIsr=True,
-                ),
+                get_next_image_dataId(self.latiss, timeout=self.acq_exposure_time + STD_TIMEOUT,),
             )
 
-            self.log.debug(f'take_object returns \n {tmp}')
-
-            # await self.latiss.take_object(exptime=self.acq_exposure_time, n=1)
-            #
-            # # Wait and get dataId from butler (and perform ISR)
-            # # Note that if the auto-display is running we'll be doing this twice (unnecessarily)
-            # exp = await get_next_image(
-            #     self.latiss,
-            #     dataset="quickLookExp",
-            #     datapath="/project/shared/auxTel/",
-            #     timeout=STD_TIMEOUT,
-            #     runBestEffortIsr=True,
-            # )
+            exp = await get_image(
+                data_id,
+                datapath=self.dataPath,
+                timeout=self.acq_exposure_time + STD_TIMEOUT,
+                runBestEffortIsr=True,
+            )
 
             # Find brightest star
             result = qm.run(exp)
-
-            # Find offsets
             current_position = PointD(result.brightestObjCentroid[0], result.brightestObjCentroid[1])
 
-            self.log.debug(f'target position is {target_position}')
-            self.log.debug(f'current position is {current_position}')
+            # Find offsets
+            self.log.debug(f"current brightest target position is {current_position}")
+            self.log.debug(f"target position is {target_position}")
 
-            dx_arcsec, dy_arcsec = calculate_xy_offsets(current_position,
-                                          target_position)
+            dx_arcsec, dy_arcsec = calculate_xy_offsets(current_position, target_position)
 
-            dr_arcsec = np.sqrt(dx_arcsec**2 + dy_arcsec**2)
+            dr_arcsec = np.sqrt(dx_arcsec ** 2 + dy_arcsec ** 2)
 
-            self.log.debug('Getting dataId, so not flushing')
-            dataId = await get_next_image_dataId(self.latiss, flush=False)
-            self.log.info(f"Calculated offsets [dx,dy] are [{dx_arcsec},{dy_arcsec}] arcsec as calculated from sequence number {dataId['seqNum']} on dayObs of {dataId['dayObs']}")
+            self.log.info(
+                f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f},{dy_arcsec:0.2f}] arcsec as calculated from sequence number {data_id['seqNum']} on dayObs of {data_id['dayObs']}"
+            )
 
+            # Check if star is in place, if so then we're done
             if dr_arcsec < self.target_pointing_tolerance:
-                self.log.info(f"Current radial pointing error of {dr_arcsec} arcsec is within the tolerance of {self.target_pointing_tolerance} arcsec."
-                              "Acquisition completed.")
+                self.log.info(
+                    f"Current radial pointing error of {dr_arcsec:0.2f} arcsec is within the tolerance of {self.target_pointing_tolerance} arcsec."
+                    "Acquisition completed."
+                )
                 break
 
-            # TODO: Ask user if we want to apply the correction?
-            await self.checkpoint(f"Apply the calculated [x,y] correction of  [{dx_arcsec},{dy_arcsec}] arcsec?")
+            # Ask user if we want to apply the correction?
+            await self.checkpoint(
+                f"Apply the calculated [x,y] correction of  [{dx_arcsec:0.2f},{dy_arcsec:0.2f}] arcsec?"
+            )
             # Offset telescope, using persistent offsets
-            self.log.debug('Applying x/y offset to telescope pointing.')
+            self.log.debug("Applying x/y offset to telescope pointing.")
             await self.atcs.offset_xy(dx_arcsec, dy_arcsec, persistent=True)
 
-            # TODO: verify with another image that we're on target?
+            # Verify with another image that we're on target?
             if not self.target_pointing_verification:
-                self.log.info(f'Skipping additional image to verify offset was applied correctly.')
+                self.log.info(f"Skipping additional image to verify offset was applied correctly.")
                 break
 
-            self.log.debug('Starting next iteration \n')
+            self.log.debug("Starting next iteration \n")
             iter_num += 1
         else:
             raise SystemError(f"Failed acquire star on target after {iter_num} images")
@@ -422,14 +417,19 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 # If ATAOS is running wait for adjustments to complete before moving on.
                 if corr.atspectrograph == True:
                     # If so, then flush correction events for confirmation of corrections
-                    await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.aget(timeout=self.cmd_timeout)
-                    await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.aget(timeout=self.cmd_timeout)
+                    await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.aget(
+                        timeout=self.cmd_timeout
+                    )
+                    await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.aget(
+                        timeout=self.cmd_timeout
+                    )
 
             # Take an image
             await self.latiss.take_object(exptime=expTime, n=1, group_id=group_id)
 
             self.log.info(
-                f"Completed exposure {i+1} of {nexp}. Exptime = {expTime:6.1f}s," f" filter={filt}, grating={grating})"
+                f"Completed exposure {i+1} of {nexp}. Exptime = {expTime:6.1f}s,"
+                f" filter={filt}, grating={grating})"
             )
 
     async def run(self):
