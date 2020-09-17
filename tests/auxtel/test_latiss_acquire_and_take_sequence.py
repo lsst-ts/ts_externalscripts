@@ -49,7 +49,6 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
         # telescope/instrument behaviour
 
         self.atcamera = salobj.Controller(name="ATCamera")
-        # self.atcamera.cmd_takeImages.callback = self.cmd_take_images_callback
         self.atcamera.cmd_takeImages.callback = asynctest.CoroutineMock(wraps=self.cmd_take_images_callback)
 
         # Mock the telescope slews and offsets
@@ -113,21 +112,13 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
 
         await asyncio.sleep(0.5)
         imgNum = self.atcamera.cmd_takeImages.callback.await_count - 1
-        tmp = imgNum + self.seq_num_start
-
         image_name = f"AT_O_{self.date}_{(imgNum+self.seq_num_start):06d}"
-
-        logger.debug(
-            f"\n Inside finish_take_images, imgNum = {imgNum}, tmp = {tmp}, image_name = {image_name} \n"
-        )
-
         self.atcamera.evt_endReadout.set_put(imageName=image_name)
         await asyncio.sleep(0.5)
         self.atheaderservice.evt_largeFileObjectAvailable.put()
         await asyncio.sleep(1.0)
 
         self.atarchiver.evt_imageInOODS.set_put(obsid=image_name)
-        logger.debug("evt_imageinOODS sent")
 
     async def test_configure(self):
         async with self.make_script():
@@ -157,7 +148,6 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
             self.assertEqual(self.script.do_acquire, do_acquire)
 
             # Try configure with minimum set and multiple exposures
-            grating_sequence = "test_disp1"
             exposure_time_sequence = [1.0, 2.0]
 
             await self.configure_script(
@@ -192,7 +182,7 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
             acq_grating = "acqgrating"
             acq_exposure_time = 1
             max_acq_iter = 3
-            target_pointing_tolerance = 5
+            target_pointing_tolerance = 3
             filter_sequence = ["test_filt1", "test_filt2"]
             grating_sequence = "test_disp1"
             exposure_time_sequence = [1.0, 2.0]
@@ -242,17 +232,6 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
                 do_acquire=do_acquire,
             )
 
-            # publish event with current hexapod position
-            offsets = {
-                "m1": 1.0,
-                "z": 1.0,
-                "m2": 1.0,
-                "x": 1.0,
-                "y": 1.0,
-                "u": 1.0,
-                "v": 1.0,
-            }
-            self.ataos.evt_correctionOffsets.set_put(**offsets)
             # publish ataos event saying corrections are enabled
             self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
 
@@ -290,7 +269,8 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
             object_name = "HD145600"
             acq_filter = "test_filt1"
             acq_grating = "ronchi90lpmm"
-            exposure_time_sequence = [0.3, 0.8]
+            target_pointing_tolerance = 4
+            max_acq_iter = 5
             do_acquire = True
             do_take_sequence = False
             await self.configure_script(
@@ -299,19 +279,10 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
                 do_take_sequence=do_take_sequence,
                 acq_filter=acq_filter,
                 acq_grating=acq_grating,
+                target_pointing_tolerance=target_pointing_tolerance,
+                max_acq_iter=max_acq_iter,
             )
 
-            # publish event with current hexapod position
-            offsets = {
-                "m1": 1.0,
-                "z": 1.0,
-                "m2": 1.0,
-                "x": 1.0,
-                "y": 1.0,
-                "u": 1.0,
-                "v": 1.0,
-            }
-            self.ataos.evt_correctionOffsets.set_put(**offsets)
             # publish ataos event saying corrections are enabled
             self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
 
@@ -323,9 +294,63 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
 
             await self.run_script()
 
+            # Should take two iterations
             self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count, len(exposure_time_sequence),
+                self.atcamera.cmd_takeImages.callback.await_count, 2,
             )
+            # should offset only once
+            self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
+
+    async def test_full_sequence(self):
+        """This tests a combined acquisition and data taking sequence.
+        It uses a single acquisition image without re-verification."""
+
+        async with self.make_script():
+            # Date for file to be produced
+            self.date = "20200314"
+            # sequence number start
+            self.seq_num_start = 189
+
+            object_name = "HD145600"
+            acq_filter = "test_filt1"
+            acq_grating = "ronchi90lpmm"
+            grating_sequence = ["ronchi90lpmm", "empty_1"]
+            filter_sequence = "test_filt2"
+            exposure_time_sequence = [0.3, 0.8]
+            target_pointing_tolerance = 3
+            target_pointing_verification = False
+            do_acquire = True
+            do_take_sequence = True
+            await self.configure_script(
+                object_name=object_name,
+                do_acquire=do_acquire,
+                do_take_sequence=do_take_sequence,
+                acq_filter=acq_filter,
+                acq_grating=acq_grating,
+                filter_sequence=filter_sequence,
+                grating_sequence=grating_sequence,
+                target_pointing_tolerance=target_pointing_tolerance,
+                exposure_time_sequence=exposure_time_sequence,
+                target_pointing_verification=target_pointing_verification,
+            )
+
+            # publish ataos event saying corrections are enabled
+            self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
+
+            # Send spectrograph events
+            logger.debug("Sending atspectrograph position events")
+            self.atspectrograph.evt_reportedFilterPosition.set_put(name="filter0")
+            self.atspectrograph.evt_reportedDisperserPosition.set_put(name="disp0")
+            self.atspectrograph.evt_reportedLinearStagePosition.set_put(position=65)
+
+            await self.run_script()
+
+            # Should take one image for acquisition then two images
+            self.assertEqual(
+                self.atcamera.cmd_takeImages.callback.await_count, 1 + 2,
+            )
+            # Make sure offset was applied to telescope
+            self.script.atcs.offset_xy.assert_called()
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()

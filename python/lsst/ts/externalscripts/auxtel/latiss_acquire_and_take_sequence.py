@@ -132,14 +132,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 default: 2.
 
               max_acq_iter:
-                description: Max number of iterations to perform when putting source in place.
+                description: Max number of iterations to perform when acquiring target at a location.
                 type: number
                 default: 3
-
-              acq_verification:
-                description: Verify using a subsequent exposure that the star is within tolerance?
-                type: boolean
-                default: True
                 
               target_pointing_tolerance:
                 description: Number of arcsec from source to desired position to consider good enough.
@@ -264,7 +259,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.acq_grating = config.acq_grating
         self.acq_filter = config.acq_filter
         self.acq_exposure_time = config.acq_exposure_time
-        self.acq_verification = config.acq_verification
 
         # Max number of iterations to perform when putting source in place
         self.max_acq_iter = config.max_acq_iter
@@ -359,28 +353,35 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # Check if star is in place, if so then we're done
             if dr_arcsec < self.target_pointing_tolerance:
                 self.log.info(
-                    f"Current radial pointing error of {dr_arcsec:0.2f} arcsec is within the tolerance of {self.target_pointing_tolerance} arcsec."
+                    f"Current radial pointing error of {dr_arcsec:0.2f} arcsec is within the tolerance of {self.target_pointing_tolerance} arcsec. "
                     "Acquisition completed."
                 )
                 break
+            else:
+                self.log.info(
+                    f"Current radial pointing error of {dr_arcsec:0.2f} arcsec exceeds the tolerance of {self.target_pointing_tolerance} arcsec."
+                )
 
             # Ask user if we want to apply the correction?
             await self.checkpoint(
                 f"Apply the calculated [x,y] correction of  [{dx_arcsec:0.2f},{dy_arcsec:0.2f}] arcsec?"
             )
             # Offset telescope, using persistent offsets
-            self.log.debug("Applying x/y offset to telescope pointing.")
+            self.log.info("Applying x/y offset to telescope pointing.")
             await self.atcs.offset_xy(dx_arcsec, dy_arcsec, persistent=True)
 
             # Verify with another image that we're on target?
             if not self.target_pointing_verification:
-                self.log.info(f"Skipping additional image to verify offset was applied correctly.")
+                self.log.info(
+                    f"Skipping additional image to verify offset was applied correctly as target_pointing_verification is set to {self.target_pointing_verification}"
+                )
                 break
 
-            self.log.debug("Starting next iteration \n")
+            self.log.debug("Starting next iteration of acquisition sequence.\n")
             iter_num += 1
+
         else:
-            raise SystemError(f"Failed acquire star on target after {iter_num} images")
+            raise SystemError(f"Failed to acquire star on target after {iter_num} images.")
 
         # Update pointing model
         if doPointingModel:
