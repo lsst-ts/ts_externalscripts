@@ -37,16 +37,6 @@ from lsst.ts.observing.utilities.auxtel.latiss.utils import calculate_xy_offsets
 from lsst.rapid.analysis.quickFrameMeasurement import QuickFrameMeasurement
 from lsst.geom import ExtentD, PointD
 
-
-# try:
-#     from lsst.observing.utils.audio import playSound
-#     from lsst.observing.utils.filters import changeFilterAndGrating, getFilterAndGrating
-#     from lsst.observing.utils.offsets import findOffsetsAndMove
-#     from lsst.observing.constants import boreSight, sweetSpots
-# except ImportError:
-#     warnings.warn("Cannot import lsst.observing. Script will not work.")
-
-
 import lsst.daf.persistence as dafPersist
 import collections.abc
 
@@ -54,7 +44,7 @@ STD_TIMEOUT = 10  # seconds
 
 
 class LatissAcquireAndTakeSequence(salobj.BaseScript):
-    """ TODO: update docs
+    """
     Perform an acquisition of a target on LATISS with the AuxTel.
     This sets up the instrument and puts the brightest target on a
     specific pixel, then takes a sequence of exposures for a given
@@ -67,7 +57,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
     Notes
     -----
-    **Checkpoints**
+    An (optional) checkpoint is available to verify the calculated
+    telescope offset after each iteration of the acquisition.
 
     **Details**
 
@@ -82,7 +73,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         super().__init__(index=index, descr="Perform target acquisition for LATISS instrument.")
 
-        self.atcs = ATCS(self.domain, log=self.log)  #  , intended_usage=ATCSUsages.Slew)
+        self.atcs = ATCS(self.domain, log=self.log)
         self.latiss = LATISS(self.domain, log=self.log)
 
         # Set timeout
@@ -290,6 +281,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         ]
 
     # This bit is required for ScriptQueue
+    # Does the calculation below need acquisition times?
+    # I'm not quite sure what the metadata.filter bit is used for...
     def set_metadata(self, metadata):
         metadata.duration = 300
         filters, gratings, expTimeTotal = set(), set(), 0
@@ -301,22 +294,44 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
     async def latiss_acquire(self, doPointingModel=False):
 
+        # instantiate the quick measurement class
+        qm = QuickFrameMeasurement()
+
         if doPointingModel:
             target_position = latiss_constants.boresight
         else:
             target_position = latiss_constants.sweet_spots[self.acq_grating]
 
-        # TODO: add a check to verify offsets were applied from spectrograph setup
+        # get current filter/disperser
+        current_filter, current_grating, current_stage_pos = await get_latiss_setup(self.latiss)
+
+        # Check if a new configuration is required
+        if (self.acq_filter is not current_filter) and (self.acq_grating is not current_grating):
+            self.log.debug(f"Must load new filter {self.acq_filter } and grating {self.acq_grating}")
+
+            # Is the atspectrograph Correction in the ATAOS running?
+            corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(timeout=self.cmd_timeout)
+            if corr.atspectrograph == True:
+                # If so, then flush correction events for confirmation of corrections
+                self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.flush()
+                self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.flush()
+
+        # Setup instrument and telescope
         await asyncio.gather(
             self.atcs.slew_object(name=self.object_name, rot=0, slew_timeout=240),
-            self.latiss.setup_atspec(grating=self.acq_grating, filter=self.acq_filter),
+            self.latiss.setup_instrument(grating=self.acq_grating, filter=self.acq_filter),
         )
 
-        # instantiate the quick measurement class
-        qm = QuickFrameMeasurement()
+        # If ATAOS is running wait for adjustments to complete before moving on.
+        if corr.atspectrograph == True:
+            self.log.debug(f"Verifying LATISS configuration is incorporated into ATAOS offsets")
+            # If so, then flush correction events for confirmation of corrections
+            await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.aget(timeout=self.cmd_timeout)
+            await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.aget(timeout=self.cmd_timeout)
 
         self.log.info(
-            f"Entering Acquisition Iterative Loop, with a maximum amount of iterations set to {self.max_acq_iter}"
+            "Entering Acquisition Iterative Loop, with a maximum amount of "
+            f"iterations set to {self.max_acq_iter}"
         )
         iter_num = 0
         while iter_num < self.max_acq_iter:
@@ -347,19 +362,22 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             dr_arcsec = np.sqrt(dx_arcsec ** 2 + dy_arcsec ** 2)
 
             self.log.info(
-                f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f},{dy_arcsec:0.2f}] arcsec as calculated from sequence number {data_id['seqNum']} on dayObs of {data_id['dayObs']}"
+                f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f},{dy_arcsec:0.2f}] arcsec as calculated"
+                f" from sequence number {data_id['seqNum']} on dayObs of {data_id['dayObs']}"
             )
 
             # Check if star is in place, if so then we're done
             if dr_arcsec < self.target_pointing_tolerance:
                 self.log.info(
-                    f"Current radial pointing error of {dr_arcsec:0.2f} arcsec is within the tolerance of {self.target_pointing_tolerance} arcsec. "
+                    "Current radial pointing error of {dr_arcsec:0.2f} arcsec is within the tolerance "
+                    f"of {self.target_pointing_tolerance} arcsec. "
                     "Acquisition completed."
                 )
                 break
             else:
                 self.log.info(
-                    f"Current radial pointing error of {dr_arcsec:0.2f} arcsec exceeds the tolerance of {self.target_pointing_tolerance} arcsec."
+                    f"Current radial pointing error of {dr_arcsec:0.2f} arcsec exceeds the tolerance"
+                    f" of {self.target_pointing_tolerance} arcsec."
                 )
 
             # Ask user if we want to apply the correction?
@@ -373,7 +391,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # Verify with another image that we're on target?
             if not self.target_pointing_verification:
                 self.log.info(
-                    f"Skipping additional image to verify offset was applied correctly as target_pointing_verification is set to {self.target_pointing_verification}"
+                    f"Skipping additional image to verify offset was applied correctly as "
+                    f"target_pointing_verification is set to {self.target_pointing_verification}"
                 )
                 break
 
@@ -403,7 +422,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             # Check if a new configuration is required
             if (filt is not current_filter) and (grating is not current_grating):
-                self.log.debug(f"Loading new filter {filt} and grating {grating}")
+                self.log.debug(f"Must load new filter {filt} and grating {grating}")
 
                 # Is the atspectrograph Correction in the ATAOS running?
                 corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(timeout=self.cmd_timeout)
@@ -442,7 +461,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         if self.do_take_sequence:
             # Do we want to put the instrument back to the original state?
             # I don't think so since it'll add overhead we may not want.
-            # The offsetting of focus etc should now all be done automatically in theory...
+            # The offsetting of focus etc is now being done
+            # automatically...
 
             self.log.debug("Beginning taking data for target sequence")
             try:

@@ -30,7 +30,7 @@ from lsst.ts import salobj
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
-
+import lsst.daf.persistence as dafPersist
 
 random.seed(47)  # for set_random_lsst_dds_domain
 
@@ -39,6 +39,19 @@ logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.propagate = True
+
+# Check to see if the test data is accessible for testing
+# Depending upon how we load test data this will change
+# for now just checking if butler is instantiated with
+# the default path used on the summit and on the NTS.
+
+datapath = "/project/shared/auxTel/"
+try:
+    butler = dafPersist.Butler(datapath)
+    DATA_AVAILABLE = True
+except RuntimeError:
+    logger.warning("Data unavailable, certain tests will be skipped")
+    DATA_AVAILABLE = False
 
 
 class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, asynctest.TestCase):
@@ -259,6 +272,7 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
                 self.assertEqual(grating_sequence[i], called_grating)
             # Verify the same group ID was used?
 
+    @asynctest.skipIf(DATA_AVAILABLE is False, "Data not available for test_take_acquisition, skipping.")
     async def test_take_acquisition(self):
         async with self.make_script():
             # Date for file to be produced
@@ -301,6 +315,7 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
             # should offset only once
             self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
 
+    @asynctest.skipIf(DATA_AVAILABLE is False, "Data not available for test_full_sequence, skipping.")
     async def test_full_sequence(self):
         """This tests a combined acquisition and data taking sequence.
         It uses a single acquisition image without re-verification."""
