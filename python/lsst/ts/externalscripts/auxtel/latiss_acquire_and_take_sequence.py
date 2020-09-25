@@ -20,25 +20,24 @@
 
 __all__ = ["LatissAcquireAndTakeSequence"]
 
-import yaml
 import asyncio
-from astropy import time as astropytime
-import numpy as np
+import collections.abc
 
+import lsst.daf.persistence as dafPersist
+import numpy as np
+import yaml
+from astropy import time as astropytime
+from lsst.geom import PointD
+from lsst.rapid.analysis.quickFrameMeasurement import QuickFrameMeasurement
 from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
-from lsst.ts.observatory.control.constants import latiss_constants, atcs_constants
+from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observing.utilities.auxtel.latiss.getters import (
-    get_latiss_setup,
     get_image,
     get_next_image_dataId,
 )
 from lsst.ts.observing.utilities.auxtel.latiss.utils import calculate_xy_offsets
-from lsst.rapid.analysis.quickFrameMeasurement import QuickFrameMeasurement
-from lsst.geom import ExtentD, PointD
-
-import lsst.daf.persistence as dafPersist
-import collections.abc
+from lsst.ts.standardscripts.utils import format_as_list
 
 STD_TIMEOUT = 10  # seconds
 
@@ -75,6 +74,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         self.atcs = ATCS(self.domain, log=self.log)
         self.latiss = LATISS(self.domain, log=self.log)
+        # instantiate the quick measurement class
+        self.qm = QuickFrameMeasurement()
 
         # Set timeout
         self.cmd_timeout = 30  # [s]
@@ -188,41 +189,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         """
         return yaml.safe_load(schema_yaml)
 
-    def format_as_array(self, value, recurrences):
-        """The configuration can pass in single instances instead of a list.
-        Specifically when the type is specified as an array but a user only
-        provides a single value (as a float/int/string etc).
-        This function returns the input as a list, with the appropriate
-        of recurrences."""
-
-        # Check to see if the input data is iterable (not a scalar)
-        # Strings are iterable, so check if it's a string as well
-        if isinstance(value, collections.abc.Iterable) and not isinstance(value, str):
-
-            # Verify that the array is the correct number of recurrences
-            # if specified as a list then it should already have the
-            # correct number of instances.
-            if len(value) != recurrences:
-                raise ValueError(
-                    f"The input data {value} is already an array of "
-                    f"length {len(value)}, "
-                    "but the length does not match the number of "
-                    f"desired reccurences ({recurrences}). "
-                    "Verify that all array "
-                    "inputs have the correct length(s) or are singular"
-                    " values."
-                )
-            else:
-                # input already an iterable array with correct
-                # number of elements, so just return the array
-                self.log.debug("Input formatted correctly, returning " "input unchanged.")
-                return value
-
-        # value is a scalar, convert to a list repeating the scalar value
-        _value_as_array = [value] * recurrences
-        self.log.debug("Input was a scalar, returning array of " f"length {recurrences}.")
-        return _value_as_array
-
     async def configure(self, config):
         """Configure script.
 
@@ -266,17 +232,15 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         )
 
         # make a list of tuples from the filter, exptime and grating lists
-        if isinstance(config.exposure_time_sequence, collections.Iterable):
-            _recurrences = len(config.exposure_time_sequence)
-        else:
-            _recurrences = 1
+        _recurrences = len(config.exposure_time_sequence) if isinstance(config.exposure_time_sequence,
+                                                                        collections.Iterable) else 1
 
         self.visit_configs = [
             (f, e, g)
             for f, e, g in zip(
-                self.format_as_array(config.filter_sequence, _recurrences),
-                self.format_as_array(config.exposure_time_sequence, _recurrences),
-                self.format_as_array(config.grating_sequence, _recurrences),
+                format_as_list(config.filter_sequence, _recurrences),
+                format_as_list(config.exposure_time_sequence, _recurrences),
+                format_as_list(config.grating_sequence, _recurrences),
             )
         ]
 
@@ -294,16 +258,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
     async def latiss_acquire(self, doPointingModel=False):
 
-        # instantiate the quick measurement class
-        qm = QuickFrameMeasurement()
-
         if doPointingModel:
             target_position = latiss_constants.boresight
         else:
             target_position = latiss_constants.sweet_spots[self.acq_grating]
 
         # get current filter/disperser
-        current_filter, current_grating, current_stage_pos = await get_latiss_setup(self.latiss)
+        current_filter, current_grating, current_stage_pos = await self.latiss.get_setup()
 
         # Check if a new configuration is required
         if (self.acq_filter is not current_filter) and (self.acq_grating is not current_grating):
@@ -350,12 +311,12 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
 
             # Find brightest star
-            result = qm.run(exp)
+            result = self.qm.run(exp)
             current_position = PointD(result.brightestObjCentroid[0], result.brightestObjCentroid[1])
 
             # Find offsets
-            self.log.debug(f"current brightest target position is {current_position}")
-            self.log.debug(f"target position is {target_position}")
+            self.log.debug(f"Current brightest target position is {current_position}")
+            self.log.debug(f"Target position is {target_position}")
 
             dx_arcsec, dy_arcsec = calculate_xy_offsets(current_position, target_position)
 
@@ -418,7 +379,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # by the TCS upon filter/grating changes
 
             # get current filter/disperser
-            current_filter, current_grating, current_stage_pos = await get_latiss_setup(self.latiss)
+            current_filter, current_grating, current_stage_pos = await self.latiss.get_setup()
 
             # Check if a new configuration is required
             if (filt is not current_filter) and (grating is not current_grating):
