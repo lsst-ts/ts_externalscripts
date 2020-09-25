@@ -127,14 +127,14 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 description: Max number of iterations to perform when acquiring target at a location.
                 type: number
                 default: 3
-                
+
               target_pointing_tolerance:
                 description: Number of arcsec from source to desired position to consider good enough.
                 type: number
                 default: 5
-                
+
               target_pointing_verification:
-                description: Take a follow-up exposure to verify calculated offset was applied 
+                description: Take a follow-up exposure to verify calculated offset was applied
                     correctly before starting sequence?
                 type: boolean
                 default: True
@@ -162,7 +162,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 default: empty_1
 
               exposure_time_sequence:
-                description: Exposure times for exposure sequence (sec). Each exposure requires 
+                description: Exposure times for exposure sequence (sec). Each exposure requires
                    a specified exposure time.
                 anyOf:
                   - type: array
@@ -272,8 +272,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             # Is the atspectrograph Correction in the ATAOS running?
             corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(timeout=self.cmd_timeout)
-            if corr.atspectrograph == True:
-                # If so, then flush correction events for confirmation of corrections
+            if corr.atspectrograph:
+                # If so, then flush correction events for confirmation of
+                # corrections
                 self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.flush()
                 self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.flush()
 
@@ -283,10 +284,12 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             self.latiss.setup_instrument(grating=self.acq_grating, filter=self.acq_filter),
         )
 
-        # If ATAOS is running wait for adjustments to complete before moving on.
-        if corr.atspectrograph == True:
+        # If ATAOS is running wait for adjustments to complete before
+        # moving on.
+        if corr.atspectrograph:
             self.log.debug(f"Verifying LATISS configuration is incorporated into ATAOS offsets")
-            # If so, then flush correction events for confirmation of corrections
+            # If so, then flush correction events for confirmation of
+            # corrections
             await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.aget(timeout=self.cmd_timeout)
             await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.aget(timeout=self.cmd_timeout)
 
@@ -387,17 +390,20 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
                 # Is the atspectrograph Correction in the ATAOS running?
                 corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(timeout=self.cmd_timeout)
-                if corr.atspectrograph == True:
-                    # If so, then flush correction events for confirmation of corrections
+                if corr.atspectrograph:
+                    # If so, then flush correction events for confirmation
+                    # of corrections
                     self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.flush()
                     self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.flush()
 
                 # Setup the instrument with the new configuration
                 await self.latiss.setup_instrument(filter=filt, grating=grating)
 
-                # If ATAOS is running wait for adjustments to complete before moving on.
-                if corr.atspectrograph == True:
-                    # If so, then flush correction events for confirmation of corrections
+                # If ATAOS is running wait for adjustments to complete before
+                # moving on.
+                if corr.atspectrograph:
+                    # If so, then flush correction events for confirmation of
+                    # corrections
                     await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.aget(
                         timeout=self.cmd_timeout
                     )
