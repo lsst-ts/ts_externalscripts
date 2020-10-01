@@ -130,7 +130,6 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
         await asyncio.sleep(0.5)
         self.atheaderservice.evt_largeFileObjectAvailable.put()
         await asyncio.sleep(1.0)
-
         self.atarchiver.evt_imageInOODS.set_put(obsid=image_name)
 
     async def test_configure(self):

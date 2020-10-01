@@ -32,11 +32,8 @@ from lsst.rapid.analysis.quickFrameMeasurement import QuickFrameMeasurement
 from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
-from lsst.ts.observing.utilities.auxtel.latiss.getters import (
-    get_image,
-    get_next_image_dataId,
-)
-from lsst.ts.observing.utilities.auxtel.latiss.utils import calculate_xy_offsets
+from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
+from lsst.ts.observing.utilities.auxtel.latiss.utils import calculate_xy_offsets, parse_obs_id
 from lsst.ts.standardscripts.utils import format_as_list
 
 STD_TIMEOUT = 10  # seconds
@@ -256,6 +253,29 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             gratings.add(grating)
         metadata.filter = f"{filters},{gratings}"
 
+    async def get_next_image_data_id(self, timeout=STD_TIMEOUT, flush=True):
+        """Return dataID of image that appears from the ATArchiver CSC.
+        This is meant to be called at the same time as a take image command.
+        If this is called after take_image is completed, it may not receive
+        the imageInOODS event.
+
+        Inputs:
+        timeout: `float`
+            Amount of time to wait for image to arrive.
+        """
+
+        self.log.info(
+            f"Waiting for image to arrive in OODS for a maximum of {timeout} seconds."
+        )
+        in_oods = await self.latiss.rem.atarchiver.evt_imageInOODS.next(timeout=timeout, flush=flush)
+
+        day_obs, seq_num = parse_obs_id(in_oods.obsid)[-2:]
+        self.log.info(f"seqNum {seq_num} arrived in OODS")
+
+        data_id = dict(dayObs=day_obs, seqNum=seq_num)
+
+        return data_id
+
     async def latiss_acquire(self, doPointingModel=False):
 
         if doPointingModel:
@@ -268,7 +288,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         # Check if a new configuration is required
         if (self.acq_filter is not current_filter) and (self.acq_grating is not current_grating):
-            self.log.debug(f"Must load new filter {self.acq_filter } and grating {self.acq_grating}")
+            self.log.debug(f"Must load new filter {self.acq_filter} and grating {self.acq_grating}")
 
             # Is the atspectrograph Correction in the ATAOS running?
             corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(timeout=self.cmd_timeout)
@@ -290,8 +310,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             self.log.debug(f"Verifying LATISS configuration is incorporated into ATAOS offsets")
             # If so, then flush correction events for confirmation of
             # corrections
-            await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.aget(timeout=self.cmd_timeout)
-            await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.aget(timeout=self.cmd_timeout)
+            await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(timeout=self.cmd_timeout,
+                                                                               flush=False)
+            await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(timeout=self.cmd_timeout,
+                                                                                 flush=False)
 
         self.log.info(
             "Entering Acquisition Iterative Loop, with a maximum amount of "
@@ -300,10 +322,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         iter_num = 0
         while iter_num < self.max_acq_iter:
             # Take image
-            self.log.debug(f"Starting iteration number {iter_num+1}")
+            self.log.debug(f"Starting iteration number {iter_num + 1}")
             tmp, data_id = await asyncio.gather(
                 self.latiss.take_object(exptime=self.acq_exposure_time, n=1),
-                get_next_image_dataId(self.latiss, timeout=self.acq_exposure_time + STD_TIMEOUT,),
+                self.get_next_image_data_id(timeout=self.acq_exposure_time + STD_TIMEOUT),
             )
 
             exp = await get_image(
@@ -318,8 +340,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             current_position = PointD(result.brightestObjCentroid[0], result.brightestObjCentroid[1])
 
             # Find offsets
-            self.log.debug(f"Current brightest target position is {current_position}")
-            self.log.debug(f"Target position is {target_position}")
+            self.log.debug(f"Current brightest target position is {current_position} whereas the"
+                           f"Target position is {target_position}")
 
             dx_arcsec, dy_arcsec = calculate_xy_offsets(current_position, target_position)
 
@@ -415,7 +437,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.latiss.take_object(exptime=expTime, n=1, group_id=group_id)
 
             self.log.info(
-                f"Completed exposure {i+1} of {nexp}. Exptime = {expTime:6.1f}s,"
+                f"Completed exposure {i + 1} of {nexp}. Exptime = {expTime:6.1f}s,"
                 f" filter={filt}, grating={grating})"
             )
 
