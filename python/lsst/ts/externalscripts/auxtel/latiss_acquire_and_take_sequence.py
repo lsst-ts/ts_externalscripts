@@ -24,11 +24,11 @@ import asyncio
 import collections.abc
 
 import lsst.daf.persistence as dafPersist
+from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
 import numpy as np
 import yaml
 from astropy import time as astropytime
 from lsst.geom import PointD
-from lsst.rapid.analysis.quickFrameMeasurement import QuickFrameMeasurement
 from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
@@ -72,7 +72,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.atcs = ATCS(self.domain, log=self.log)
         self.latiss = LATISS(self.domain, log=self.log)
         # instantiate the quick measurement class
-        self.qm = QuickFrameMeasurement()
+        qm_config = QuickFrameMeasurementTask.ConfigClass()
+        self.qm = QuickFrameMeasurementTask(config=qm_config)
 
         # Set timeout
         self.cmd_timeout = 30  # [s]
@@ -336,7 +337,11 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
 
             # Find brightest star
-            result = self.qm.run(exp)
+            try:
+                result = self.qm.run(exp)
+            except RuntimeError:
+                # Patrick - deal with a failure to find the source here
+                pass  # and remove this
             current_position = PointD(result.brightestObjCentroid[0], result.brightestObjCentroid[1])
 
             # Find offsets
