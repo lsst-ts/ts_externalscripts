@@ -27,7 +27,12 @@ from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel import ATCS
 from lsst.ts.observatory.control.auxtel import LATISS
 
-import lsst.daf.persistence as dafPersist
+try:
+    import lsst.daf.persistence as dafPersist
+except ImportError:
+    warnings.warn(
+        "Cannot import 'lsst.daf.persistence.dafPersist'. Script will not work."
+    )
 
 # Import Robert's CalibrationStarVisit method
 try:
