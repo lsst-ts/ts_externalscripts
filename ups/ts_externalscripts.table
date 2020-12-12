@@ -1,4 +1,5 @@
 setupRequired(sconsUtils)
+setupRequired(lsst_distrib)
 setupRequired(ts_salobj)
 setupRequired(ts_observatory_control)
 

@@ -37,7 +37,12 @@ except ImportError:
     warnings.warn("Cannot import lsst.observing. Script will not work.")
 
 
-import lsst.daf.persistence as dafPersist
+try:
+    import lsst.daf.persistence as dafPersist
+except ImportError:
+    warnings.warn(
+        "Cannot import 'lsst.daf.persistence.dafPersist'. Script will not work."
+    )
 
 
 class LatissAcquireAndTakeSequence(salobj.BaseScript):
