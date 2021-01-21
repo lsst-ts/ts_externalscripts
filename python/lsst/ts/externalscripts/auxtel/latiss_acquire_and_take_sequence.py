@@ -301,19 +301,25 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             current_stage_pos,
         ) = await self.latiss.get_setup()
 
+        
+        # Is the atspectrograph Correction in the ATAOS running?
+        corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
+            timeout=self.cmd_timeout)
+        
         # Check if a new configuration is required
-        _new_instrument_required = (self.acq_filter is not current_filter) or (
-            self.acq_grating is not current_grating
+        _new_instrument_required = (self.acq_filter != current_filter) or (
+            self.acq_grating != current_grating
         )
+        self.log.debug(f'Instrument setup required: {_new_instrument_required}')
         if _new_instrument_required:
             self.log.debug(
                 f"Must load new filter {self.acq_filter} or grating {self.acq_grating}"
             )
 
             # Is the atspectrograph Correction in the ATAOS running?
-            corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
-                timeout=self.cmd_timeout
-            )
+            #corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
+            #    timeout=self.cmd_timeout
+            #)
             if corr.atspectrograph:
                 # If so, then flush correction events for confirmation of
                 # corrections
@@ -419,7 +425,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
             # Offset telescope, using persistent offsets
             self.log.info("Applying x/y offset to telescope pointing.")
-            await self.atcs.offset_xy(dx_arcsec, dy_arcsec, persistent=True)
+            # ARBITRARILY ADDING NEGATIVE SIGN IN X-axis
+            await self.atcs.offset_xy(-dx_arcsec, dy_arcsec, persistent=True)
 
             # Verify with another image that we're on target?
             if not self.target_pointing_verification:
@@ -433,7 +440,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             iter_num += 1
 
         else:
-            raise SystemError(
+            raise Runtime(
                 f"Failed to acquire star on target after {iter_num} images."
             )
 
@@ -460,8 +467,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             ) = await self.latiss.get_setup()
 
             # Check if a new configuration is required
-            _new_instrument_required = (filt is not current_filter) or (
-                grating is not current_grating
+            _new_instrument_required = (filt != current_filter) or (
+                grating != current_grating
             )
 
             if _new_instrument_required:
