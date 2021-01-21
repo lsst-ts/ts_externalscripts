@@ -71,7 +71,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
     def __init__(self, index, silent=False):
 
         super().__init__(
-            index=index, descr="Perform target acquisition for LATISS instrument."
+            index=index, descr="Perform target acquisition and data taking"
+                               " for LATISS instrument."
         )
 
         self.atcs = ATCS(self.domain, log=self.log)
@@ -108,6 +109,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
               object_name:
                 description: SIMBAD query-able object name
                 type: string
+                
+              manual_focus_offset:
+                description: Applies manual focus offset after the slew. This 
+                    is temporary in order to observe low-altitude stars until
+                    the ATAOS LUTs improve.
+                type: number
+                default: 0.0
 
               acq_filter:
                 description: Which filter to use when performing acquisition. Must use
@@ -128,8 +136,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
               max_acq_iter:
                 description: Max number of iterations to perform when acquiring target at a location.
+                             Only used if do_acquire=True.
                 type: number
                 default: 3
+                minimum: 1
 
               target_pointing_tolerance:
                 description: Number of arcsec from source to desired position to consider good enough.
@@ -183,7 +193,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 default: /project/shared/auxTel/
 
               doPointingModel:
-                description: Adjust star position (sweet-spot) to use boresight
+                description: Adjust star position (sweet spot) to use boresight
                 type: boolean
                 default: False
 
@@ -219,6 +229,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.acq_grating = config.acq_grating
         self.acq_filter = config.acq_filter
         self.acq_exposure_time = config.acq_exposure_time
+        self.manual_focus_offset = config.manual_focus_offset
+        self.manual_focus_offset_applied = False
 
         # Max number of iterations to perform when putting source in place
         self.max_acq_iter = config.max_acq_iter
@@ -294,14 +306,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         else:
             target_position = latiss_constants.sweet_spots[self.acq_grating]
 
-        # get current filter/disperser
+        # get filter/disperser currently in the beam
         (
             current_filter,
             current_grating,
             current_stage_pos,
         ) = await self.latiss.get_setup()
 
-        
         # Is the atspectrograph Correction in the ATAOS running?
         corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
             timeout=self.cmd_timeout)
@@ -316,10 +327,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 f"Must load new filter {self.acq_filter} or grating {self.acq_grating}"
             )
 
-            # Is the atspectrograph Correction in the ATAOS running?
-            #corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
-            #    timeout=self.cmd_timeout
-            #)
             if corr.atspectrograph:
                 # If so, then flush correction events for confirmation of
                 # corrections
@@ -329,7 +336,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # Setup instrument and telescope
         # Following code requires persistent offsets to be functional, but
         # that's not yet the case therefore this will result in a race
-        # condition where the offsets might be wiped out.
+        # condition where the pointing offsets might be wiped out.
         # await asyncio.gather(
         #     self.atcs.slew_object(name=self.object_name, rot=0, slew_timeout=240),
         #     self.latiss.setup_instrument(grating=self.acq_grating, filter=self.acq_filter),
@@ -337,6 +344,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         # Slew and setup in series for now
         await self.atcs.slew_object(name=self.object_name, rot=0, slew_timeout=240)
+        # Apply manual focus offset if required
+        if self.manual_focus_offset != 0.0 and not self.manual_focus_offset_applied:
+            self.log.debug('Applying manual focus offset of '
+                           f'{self.manual_focus_offset}')
+            await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
+            self.manual_focus_offset_applied = True
+
         await self.latiss.setup_instrument(
             grating=self.acq_grating, filter=self.acq_filter
         )
@@ -382,8 +396,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             try:
                 result = self.qm.run(exp)
             except RuntimeError:
-                # Patrick - deal with a failure to find the source here
+                # FIXME: Patrick - deal with a failure to find the source here
                 pass  # and remove this
+                # Note that the source finding should be made a function
+
             current_position = PointD(
                 result.brightestObjCentroid[0], result.brightestObjCentroid[1]
             )
@@ -425,7 +441,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
             # Offset telescope, using persistent offsets
             self.log.info("Applying x/y offset to telescope pointing.")
-            # ARBITRARILY ADDING NEGATIVE SIGN IN X-axis
+
+            # FIXME: ARBITRARILY ADDING NEGATIVE SIGN IN X-axis
+            # Fix requires ATCS class rotation matrix for offset_xy to be
+            # implemented
             await self.atcs.offset_xy(-dx_arcsec, dy_arcsec, persistent=True)
 
             # Verify with another image that we're on target?
@@ -449,12 +468,26 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             self.log.info("Adding datapoint to pointing model")
             await self.atcs.add_point_data()
 
+        # Remove the focus offset if only an acquisition is performed
+        if self.manual_focus_offset_applied and not self.do_take_sequence:
+            self.log.debug('Removing manual focus offset of '
+                           f'{self.manual_focus_offset} in after acquisition')
+            await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
+            self.manual_focus_offset_applied = False
+
     async def latiss_take_sequence(self, silent=True):
         """Take the sequence of images as defined in visit_configs."""
 
         nexp = len(self.visit_configs)
         group_id = astropytime.Time.now().tai.isot
         for i, (filt, expTime, grating) in enumerate(self.visit_configs):
+
+            # Check if a manual focus offset is required
+            if self.manual_focus_offset != 0.0 and not self.manual_focus_offset_applied:
+                self.log.debug('Applying manual focus offset of '
+                               f'{self.manual_focus_offset} in latiss_take_sequence')
+                await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
+                self.manual_focus_offset_applied = True
 
             # Focus and pointing offsets will be made automatically
             # by the TCS upon filter/grating changes
@@ -510,6 +543,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 f"Completed exposure {i + 1} of {nexp}. Exptime = {expTime:6.1f}s,"
                 f" filter={filt}, grating={grating})"
             )
+
+        # Remove the focus offset if applied
+        if self.manual_focus_offset_applied:
+            self.log.debug('Removing manual focus offset of '
+                           f'{self.manual_focus_offset} in after acquisition')
+            await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
+            self.manual_focus_offset_applied = False
 
     async def run(self):
         """"""
