@@ -440,7 +440,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             iter_num += 1
 
         else:
-            raise Runtime(
+            raise RuntimeError(
                 f"Failed to acquire star on target after {iter_num} images."
             )
 
