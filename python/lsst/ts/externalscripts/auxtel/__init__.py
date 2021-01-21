@@ -4,3 +4,4 @@ from .latiss_acquire_and_take_sequence import *
 from .latiss_acquire_target import *
 from .latiss_cwfs_align import *
 from .latiss_take_sequence import *
+from .latiss_run_isr import *
