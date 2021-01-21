@@ -695,6 +695,19 @@ Telescope offsets: {tel_offset}
                 description: Path to the butler data repository.
                 type: string
                 default: /project/shared/auxTel/
+              large_defocus:
+                description: >-
+                    Defines a large defocus. If Defocus is larger than this value, apply only
+                    half of correction.
+                type: number
+                default: 0.08
+               threshold:
+                 description: >-
+                   Correction threshold. If correction is lower than this value,
+                   stop correction loop.
+                 type: number
+                 default: 
+
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
