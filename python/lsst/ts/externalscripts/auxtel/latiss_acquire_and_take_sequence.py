@@ -345,7 +345,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # moving on.
         if corr.atspectrograph and _new_instrument_required:
             self.log.debug(
-                f"Verifying LATISS configuration is incorporated into ATAOS offsets"
+                "Verifying LATISS configuration is incorporated into ATAOS offsets"
             )
             # If so, then flush correction events for confirmation of
             # corrections
@@ -401,14 +401,14 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             dr_arcsec = np.sqrt(dx_arcsec ** 2 + dy_arcsec ** 2)
 
             self.log.info(
-                f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f},{dy_arcsec:0.2f}] arcsec as calculated"
+                f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f}, {dy_arcsec:0.2f}] arcsec as calculated"
                 f" from sequence number {data_id['seqNum']} on dayObs of {data_id['dayObs']}"
             )
 
             # Check if star is in place, if so then we're done
             if dr_arcsec < self.target_pointing_tolerance:
                 self.log.info(
-                    "Current radial pointing error of {dr_arcsec:0.2f} arcsec is within the tolerance "
+                    f"Current radial pointing error of {dr_arcsec:0.2f} arcsec is within the tolerance "
                     f"of {self.target_pointing_tolerance} arcsec. "
                     "Acquisition completed."
                 )
@@ -421,7 +421,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             # Ask user if we want to apply the correction?
             await self.checkpoint(
-                f"Apply the calculated [x,y] correction of  [{dx_arcsec:0.2f},{dy_arcsec:0.2f}] arcsec?"
+                f"Apply the calculated [x,y] correction of  [{dx_arcsec:0.2f}, {dy_arcsec:0.2f}] arcsec?"
             )
             # Offset telescope, using persistent offsets
             self.log.info("Applying x/y offset to telescope pointing.")
