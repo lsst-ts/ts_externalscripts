@@ -19,9 +19,5 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .calsys_take_narrowband_data import *
-from .calsys_takedata import *
-from .latiss_acquire_and_take_sequence import *
-from .latiss_acquire_target import *
-from .latiss_cwfs_align import *
-from .latiss_take_sequence import *
+from .quick_frame_measurement import *
+from .latiss_run_isr import *
