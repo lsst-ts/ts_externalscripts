@@ -431,12 +431,14 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 if corr.atspectrograph:
                     # If so, then flush correction events for confirmation of
                     # corrections
-                    await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.aget(
+                    self.log.debug('Waiting for ATAOS events saying correction started/finished')
+                    await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(flush=False,
                         timeout=self.cmd_timeout
                     )
-                    await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.aget(
+                    await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(flush=False,
                         timeout=self.cmd_timeout
                     )
+                    self.log.debug('ATAOS events arrived')
 
             # Take an image
             await self.latiss.take_object(exptime=expTime, n=1, group_id=group_id)
