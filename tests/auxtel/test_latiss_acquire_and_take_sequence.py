@@ -54,7 +54,9 @@ except RuntimeError:
     DATA_AVAILABLE = False
 
 
-class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, asynctest.TestCase):
+class TestLatissAcquireAndTakeSequence(
+    standardscripts.BaseScriptTestCase, asynctest.TestCase
+):
     async def basic_make_script(self, index):
         self.script = LatissAcquireAndTakeSequence(index=index)
 
@@ -62,13 +64,17 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
         # telescope/instrument behaviour
 
         self.atcamera = salobj.Controller(name="ATCamera")
-        self.atcamera.cmd_takeImages.callback = asynctest.CoroutineMock(wraps=self.cmd_take_images_callback)
+        self.atcamera.cmd_takeImages.callback = asynctest.CoroutineMock(
+            wraps=self.cmd_take_images_callback
+        )
 
         # Mock the telescope slews and offsets
         self.script.atcs.slew_object = asynctest.CoroutineMock()
         self.script.atcs.offset_xy = asynctest.CoroutineMock()
         # Mock the latiss instrument setups
-        self.script.latiss.setup_atspec = asynctest.CoroutineMock(wraps=self.cmd_setup_atspec_callback)
+        self.script.latiss.setup_atspec = asynctest.CoroutineMock(
+            wraps=self.cmd_setup_atspec_callback
+        )
 
         self.atheaderservice = salobj.Controller(name="ATHeaderService")
         self.atarchiver = salobj.Controller(name="ATArchiver")
@@ -88,7 +94,9 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
         # Return a single element tuple
         return (self.script,)
 
-    async def cmd_setup_atspec_callback(self, grating=None, filter=None, linear_stage=None):
+    async def cmd_setup_atspec_callback(
+        self, grating=None, filter=None, linear_stage=None
+    ):
         self.atspectrograph.evt_reportedFilterPosition.set_put(name=filter)
         self.atspectrograph.evt_filterInPosition.set()
 
@@ -106,13 +114,20 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
         """Optional cleanup before closing the scripts and etc."""
         await asyncio.gather(*self.end_image_tasks, return_exceptions=True)
         await asyncio.gather(
-            self.atarchiver.close(), self.atcamera.close(), self.atspectrograph.close(), self.ataos.close()
+            self.atarchiver.close(),
+            self.atcamera.close(),
+            self.atspectrograph.close(),
+            self.ataos.close(),
         )
 
     async def cmd_take_images_callback(self, data):
 
         logger.debug(f"cmd_take_images callback came with data of {data}")
-        one_exp_time = data.expTime + self.script.latiss.read_out_time + self.script.latiss.shutter_time
+        one_exp_time = (
+            data.expTime
+            + self.script.latiss.read_out_time
+            + self.script.latiss.shutter_time
+        )
         logger.debug(
             f"Exposing for {one_exp_time} seconds for each exposure, total exposures is {data.numImages}"
         )
@@ -154,7 +169,8 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
             self.assertEqual(self.script.object_name, object_name)
             for i, v in enumerate(self.script.visit_configs):
                 self.assertEqual(
-                    self.script.visit_configs[i], (filter_sequence, exposure_time_sequence, grating_sequence),
+                    self.script.visit_configs[i],
+                    (filter_sequence, exposure_time_sequence, grating_sequence),
                 )
             self.assertEqual(self.script.do_take_sequence, True)
             self.assertEqual(self.script.do_acquire, do_acquire)
@@ -256,7 +272,8 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
             await self.run_script()
 
             self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count, len(exposure_time_sequence),
+                self.atcamera.cmd_takeImages.callback.await_count,
+                len(exposure_time_sequence),
             )
             # Check that appropriate filters/gratings were used
             for i, e in enumerate(exposure_time_sequence):
@@ -265,13 +282,20 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
                 # Note that each take_object command also calls setup_atspec,
                 # but with no changes so we only every 2nd instance as
                 # comparison
-                called_filter = self.script.latiss.setup_atspec.call_args_list[2 * i][1]["filter"]
-                called_grating = self.script.latiss.setup_atspec.call_args_list[2 * i][1]["grating"]
+                called_filter = self.script.latiss.setup_atspec.call_args_list[2 * i][
+                    1
+                ]["filter"]
+                called_grating = self.script.latiss.setup_atspec.call_args_list[2 * i][
+                    1
+                ]["grating"]
                 self.assertEqual(filter_sequence[i], called_filter)
                 self.assertEqual(grating_sequence[i], called_grating)
             # Verify the same group ID was used?
 
-    @asynctest.skipIf(DATA_AVAILABLE is False, "Data not available for test_take_acquisition, skipping.")
+    @asynctest.skipIf(
+        DATA_AVAILABLE is False,
+        "Data not available for test_take_acquisition, skipping.",
+    )
     async def test_take_acquisition(self):
         async with self.make_script():
             # Date for file to be produced
@@ -314,7 +338,9 @@ class TestLatissAcquireAndTakeSequence(standardscripts.BaseScriptTestCase, async
             # should offset only once
             self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
 
-    @asynctest.skipIf(DATA_AVAILABLE is False, "Data not available for test_full_sequence, skipping.")
+    @asynctest.skipIf(
+        DATA_AVAILABLE is False, "Data not available for test_full_sequence, skipping."
+    )
     async def test_full_sequence(self):
         """This tests a combined acquisition and data taking sequence.
         It uses a single acquisition image without re-verification."""

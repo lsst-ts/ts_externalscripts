@@ -33,7 +33,10 @@ from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
-from lsst.ts.observing.utilities.auxtel.latiss.utils import calculate_xy_offsets, parse_obs_id
+from lsst.ts.observing.utilities.auxtel.latiss.utils import (
+    calculate_xy_offsets,
+    parse_obs_id,
+)
 from lsst.ts.standardscripts.utils import format_as_list
 
 STD_TIMEOUT = 10  # seconds
@@ -67,7 +70,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
     def __init__(self, index, silent=False):
 
-        super().__init__(index=index, descr="Perform target acquisition for LATISS instrument.")
+        super().__init__(
+            index=index, descr="Perform target acquisition for LATISS instrument."
+        )
 
         self.atcs = ATCS(self.domain, log=self.log)
         self.latiss = LATISS(self.domain, log=self.log)
@@ -230,8 +235,11 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         )
 
         # make a list of tuples from the filter, exptime and grating lists
-        _recurrences = len(config.exposure_time_sequence) if isinstance(config.exposure_time_sequence,
-                                                                        collections.Iterable) else 1
+        _recurrences = (
+            len(config.exposure_time_sequence)
+            if isinstance(config.exposure_time_sequence, collections.Iterable)
+            else 1
+        )
 
         self.visit_configs = [
             (f, e, g)
@@ -268,7 +276,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.log.info(
             f"Waiting for image to arrive in OODS for a maximum of {timeout} seconds."
         )
-        in_oods = await self.latiss.rem.atarchiver.evt_imageInOODS.next(timeout=timeout, flush=flush)
+        in_oods = await self.latiss.rem.atarchiver.evt_imageInOODS.next(
+            timeout=timeout, flush=flush
+        )
 
         day_obs, seq_num = parse_obs_id(in_oods.obsid)[-2:]
         self.log.info(f"seqNum {seq_num} arrived in OODS")
@@ -285,14 +295,25 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             target_position = latiss_constants.sweet_spots[self.acq_grating]
 
         # get current filter/disperser
-        current_filter, current_grating, current_stage_pos = await self.latiss.get_setup()
+        (
+            current_filter,
+            current_grating,
+            current_stage_pos,
+        ) = await self.latiss.get_setup()
 
         # Check if a new configuration is required
-        if (self.acq_filter is not current_filter) and (self.acq_grating is not current_grating):
-            self.log.debug(f"Must load new filter {self.acq_filter} and grating {self.acq_grating}")
+        _new_instrument_required = (self.acq_filter is not current_filter) or (
+            self.acq_grating is not current_grating
+        )
+        if _new_instrument_required:
+            self.log.debug(
+                f"Must load new filter {self.acq_filter} or grating {self.acq_grating}"
+            )
 
             # Is the atspectrograph Correction in the ATAOS running?
-            corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(timeout=self.cmd_timeout)
+            corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
+                timeout=self.cmd_timeout
+            )
             if corr.atspectrograph:
                 # If so, then flush correction events for confirmation of
                 # corrections
@@ -300,21 +321,34 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.flush()
 
         # Setup instrument and telescope
-        await asyncio.gather(
-            self.atcs.slew_object(name=self.object_name, rot=0, slew_timeout=240),
-            self.latiss.setup_instrument(grating=self.acq_grating, filter=self.acq_filter),
+        # Following code requires persistent offsets to be functional, but
+        # that's not yet the case therefore this will result in a race
+        # condition where the offsets might be wiped out.
+        # await asyncio.gather(
+        #     self.atcs.slew_object(name=self.object_name, rot=0, slew_timeout=240),
+        #     self.latiss.setup_instrument(grating=self.acq_grating, filter=self.acq_filter),
+        # )
+
+        # Slew and setup in series for now
+        await self.atcs.slew_object(name=self.object_name, rot=0, slew_timeout=240)
+        await self.latiss.setup_instrument(
+            grating=self.acq_grating, filter=self.acq_filter
         )
 
         # If ATAOS is running wait for adjustments to complete before
         # moving on.
-        if corr.atspectrograph:
-            self.log.debug(f"Verifying LATISS configuration is incorporated into ATAOS offsets")
+        if corr.atspectrograph and _new_instrument_required:
+            self.log.debug(
+                f"Verifying LATISS configuration is incorporated into ATAOS offsets"
+            )
             # If so, then flush correction events for confirmation of
             # corrections
-            await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(timeout=self.cmd_timeout,
-                                                                               flush=False)
-            await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(timeout=self.cmd_timeout,
-                                                                                 flush=False)
+            await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
+                timeout=self.cmd_timeout, flush=False
+            )
+            await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
+                timeout=self.cmd_timeout, flush=False
+            )
 
         self.log.info(
             "Entering Acquisition Iterative Loop, with a maximum amount of "
@@ -326,7 +360,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             self.log.debug(f"Starting iteration number {iter_num + 1}")
             tmp, data_id = await asyncio.gather(
                 self.latiss.take_object(exptime=self.acq_exposure_time, n=1),
-                self.get_next_image_data_id(timeout=self.acq_exposure_time + STD_TIMEOUT),
+                self.get_next_image_data_id(
+                    timeout=self.acq_exposure_time + STD_TIMEOUT
+                ),
             )
 
             exp = await get_image(
@@ -342,13 +378,19 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             except RuntimeError:
                 # Patrick - deal with a failure to find the source here
                 pass  # and remove this
-            current_position = PointD(result.brightestObjCentroid[0], result.brightestObjCentroid[1])
+            current_position = PointD(
+                result.brightestObjCentroid[0], result.brightestObjCentroid[1]
+            )
 
             # Find offsets
-            self.log.debug(f"Current brightest target position is {current_position} whereas the"
-                           f"Target position is {target_position}")
+            self.log.debug(
+                f"Current brightest target position is {current_position} whereas the"
+                f"Target position is {target_position}"
+            )
 
-            dx_arcsec, dy_arcsec = calculate_xy_offsets(current_position, target_position)
+            dx_arcsec, dy_arcsec = calculate_xy_offsets(
+                current_position, target_position
+            )
 
             dr_arcsec = np.sqrt(dx_arcsec ** 2 + dy_arcsec ** 2)
 
@@ -391,7 +433,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             iter_num += 1
 
         else:
-            raise SystemError(f"Failed to acquire star on target after {iter_num} images.")
+            raise SystemError(
+                f"Failed to acquire star on target after {iter_num} images."
+            )
 
         # Update pointing model
         if doPointingModel:
@@ -409,14 +453,24 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # by the TCS upon filter/grating changes
 
             # get current filter/disperser
-            current_filter, current_grating, current_stage_pos = await self.latiss.get_setup()
+            (
+                current_filter,
+                current_grating,
+                current_stage_pos,
+            ) = await self.latiss.get_setup()
 
             # Check if a new configuration is required
-            if (filt is not current_filter) and (grating is not current_grating):
-                self.log.debug(f"Must load new filter {filt} and grating {grating}")
+            _new_instrument_required = (filt is not current_filter) or (
+                grating is not current_grating
+            )
+
+            if _new_instrument_required:
+                self.log.debug(f"Must load new filter {filt} or grating {grating}")
 
                 # Is the atspectrograph Correction in the ATAOS running?
-                corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(timeout=self.cmd_timeout)
+                corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
+                    timeout=self.cmd_timeout
+                )
                 if corr.atspectrograph:
                     # If so, then flush correction events for confirmation
                     # of corrections
@@ -431,14 +485,16 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 if corr.atspectrograph:
                     # If so, then flush correction events for confirmation of
                     # corrections
-                    self.log.debug('Waiting for ATAOS events saying correction started/finished')
-                    await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(flush=False,
-                        timeout=self.cmd_timeout
+                    self.log.debug(
+                        "Waiting for ATAOS events saying correction started/finished"
                     )
-                    await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(flush=False,
-                        timeout=self.cmd_timeout
+                    await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
+                        flush=False, timeout=self.cmd_timeout
                     )
-                    self.log.debug('ATAOS events arrived')
+                    await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
+                        flush=False, timeout=self.cmd_timeout
+                    )
+                    self.log.debug("ATAOS events arrived")
 
             # Take an image
             await self.latiss.take_object(exptime=expTime, n=1, group_id=group_id)
