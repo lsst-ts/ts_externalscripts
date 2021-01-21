@@ -27,6 +27,7 @@ import lsst.daf.persistence as dafPersist
 from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
 import numpy as np
 import yaml
+import concurrent.futures
 from astropy import time as astropytime
 from lsst.geom import PointD
 from lsst.ts import salobj
@@ -461,6 +462,14 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             iter_num += 1
 
         else:
+
+            # Remove the focus offset if only an acquisition is performed
+            if self.manual_focus_offset_applied:
+                self.log.debug('Removing manual focus offset of '
+                               f'{self.manual_focus_offset} in after acquisition')
+                await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
+                self.manual_focus_offset_applied = False
+
             raise RuntimeError(
                 f"Failed to acquire star on target after {iter_num} images."
             )
