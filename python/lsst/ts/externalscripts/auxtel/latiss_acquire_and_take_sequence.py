@@ -394,7 +394,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             # Find brightest star
             try:
-                result = self.qm.run(exp)
+                loop = asyncio.get_event_loop()
+                executor = concurrent.futures.ThreadPoolExecutor()
+                result = await loop.run_in_executor(executor, self.qm.run, exp)
             except RuntimeError:
                 # FIXME: Patrick - deal with a failure to find the source here
                 pass  # and remove this
