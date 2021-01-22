@@ -364,13 +364,21 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
             # If so, then flush correction events for confirmation of
             # corrections
-            await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
-                timeout=self.cmd_timeout, flush=False
-            )
-            await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
-                timeout=self.cmd_timeout, flush=False
-            )
+            # FIXME
+            try:
+                await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
+                    timeout=self.cmd_timeout, flush=False
+                )
+                await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
+                    timeout=self.cmd_timeout, flush=False
+                )
+            except asyncio.TimeoutError:
+                self.log.debug(
+                    f'Caught an exception waiting for atspectrograph correction going'
+                    f' from current filter {current_filter} to {filt} and current '
+                    f'grating of {current_grating} to {grating} ')
             # FIXME: add sleep to test why we're exposing during offset
+            self.log.debug('sleeping for offset correction')
             asyncio.sleep(1.3)
 
         self.log.info(
@@ -557,6 +565,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                             f'grating of {current_grating} to {grating} ')
                         pass
                     # FIXME: add sleep to test why we're exposing during offset
+                    self.log.debug('sleeping for offset correction')
                     asyncio.sleep(1.3)
                     self.log.debug("ATAOS events arrived")
 
