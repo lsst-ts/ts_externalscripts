@@ -317,10 +317,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # Is the atspectrograph Correction in the ATAOS running?
         corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
             timeout=self.cmd_timeout)
-        
+
         # Check if a new configuration is required
         _new_instrument_required = (self.acq_filter != current_filter) or (
-            self.acq_grating != current_grating
+                self.acq_grating != current_grating
         )
         self.log.debug(f'Instrument setup required: {_new_instrument_required}')
         if _new_instrument_required:
@@ -539,12 +539,22 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     self.log.debug(
                         "Waiting for ATAOS events saying correction started/finished"
                     )
-                    await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
-                        flush=False, timeout=self.cmd_timeout
-                    )
-                    await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
-                        flush=False, timeout=self.cmd_timeout
-                    )
+                    # FIXME: Have to be looking at offsets not filters. config may have a
+                    # filter/grating with no offset
+                    try:
+                        await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
+                            flush=False, timeout=self.cmd_timeout
+                        )
+                        await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
+                            flush=False, timeout=self.cmd_timeout
+                        )
+                    except asyncio.TimeoutError:
+                        self.log.debug(
+                            f'Caught an exception waiting for atspectrograph correction going'
+                            f' from current filter {current_filter} to {filt} and current '
+                            f'grating of {current_grating} to {grating} ')
+                        pass
+
                     self.log.debug("ATAOS events arrived")
 
             # Take an image
