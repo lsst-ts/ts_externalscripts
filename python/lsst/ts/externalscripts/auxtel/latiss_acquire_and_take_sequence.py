@@ -383,8 +383,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     f' from current filter {current_filter} to {self.acq_filter} and current '
                     f'grating of {current_grating} to {self.acq_grating} ')
             # FIXME: add sleep to test why we're exposing during offset
-            self.log.debug('sleeping for offset correction')
-            await asyncio.sleep(1.3)
+            self.log.debug('sleeping for grating offset correction')
+            await asyncio.sleep(2.0)
 
         self.log.info(
             "Entering Acquisition Iterative Loop, with a maximum amount of "
@@ -464,6 +464,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # Fix requires ATCS class rotation matrix for offset_xy to be
             # implemented
             await self.atcs.offset_xy(-dx_arcsec, dy_arcsec, persistent=True)
+            # Mount not sending in-position event properly
+            self.log.debug('sleeping for mount in-position issue correction')
+            await asyncio.sleep(3)
 
             # Verify with another image that we're on target?
             if not self.target_pointing_verification:
@@ -572,8 +575,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                             f'grating of {current_grating} to {grating} ')
                         pass
                     # FIXME: add sleep to test why we're exposing during offset
-                    self.log.debug('sleeping for offset correction')
-                    await asyncio.sleep(1.3)
+                    self.log.debug('sleeping for grating offset correction')
+                    await asyncio.sleep(2.0)
                     self.log.debug("ATAOS events arrived")
 
 
