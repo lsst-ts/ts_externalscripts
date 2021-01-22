@@ -216,7 +216,6 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.isr_config.doDark = False
         self.isr_config.doFringe = False
         self.isr_config.doDefect = True
-        # self.isr_config.doAddDistortionModel = False  # Deprecated
         self.isr_config.doSaturationInterpolation = False
         self.isr_config.doSaturation = False
         self.isr_config.doWrite = False
@@ -679,7 +678,7 @@ Telescope offsets: {tel_offset}
               filter:
                 description: Which filter to use when taking intra/extra focal images.
                 type: string
-                default: KPNO_406_828nm
+                default: empty_1
               grating:
                 description: Which grating to use when taking intra/extra focal images.
                 type: string
@@ -707,8 +706,11 @@ Telescope offsets: {tel_offset}
                    Correction threshold. If correction is lower than this value,
                    stop correction loop.
                  type: number
-                 default: 
-
+                 default: 0.01
+                max_iter:
+                  description: Maximum number of iterations.
+                  type: integer
+                  default: 5
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -735,10 +737,50 @@ Telescope offsets: {tel_offset}
         # butler data path.
         self.dataPath = config.dataPath
 
+        self.large_defocus = config.large_defocus
+
+        self.threshold = config.large_defocus
+
+        self.max_iter = config.max_iter
+
     def set_metadata(self, metadata):
         # It takes about 300s to run the cwfs code, plus the two exposures
         metadata.duration = 300.0 + 2.0 * self.exposure_time
         metadata.filter = f"{self.filter},{self.grating}"
 
     async def run(self):
-        pass
+
+        total_focus_offset = 0.0
+        for i in range(self.max_iter):
+
+            self.log.debug(f"CWFS iteration {i+1} starting...")
+
+            self.intra_visit_id = None
+            self.extra_visit_id = None
+            await self.run_cwfs()
+            focus_offset = results["hex_offset"][2]
+            if focus_offset < self.threshold:
+                total_focus_offset += focus_offset
+                self.log.info(
+                    f"Focus offset ({focus_offset}) inside tolerance level ({self.threshold})."
+                    f"Total focus correction: {total_focus_offset} mm."
+                )
+                await self.hexapod_offset(focus_offset)
+                return
+            elif focus_offset > self.large_defocus:
+                total_focus_offset += focus_offset / 2.0
+                self.log.warning(
+                    f"Computed focus offset too large: {focus_offset}. "
+                    "Applying half correction."
+                )
+                await self.hexapod_offset(focus_offset / 2.0)
+            else:
+                total_focus_offset += focus_offset
+                self.log.info(f"Applying focus offset: {focus_offset}.")
+                await self.hexapod_offset(focus_offset)
+
+            self.log.debug(f"CWFS iteration {i+1} completed...")
+
+        self.log.warning(
+            f"Reached maximum iteration ({self.max_iter}) without convergence."
+        )
