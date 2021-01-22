@@ -318,21 +318,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
             timeout=self.cmd_timeout)
 
-        # Check if a new configuration is required
-        _new_instrument_required = (self.acq_filter != current_filter) or (
-                self.acq_grating != current_grating
-        )
-        self.log.debug(f'Instrument setup required: {_new_instrument_required}')
-        if _new_instrument_required:
-            self.log.debug(
-                f"Must load new filter {self.acq_filter} or grating {self.acq_grating}"
-            )
 
-            if corr.atspectrograph:
-                # If so, then flush correction events for confirmation of
-                # corrections
-                self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.flush()
-                self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.flush()
 
         # Setup instrument and telescope
         # Following code requires persistent offsets to be functional, but
@@ -353,6 +339,22 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
             self.manual_focus_offset_applied = True
 
+        # Check if a new instrument configuration is required
+        _new_instrument_required = (self.acq_filter != current_filter) or (
+                self.acq_grating != current_grating
+        )
+        self.log.debug(f'Instrument setup required: {_new_instrument_required}')
+        if _new_instrument_required:
+            self.log.debug(
+                f"Must load new filter {self.acq_filter} or grating {self.acq_grating}"
+            )
+
+            if corr.atspectrograph:
+                # If so, then flush correction events for confirmation of
+                # corrections
+                self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.flush()
+                self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.flush()
+
         await self.latiss.setup_instrument(
             grating=self.acq_grating, filter=self.acq_filter
         )
@@ -367,12 +369,14 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # corrections
             # FIXME
             try:
-                await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
+                _evt1 = await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
                     timeout=self.cmd_timeout, flush=False
                 )
-                await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
+                self.log.debug(f'evt_atspectrographCorrectionStarted from line 373 is {_evt1}')
+                _evt2 = await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
                     timeout=self.cmd_timeout, flush=False
                 )
+                self.log.debug(f'evt_atspectrographCorrectionCompleted from line 377 is {_evt2}')
             except asyncio.TimeoutError:
                 self.log.debug(
                     f'Caught an exception waiting for atspectrograph correction going'
@@ -553,12 +557,14 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     # FIXME: Have to be looking at offsets not filters. config may have a
                     # filter/grating with no offset
                     try:
-                        await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
+                        _evt1 = await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
                             flush=False, timeout=self.cmd_timeout
                         )
-                        await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
+                        self.log.debug(f'evt_atspectrographCorrectionStarted from line 559 is {_evt1}')
+                        _evt2 = await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
                             flush=False, timeout=self.cmd_timeout
                         )
+                        self.log.debug(f'evt_atspectrographCorrectionCompleted from line 563 is {_evt2}')
                     except asyncio.TimeoutError:
                         self.log.debug(
                             f'Caught an exception waiting for atspectrograph correction going'
