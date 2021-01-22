@@ -467,7 +467,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             if self.manual_focus_offset_applied:
                 self.log.debug('Removing manual focus offset of '
                                f'{self.manual_focus_offset} in after acquisition')
-                await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
+                await self.atcs.rem.ataos.cmd_offset.set_start(z=-self.manual_focus_offset)
                 self.manual_focus_offset_applied = False
 
             raise RuntimeError(
@@ -483,7 +483,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         if self.manual_focus_offset_applied and not self.do_take_sequence:
             self.log.debug('Removing manual focus offset of '
                            f'{self.manual_focus_offset} in after acquisition')
-            await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
+            await self.atcs.rem.ataos.cmd_offset.set_start(z=-self.manual_focus_offset)
             self.manual_focus_offset_applied = False
 
     async def latiss_take_sequence(self, silent=True):
@@ -559,7 +559,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         if self.manual_focus_offset_applied:
             self.log.debug('Removing manual focus offset of '
                            f'{self.manual_focus_offset} in after acquisition')
-            await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
+            await self.atcs.rem.ataos.cmd_offset.set_start(z=-self.manual_focus_offset)
             self.manual_focus_offset_applied = False
 
     async def run(self):
