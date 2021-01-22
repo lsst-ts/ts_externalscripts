@@ -375,8 +375,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             except asyncio.TimeoutError:
                 self.log.debug(
                     f'Caught an exception waiting for atspectrograph correction going'
-                    f' from current filter {current_filter} to {filt} and current '
-                    f'grating of {current_grating} to {grating} ')
+                    f' from current filter {current_filter} to {self.acq_filter} and current '
+                    f'grating of {current_grating} to {self.acq_grating} ')
             # FIXME: add sleep to test why we're exposing during offset
             self.log.debug('sleeping for offset correction')
             await asyncio.sleep(1.3)
