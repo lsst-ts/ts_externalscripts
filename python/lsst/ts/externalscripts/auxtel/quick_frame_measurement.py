@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["LatissAcquireAndTakeSequence"]
+__all__ = ["QuickFrameMeasurement"]
 
 import asyncio
 import collections.abc
@@ -71,8 +71,6 @@ class QuickFrameMeasurement(salobj.BaseScript):
             index=index, descr="Test QuickFrameMeasurementTask.",
         )
 
-        self.atcs = ATCS(self.domain, log=self.log)
-        self.latiss = LATISS(self.domain, log=self.log)
         # instantiate the quick measurement class
         qm_config = QuickFrameMeasurementTask.ConfigClass()
         self.qm = QuickFrameMeasurementTask(config=qm_config)

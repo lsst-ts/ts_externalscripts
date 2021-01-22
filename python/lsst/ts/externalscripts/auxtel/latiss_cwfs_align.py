@@ -149,7 +149,7 @@ class LatissCWFSAlign(salobj.BaseScript):
         # The following attributes can be configured:
         #
 
-        self.filter = "KPNO_406_828nm"
+        self.filter = "empty_1"
         self.grating = "empty_1"
 
         # exposure time for the intra/extra images (in seconds)
@@ -669,49 +669,49 @@ Telescope offsets: {tel_offset}
     @classmethod
     def get_schema(cls):
         schema_yaml = """
-            $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/LatissCWFSAlign.yaml
-            title: LatissCWFSAlign v1
-            description: Configuration for LatissCWFSAlign Script.
-            type: object
-            properties:
-              filter:
-                description: Which filter to use when taking intra/extra focal images.
-                type: string
-                default: empty_1
-              grating:
-                description: Which grating to use when taking intra/extra focal images.
-                type: string
-                default: empty_1
-              exposure_time:
-                description: The exposure time to use when taking intra/extra focal images (sec).
-                type: number
-                default: 30.
-              dz:
-                description: De-focus to apply when acquiring the intra/extra focal images (mm).
-                type: number
-                default: 0.8
-              dataPath:
-                description: Path to the butler data repository.
-                type: string
-                default: /project/shared/auxTel/
-              large_defocus:
-                description: >-
-                    Defines a large defocus. If Defocus is larger than this value, apply only
-                    half of correction.
-                type: number
-                default: 0.08
-               threshold:
-                 description: >-
-                   Correction threshold. If correction is lower than this value,
-                   stop correction loop.
-                 type: number
-                 default: 0.01
-                max_iter:
-                  description: Maximum number of iterations.
-                  type: integer
-                  default: 5
-            additionalProperties: false
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://github.com/lsst-ts/ts_standardscripts/auxtel/LatissCWFSAlign.yaml
+title: LatissCWFSAlign v1
+description: Configuration for LatissCWFSAlign Script.
+type: object
+properties:
+    filter:
+        description: Which filter to use when taking intra/extra focal images.
+        type: string
+        default: empty_1
+    grating:
+        description: Which grating to use when taking intra/extra focal images.
+        type: string
+        default: empty_1
+    exposure_time:
+        description: The exposure time to use when taking intra/extra focal images (sec).
+        type: number
+        default: 30.
+    dz:
+        description: De-focus to apply when acquiring the intra/extra focal images (mm).
+        type: number
+        default: 0.8
+    dataPath:
+        description: Path to the butler data repository.
+        type: string
+        default: /project/shared/auxTel/
+    large_defocus:
+        description: >-
+            Defines a large defocus. If Defocus is larger than this value, apply only
+            half of correction.
+        type: number
+        default: 0.08
+    threshold:
+        description: >-
+            Correction threshold. If correction is lower than this value,
+            stop correction loop.
+        type: number
+        default: 0.01
+    max_iter:
+        description: Maximum number of iterations.
+        type: integer
+        default: 5
+additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
 
@@ -739,7 +739,7 @@ Telescope offsets: {tel_offset}
 
         self.large_defocus = config.large_defocus
 
-        self.threshold = config.large_defocus
+        self.threshold = config.threshold
 
         self.max_iter = config.max_iter
 
