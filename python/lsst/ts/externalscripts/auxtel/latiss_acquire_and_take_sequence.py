@@ -344,7 +344,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # )
 
         # Slew and setup in series for now
-        await self.atcs.slew_object(name=self.object_name, rot=0, slew_timeout=240)
+        # set rot_type to align to paralactic angle
+        await self.atcs.slew_object(name=self.object_name, rot_type=2, slew_timeout=240)
         # Apply manual focus offset if required
         if self.manual_focus_offset != 0.0 and not self.manual_focus_offset_applied:
             self.log.debug('Applying manual focus offset of '
