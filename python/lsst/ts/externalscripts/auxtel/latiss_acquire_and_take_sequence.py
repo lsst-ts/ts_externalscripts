@@ -370,6 +370,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
                 timeout=self.cmd_timeout, flush=False
             )
+            # FIXME: add sleep to test why we're exposing during offset
+            asyncio.sleep(1.3)
 
         self.log.info(
             "Entering Acquisition Iterative Loop, with a maximum amount of "
@@ -554,8 +556,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                             f' from current filter {current_filter} to {filt} and current '
                             f'grating of {current_grating} to {grating} ')
                         pass
-
+                    # FIXME: add sleep to test why we're exposing during offset
+                    asyncio.sleep(1.3)
                     self.log.debug("ATAOS events arrived")
+
 
             # Take an image
             await self.latiss.take_object(exptime=expTime, n=1, group_id=group_id)
