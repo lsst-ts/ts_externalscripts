@@ -379,7 +379,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     f'grating of {current_grating} to {grating} ')
             # FIXME: add sleep to test why we're exposing during offset
             self.log.debug('sleeping for offset correction')
-            asyncio.sleep(1.3)
+            await asyncio.sleep(1.3)
 
         self.log.info(
             "Entering Acquisition Iterative Loop, with a maximum amount of "
@@ -566,7 +566,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                         pass
                     # FIXME: add sleep to test why we're exposing during offset
                     self.log.debug('sleeping for offset correction')
-                    asyncio.sleep(1.3)
+                    await asyncio.sleep(1.3)
                     self.log.debug("ATAOS events arrived")
 
 
