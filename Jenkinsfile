@@ -139,6 +139,15 @@ pipeline {
                 }
             }
         }
+//        stage("Checkout rapid_analysis") {
+//            steps {
+//                script {
+//                    sh """
+//                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/rapid_analysis && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
+//                    """
+//                }
+//            }
+//        }
         stage("Build IDL files") {
             steps {
                 script {
