@@ -100,10 +100,10 @@ class LatissCWFSAlign(salobj.BaseScript):
             "Techniques.",
         )
 
-        self.attcs = None
+        self.atcs = None
         self.latiss = None
         if remotes:
-            self.attcs = ATCS(self.domain)
+            self.atcs = ATCS(self.domain)
             self.latiss = LATISS(self.domain)
 
         # Timeouts used for telescope commands
@@ -216,7 +216,7 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.isr_config.doDark = False
         self.isr_config.doFringe = False
         self.isr_config.doDefect = True
-        self.isr_config.doAddDistortionModel = False
+        # self.isr_config.doAddDistortionModel = False  # Deprecated
         self.isr_config.doSaturationInterpolation = False
         self.isr_config.doSaturation = False
         self.isr_config.doWrite = False
@@ -313,8 +313,9 @@ Pixel_size (m)			{}
             grating=self.grating,
         )
 
-        azel = await self.attcs.atmcs.tel_mount_AzEl_Encoders.aget()
-        nasmyth = await self.attcs.atmcs.tel_mount_Nasmyth_Encoders.aget()
+        azel = await self.atcs.next_telescope_position()
+        # azel = await self.atcs.rem.atmcs.tel_mount_AzEl_Encoders.aget()
+        nasmyth = await self.atcs.rem.atmcs.tel_mount_Nasmyth_Encoders.aget()
 
         self.angle = np.mean(nasmyth.nasmyth2CalculatedAngle) + np.mean(
             azel.elevationCalculatedAngle
@@ -357,11 +358,11 @@ Pixel_size (m)			{}
             "v": 0.0,
         }
 
-        self.attcs.athexapod.evt_positionUpdate.flush()
-        await self.attcs.ataos.cmd_offset.set_start(
+        self.atcs.rem.athexapod.evt_positionUpdate.flush()
+        await self.atcs.rem.ataos.cmd_offset.set_start(
             **offset, timeout=self.short_timeout
         )
-        await self.attcs.athexapod.evt_positionUpdate.next(
+        await self.atcs.rem.athexapod.evt_positionUpdate.next(
             flush=False, timeout=self.long_timeout
         )
 
