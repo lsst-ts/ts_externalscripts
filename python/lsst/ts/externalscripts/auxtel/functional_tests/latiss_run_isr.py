@@ -21,35 +21,22 @@
 
 __all__ = ["LatissRunIsr"]
 
-import os
 import time
 import yaml
 import asyncio
-import warnings
 
 import concurrent.futures
-
-from pathlib import Path
-
-import numpy as np
-from astropy import time as astropytime
 
 from lsst.ts import salobj
 
 import lsst.daf.persistence as dafPersist
 
-# Source detection libraries
-from lsst.meas.algorithms.detection import SourceDetectionTask
-
-import lsst.afw.table as afwTable
-
 from lsst.ip.isr.isrTask import IsrTask
-
-import copy  # used to support binning
 
 
 class LatissRunIsr(salobj.BaseScript):
-    """ Test run Isr in a set of images.
+    """Test run Isr on a set of images to verify data access and basic
+    reduction functionality.
 
     Parameters
     ----------
@@ -71,7 +58,7 @@ class LatissRunIsr(salobj.BaseScript):
     def __init__(self, index=1):
 
         super().__init__(
-            index=index, descr="Test Isr task in images.",
+            index=index, descr="Test Isr task on a set of images.",
         )
 
         # butler data path.
@@ -135,7 +122,7 @@ class LatissRunIsr(salobj.BaseScript):
             $schema: http://json-schema.org/draft-07/schema#
             $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/LatissRunIsr.yaml
             title: LatissRunIsr v1
-            description: Configuration for LatissCWFSAlign Script.
+            description: Configuration for LatissRunIsr Script.
             type: object
             properties:
               dataPath:

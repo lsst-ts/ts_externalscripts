@@ -22,23 +22,19 @@
 __all__ = ["QuickFrameMeasurement"]
 
 import asyncio
-import collections.abc
-
-import lsst.daf.persistence as dafPersist
-from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
-import numpy as np
+import warnings
 import yaml
-from astropy import time as astropytime
+
+import concurrent.futures
+
+try:
+    from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
+    from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
+except ImportError:
+    warnings.warn("Cannot import required libraries. Script will not work.")
+
 from lsst.geom import PointD
 from lsst.ts import salobj
-from lsst.ts.observatory.control.auxtel import ATCS, LATISS
-from lsst.ts.observatory.control.constants import latiss_constants
-from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
-from lsst.ts.observing.utilities.auxtel.latiss.utils import (
-    calculate_xy_offsets,
-    parse_obs_id,
-)
-from lsst.ts.standardscripts.utils import format_as_list
 
 STD_TIMEOUT = 10  # seconds
 

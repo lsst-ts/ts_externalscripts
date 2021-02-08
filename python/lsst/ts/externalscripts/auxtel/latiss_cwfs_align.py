@@ -755,6 +755,7 @@ Telescope offsets: {tel_offset}
 
             self.log.debug(f"CWFS iteration {i+1} starting...")
 
+            # Setting visit_id's to none so run_cwfs will take a new dataset.
             self.intra_visit_id = None
             self.extra_visit_id = None
             results = await self.run_cwfs()
