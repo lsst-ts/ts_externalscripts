@@ -19,12 +19,5 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .utils import *
-
-try:
-    from .version import *
-except ImportError:
-    __version__ = "?"
-    __repo_version__ = "?"
-    __fingerprint__ = "? *"
-    __dependency_versions__ = {}
+from .quick_frame_measurement import *
+from .latiss_run_isr import *
