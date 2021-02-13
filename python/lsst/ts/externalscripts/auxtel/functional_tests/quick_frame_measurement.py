@@ -29,6 +29,7 @@ import concurrent.futures
 
 try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_obs_id
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
@@ -85,11 +86,11 @@ class QuickFrameMeasurement(salobj.BaseScript):
                 description: Path to the butler data repository.
                 type: string
                 default: /project/shared/auxTel/
-              exp_id:
-                description: Visit id of the image to process.
-                type: integer
+              data_id:
+                description: Visit id of the image to process. Format is AT_O_YYYMMDD_NNNNNN.
+                type: string
             required:
-              - exp_id
+              - data_id
             additionalProperties: false
         """
 
@@ -111,8 +112,10 @@ class QuickFrameMeasurement(salobj.BaseScript):
 
     async def run_qm(self, data_id):
 
+        day_obs, seq_num = parse_obs_id(data_id)[-2:]
+
         exp = await get_image(
-            data_id,
+            dict(dayObs=day_obs, seqNum=seq_num),
             datapath=self.config.dataPath,
             timeout=STD_TIMEOUT,
             runBestEffortIsr=True,
@@ -136,5 +139,5 @@ class QuickFrameMeasurement(salobj.BaseScript):
 
     async def run(self):
 
-        self.log.debug(f"Running QuickFrameMeasurementTask in {self.config.exp_id}")
-        await self.run_qm(self.config.exp_id)
+        self.log.debug(f"Running QuickFrameMeasurementTask in {self.config.data_id}")
+        await self.run_qm(self.config.data_id)
