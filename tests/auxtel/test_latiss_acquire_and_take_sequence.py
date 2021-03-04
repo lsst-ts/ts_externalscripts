@@ -78,6 +78,8 @@ class TestLatissAcquireAndTakeSequence(
         # Mock the telescope slews and offsets
         self.script.atcs.slew_object = asynctest.CoroutineMock()
         self.script.atcs.offset_xy = asynctest.CoroutineMock()
+        self.script.atcs.add_point_data = asynctest.CoroutineMock()
+
         # Mock the latiss instrument setups
         self.script.latiss.setup_atspec = asynctest.CoroutineMock(
             wraps=self.cmd_setup_atspec_callback
@@ -104,18 +106,37 @@ class TestLatissAcquireAndTakeSequence(
     async def cmd_setup_atspec_callback(
         self, grating=None, filter=None, linear_stage=None
     ):
-        self.atspectrograph.evt_reportedFilterPosition.set_put(name=filter)
-        self.atspectrograph.evt_filterInPosition.set()
 
-        self.atspectrograph.evt_reportedDisperserPosition.set_put(name=grating)
-        self.atspectrograph.evt_disperserInPosition.set()
-        await asyncio.sleep(0.2)
+        list_to_be_returned = []
+        if filter:
+            list_to_be_returned.append(filter)
+            self.atspectrograph.evt_reportedFilterPosition.set_put(name=filter)
+            self.atspectrograph.evt_filterInPosition.set()
+            self.ataos.evt_atspectrographCorrectionStarted.put()
+            await asyncio.sleep(0.2)
+            self.ataos.evt_atspectrographCorrectionCompleted.put()
+            # Publish AOS correction events
+            self.ataos.evt_atspectrographCorrectionStarted.put()
+            await asyncio.sleep(0.2)
+            self.ataos.evt_atspectrographCorrectionCompleted.put()
+            await asyncio.sleep(0.2)
 
-        # Publish AOS correction events
-        self.ataos.evt_atspectrographCorrectionStarted.put()
-        await asyncio.sleep(0.2)
-        self.ataos.evt_atspectrographCorrectionCompleted.put()
-        await asyncio.sleep(0.2)
+        if grating:
+            list_to_be_returned.append(filter)
+            self.atspectrograph.evt_reportedDisperserPosition.set_put(name=grating)
+            self.atspectrograph.evt_disperserInPosition.set()
+            self.ataos.evt_atspectrographCorrectionStarted.put()
+            await asyncio.sleep(0.5)
+            self.ataos.evt_atspectrographCorrectionCompleted.put()
+            # Publish AOS correction events
+            self.ataos.evt_atspectrographCorrectionStarted.put()
+            await asyncio.sleep(0.2)
+            self.ataos.evt_atspectrographCorrectionCompleted.put()
+            await asyncio.sleep(0.2)
+
+        # need to return a list with how many parameters were provided
+
+        return list_to_be_returned
 
     async def close(self):
         """Optional cleanup before closing the scripts and etc."""
@@ -147,7 +168,7 @@ class TestLatissAcquireAndTakeSequence(
 
         await asyncio.sleep(0.5)
         imgNum = self.atcamera.cmd_takeImages.callback.await_count - 1
-        image_name = f"AT_O_{self.date}_{(imgNum+self.seq_num_start):06d}"
+        image_name = f"AT_O_{self.date}_{(imgNum + self.seq_num_start):06d}"
         self.atcamera.evt_endReadout.set_put(imageName=image_name)
         await asyncio.sleep(0.5)
         self.atheaderservice.evt_largeFileObjectAvailable.put()
@@ -250,6 +271,10 @@ class TestLatissAcquireAndTakeSequence(
             self.assertEqual(self.script.do_take_sequence, True)
             self.assertEqual(self.script.do_acquire, True)
 
+    @asynctest.skipIf(
+        DATA_AVAILABLE is False,
+        "Data not available for test_take_sequence, skipping.",
+    )
     async def test_take_sequence(self):
         async with self.make_script():
             # Date for file to be produced
@@ -304,9 +329,9 @@ class TestLatissAcquireAndTakeSequence(
 
     @asynctest.skipIf(
         DATA_AVAILABLE is False,
-        "Data not available for test_take_acquisition, skipping.",
+        "Data not available for test_take_acquisition_pointing, skipping.",
     )
-    async def test_take_acquisition(self):
+    async def test_take_acquisition_pointing(self):
         async with self.make_script():
             # Date for file to be produced
             self.date = "20200314"
@@ -315,11 +340,12 @@ class TestLatissAcquireAndTakeSequence(
 
             object_name = "HD145600"
             acq_filter = "test_filt1"
-            acq_grating = "ronchi90lpmm"
+            acq_grating = "empty_1"
             target_pointing_tolerance = 4
-            max_acq_iter = 5
+            max_acq_iter = 4
             do_acquire = True
             do_take_sequence = False
+            do_pointing_model = True
             await self.configure_script(
                 object_name=object_name,
                 do_acquire=do_acquire,
@@ -328,6 +354,7 @@ class TestLatissAcquireAndTakeSequence(
                 acq_grating=acq_grating,
                 target_pointing_tolerance=target_pointing_tolerance,
                 max_acq_iter=max_acq_iter,
+                do_pointing_model=do_pointing_model,
             )
 
             # publish ataos event saying corrections are enabled
@@ -340,6 +367,120 @@ class TestLatissAcquireAndTakeSequence(
             self.atspectrograph.evt_reportedLinearStagePosition.set_put(position=65)
 
             await self.run_script()
+
+            # img 188 centroid at 1572, 1580
+            # img 189 centroid at 2080, 1997
+            # img 190 centroid at 2041, 2019
+            # img 191 and 192 centroid at 2040, 1995
+
+            # Should take two iterations? FIXME
+            self.assertEqual(
+                self.atcamera.cmd_takeImages.callback.await_count, 3,
+            )
+            # should offset only once
+            self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
+
+    @asynctest.skipIf(
+        DATA_AVAILABLE is False,
+        "Data not available for test_take_acquisition_with_verification, skipping.",
+    )
+    async def test_take_acquisition_with_verification(self):
+        async with self.make_script():
+            # Date for file to be produced
+            self.date = "20210217"
+            # sequence number start
+            self.seq_num_start = 325
+
+            object_name = "HD 60753"
+            acq_filter = "test_filt1"
+            acq_grating = "empty_1"
+            target_pointing_tolerance = 5
+            max_acq_iter = 3
+            do_acquire = True
+            do_take_sequence = False
+            do_pointing_model = False
+            acq_exposure_time = 0.4
+            target_pointing_verification = False
+            await self.configure_script(
+                object_name=object_name,
+                do_acquire=do_acquire,
+                do_take_sequence=do_take_sequence,
+                acq_filter=acq_filter,
+                acq_grating=acq_grating,
+                target_pointing_tolerance=target_pointing_tolerance,
+                max_acq_iter=max_acq_iter,
+                do_pointing_model=do_pointing_model,
+                acq_exposure_time=acq_exposure_time,
+                target_pointing_verification=target_pointing_verification,
+            )
+
+            # publish ataos event saying corrections are enabled
+            self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
+
+            # Send spectrograph events
+            logger.debug("Sending atspectrograph position events")
+            self.atspectrograph.evt_reportedFilterPosition.set_put(name="filter0")
+            self.atspectrograph.evt_reportedDisperserPosition.set_put(name="disp0")
+            self.atspectrograph.evt_reportedLinearStagePosition.set_put(position=65)
+
+            await self.run_script()
+
+            # img 268 1636,1865
+            # img 291 centroid at 972,1671 (good)
+
+            # Should take two iterations and 3 images
+            self.assertEqual(
+                self.atcamera.cmd_takeImages.callback.await_count, 3,
+            )
+            # should offset only once
+            self.assertEqual(self.script.atcs.offset_xy.call_count, 2)
+
+    @asynctest.skipIf(
+        DATA_AVAILABLE is False,
+        "Data not available for test_take_spectral_acquisition, skipping.",
+    )
+    async def test_take_acquisition_nominal(self):
+        # nominal case where no verification is taken, no pointing is done
+        async with self.make_script():
+            # Date for file to be produced
+            self.date = "20210121"
+            # sequence number start
+            self.seq_num_start = 739
+
+            object_name = "HD 185975"
+            acq_filter = "test_filt1"
+            acq_grating = "empty_1"
+            target_pointing_tolerance = 4
+            max_acq_iter = 4
+            do_acquire = True
+            do_take_sequence = False
+            target_pointing_verification = False
+            await self.configure_script(
+                object_name=object_name,
+                do_acquire=do_acquire,
+                do_take_sequence=do_take_sequence,
+                acq_filter=acq_filter,
+                acq_grating=acq_grating,
+                target_pointing_tolerance=target_pointing_tolerance,
+                max_acq_iter=max_acq_iter,
+                target_pointing_verification=target_pointing_verification,
+            )
+
+            # publish ataos event saying corrections are enabled
+            self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
+
+            # Send spectrograph events
+            logger.debug("Sending atspectrograph position events")
+            self.atspectrograph.evt_reportedFilterPosition.set_put(name="filter0")
+            self.atspectrograph.evt_reportedDisperserPosition.set_put(name="disp0")
+            self.atspectrograph.evt_reportedLinearStagePosition.set_put(position=65)
+
+            await self.run_script()
+
+            # img 188 centroid at 1572, 1580
+            # img 189 centroid at 2080, 1997
+            # img 190 centroid at 2041, 2019
+            # img 191 and 192 centroid at 2040, 1995
 
             # Should take two iterations
             self.assertEqual(
@@ -357,9 +498,9 @@ class TestLatissAcquireAndTakeSequence(
 
         async with self.make_script():
             # Date for file to be produced
-            self.date = "20200314"
+            self.date = "20210121"
             # sequence number start
-            self.seq_num_start = 189
+            self.seq_num_start = 739
 
             object_name = "HD145600"
             acq_filter = "test_filt1"
@@ -367,7 +508,7 @@ class TestLatissAcquireAndTakeSequence(
             grating_sequence = ["ronchi90lpmm", "empty_1"]
             filter_sequence = "test_filt2"
             exposure_time_sequence = [0.3, 0.8]
-            target_pointing_tolerance = 3
+            target_pointing_tolerance = 5
             target_pointing_verification = False
             do_acquire = True
             do_take_sequence = True
@@ -395,9 +536,9 @@ class TestLatissAcquireAndTakeSequence(
 
             await self.run_script()
 
-            # Should take one image for acquisition then two images
+            # Should take two images for acquisition then two images
             self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count, 1 + 2,
+                self.atcamera.cmd_takeImages.callback.await_count, 2 + 2,
             )
             # Make sure offset was applied to telescope
             self.script.atcs.offset_xy.assert_called()

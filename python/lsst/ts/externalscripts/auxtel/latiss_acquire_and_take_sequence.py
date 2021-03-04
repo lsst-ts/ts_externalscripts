@@ -203,8 +203,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 type: string
                 default: /project/shared/auxTel/
 
-              doPointingModel:
-                description: Adjust star position (sweet spot) to use boresight
+              do_pointing_model:
+                description: Adjust star position (sweet spot) to use boresight. Save datapoint
+                    when on target.
                 type: boolean
                 default: False
 
@@ -231,6 +232,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # Which processes to perform
         self.do_acquire = config.do_acquire
         self.do_take_sequence = config.do_take_sequence
+        # Do pointing file generation?
+        self.do_pointing_model = config.do_pointing_model
 
         # Object name
         assert config.object_name is not None
@@ -310,9 +313,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         return data_id
 
-    async def latiss_acquire(self, doPointingModel=False):
+    async def latiss_acquire(self):
 
-        if doPointingModel:
+        if self.do_pointing_model:
             target_position = latiss_constants.boresight
         else:
             target_position = latiss_constants.sweet_spots[self.acq_grating]
@@ -372,50 +375,64 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # Once persistent offsets are working this line should be removed
         # and the slew+setup should be performed asynchronously as seen
         # in the asyncio.gather statement above.
-        await self.latiss.setup_instrument(
-            grating=self.acq_grating, filter=self.acq_filter
+
+        # FIXME - need to use setup_atspec for unit tests to work
+        # data = await self.latiss.setup_instrument(
+        #              grating=self.acq_grating, filter=self.acq_filter)
+
+        # Setup the instrument with the new configuration
+        # data = await self.latiss.setup_instrument(filter=filt,
+        #              grating=grating)
+        data = await self.latiss.setup_atspec(
+            filter=self.acq_filter, grating=self.acq_grating
         )
 
         # If ATAOS is running wait for adjustments to complete before
         # moving on.
         if corr.atspectrograph and _new_instrument_required:
+
             self.log.debug(
-                "Verifying LATISS configuration is incorporated into ATAOS offsets"
+                "Instrument setup in acquisition now waiting for "
+                f"2*len{data} ATAOS events saying correction started/finished"
             )
-            # If so, then flush correction events for confirmation of
-            # corrections
-            # FIXME
-            try:
+
+            # loop to grab all events
+            for j in range(len(data)):
+                # flush=false removes the event when grabbed
                 _evt1 = await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
-                    timeout=self.cmd_timeout, flush=False
+                    flush=False, timeout=self.cmd_timeout
                 )
                 self.log.debug(
-                    f"evt_atspectrographCorrectionStarted from line 373 is {_evt1}"
+                    f"Event #{j} - evt_atspectrographCorrectionStarted is: {_evt1}"
                 )
+            for j in range(len(data)):
                 _evt2 = await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
-                    timeout=self.cmd_timeout, flush=False
+                    flush=False, timeout=self.cmd_timeout
                 )
                 self.log.debug(
-                    f"evt_atspectrographCorrectionCompleted from line 377 is {_evt2}"
+                    f"Event #{j} - evt_atspectrographCorrectionCompleted is: {_evt2}"
                 )
-            except asyncio.TimeoutError:
-                self.log.debug(
-                    f"Caught an exception waiting for atspectrograph correction going"
-                    f" from current filter {current_filter} to {self.acq_filter} and current "
-                    f"grating of {current_grating} to {self.acq_grating} "
-                )
-            # FIXME: add sleep to test why we're exposing during offset
-            self.log.debug("sleeping for grating offset correction")
-            await asyncio.sleep(2.0)
+
+            self.log.debug("ATAOS atspectrographCorrectionXXXX events arrived")
+
+            self.log.info(
+                "sleeping for 2s after acquisition due to ATAOS issue "
+                "where corrections might take an extra cycle"
+            )
+            await asyncio.sleep(2)
 
         self.log.info(
-            "Entering Acquisition Iterative Loop, with a maximum amount of "
+            "Beginning Acquisition Iterative Loop, with a maximum amount of "
             f"iterations set to {self.max_acq_iter}"
         )
         iter_num = 0
-        while iter_num < self.max_acq_iter:
+        _success = False
+        for iter_num in range(self.max_acq_iter):
             # Take image
-            self.log.debug(f"Starting iteration number {iter_num + 1}")
+            self.log.debug(
+                f"\nStarting iteration number {iter_num + 1}, with a "
+                f"maximum of {self.max_acq_iter}"
+            )
             tmp, data_id = await asyncio.gather(
                 self.latiss.take_object(exptime=self.acq_exposure_time, n=1),
                 self.get_next_image_data_id(
@@ -435,10 +452,20 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 loop = asyncio.get_event_loop()
                 executor = concurrent.futures.ThreadPoolExecutor()
                 result = await loop.run_in_executor(executor, self.qm.run, exp)
-            except RuntimeError:
-                # FIXME: Patrick - deal with a failure to find the source here
-                pass  # and remove this
-                # Note that the source finding should be made a function
+            except RuntimeError as e:
+                # Remove the focus offset if it was applied before
+                # raising an exception
+                if self.manual_focus_offset_applied:
+                    self.log.debug(
+                        "Removing manual focus offset of "
+                        f"{self.manual_focus_offset} before raising error"
+                    )
+                    await self.atcs.rem.ataos.cmd_offset.set_start(
+                        z=-self.manual_focus_offset
+                    )
+                    self.manual_focus_offset_applied = False
+                self.log.exception(e)
+                raise e
 
             current_position = PointD(
                 result.brightestObjCentroid[0], result.brightestObjCentroid[1]
@@ -446,8 +473,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             # Find offsets
             self.log.debug(
-                f"Current brightest target position is {current_position} whereas the"
-                f"Target position is {target_position}"
+                f"Current brightest target position is {current_position} whereas the "
+                f"target position is {target_position}"
             )
 
             dx_arcsec, dy_arcsec = calculate_xy_offsets(
@@ -464,10 +491,11 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # Check if star is in place, if so then we're done
             if dr_arcsec < self.target_pointing_tolerance:
                 self.log.info(
+                    "Acquisition completed successfully."
                     f"Current radial pointing error of {dr_arcsec:0.2f} arcsec is within the tolerance "
                     f"of {self.target_pointing_tolerance} arcsec. "
-                    "Acquisition completed."
                 )
+                _success = True
                 break
             else:
                 self.log.info(
@@ -475,34 +503,24 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     f" of {self.target_pointing_tolerance} arcsec."
                 )
 
-            # Ask user if we want to apply the correction?
-            await self.checkpoint(
-                f"Apply the calculated [x,y] correction of  [{dx_arcsec:0.2f}, {dy_arcsec:0.2f}] arcsec?"
-            )
             # Offset telescope, using persistent offsets
             self.log.info("Applying x/y offset to telescope pointing.")
 
-            # FIXME: ARBITRARILY ADDING NEGATIVE SIGN IN X-axis
-            # Fix requires ATCS class rotation matrix for offset_xy to be
-            # implemented
-            await self.atcs.offset_xy(-dx_arcsec, dy_arcsec, persistent=True)
-            # Mount not sending in-position event properly
-            self.log.debug("sleeping for mount in-position issue correction")
-            await asyncio.sleep(3)
+            await self.atcs.offset_xy(
+                dx_arcsec, dy_arcsec, relative=True, persistent=True
+            )
+            self.log.info(
+                f"At end of iteration loop, success is {_success}. So moving to next iteration"
+            )
 
-            # Verify with another image that we're on target?
-            if not self.target_pointing_verification:
-                self.log.info(
-                    f"Skipping additional image to verify offset was applied correctly as "
-                    f"target_pointing_verification is set to {self.target_pointing_verification}"
-                )
-                break
-
-            self.log.debug("Starting next iteration of acquisition sequence.\n")
-            iter_num += 1
-
-        else:
-
+        # Check that maximum number of interations for acquisition
+        # was not reached
+        if not _success:
+            self.log.debug(
+                "Failed to acquire star on target after "
+                f"{iter_num} images. Removing focus offset and "
+                "raising an exception"
+            )
             # Remove the focus offset if only an acquisition is performed
             if self.manual_focus_offset_applied:
                 self.log.debug(
@@ -518,8 +536,17 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 f"Failed to acquire star on target after {iter_num} images."
             )
 
+        # Verify with another image that we're on target?
+        if self.target_pointing_verification:
+            await self.latiss.take_object(exptime=self.acq_exposure_time, n=1)
+        else:
+            self.log.info(
+                f"Skipping additional image to verify offset was applied correctly as "
+                f"target_pointing_verification is set to {self.target_pointing_verification}"
+            )
+
         # Update pointing model
-        if doPointingModel:
+        if self.do_pointing_model:
             self.log.info("Adding datapoint to pointing model")
             await self.atcs.add_point_data()
 
@@ -538,11 +565,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         nexp = len(self.visit_configs)
         group_id = astropytime.Time.now().tai.isot
         for i, (filt, expTime, grating) in enumerate(self.visit_configs):
-
-            await self.checkpoint(
-                f"Performing image number {i} of {len(self.visit_configs)} "
-                "of science sequence"
-            )
 
             # Check if a manual focus offset is required
             if self.manual_focus_offset != 0.0 and not self.manual_focus_offset_applied:
@@ -584,42 +606,42 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.flush()
 
                 # Setup the instrument with the new configuration
-                await self.latiss.setup_instrument(filter=filt, grating=grating)
-
+                # data = await self.latiss.setup_instrument(filter=filt,
+                #               grating=grating)
+                # FIXME - need to use setup_atspec for unit tests to work
+                data = await self.latiss.setup_atspec(filter=filt, grating=grating)
                 # If ATAOS is running wait for adjustments to complete before
                 # moving on.
                 if corr.atspectrograph:
-                    # If so, then flush correction events for confirmation of
-                    # corrections
                     self.log.debug(
-                        "Waiting for ATAOS events saying correction " "started/finished"
+                        "Instrument setup in take_sequence now waiting for "
+                        f"2*len{data} ATAOS events saying correction started/finished"
                     )
-                    # FIXME: Have to be looking at offsets not filters. config
-                    #  may have a filter/grating with no offset
-                    try:
+
+                    # loop to grab all events
+                    for j in range(len(data)):
+                        # flush=false removes the event when grabbed
                         _evt1 = await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
                             flush=False, timeout=self.cmd_timeout
                         )
                         self.log.debug(
-                            f"evt_atspectrographCorrectionStarted from line 559 is {_evt1}"
+                            f"Event #{j} - evt_atspectrographCorrectionStarted is: {_evt1}"
                         )
+                    for j in range(len(data)):
                         _evt2 = await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
                             flush=False, timeout=self.cmd_timeout
                         )
                         self.log.debug(
-                            f"evt_atspectrographCorrectionCompleted from line 563 is {_evt2}"
+                            f"Event #{j} - evt_atspectrographCorrectionCompleted is: {_evt2}"
                         )
-                    except asyncio.TimeoutError:
-                        self.log.debug(
-                            f"Caught an exception waiting for atspectrograph correction going"
-                            f" from current filter {current_filter} to {filt} and current "
-                            f"grating of {current_grating} to {grating} "
-                        )
-                        pass
-                    # FIXME: add sleep to test why we're exposing during offset
-                    self.log.debug("sleeping for grating offset correction")
-                    await asyncio.sleep(2.0)
-                    self.log.debug("ATAOS events arrived")
+
+                    self.log.debug("ATAOS atspectrographCorrectionStarted and Completed events arrived")
+
+                    self.log.info(
+                        "sleeping for 2s after acquisition due to ATAOS issue "
+                        "where corrections might take an extra cycle"
+                    )
+                    await asyncio.sleep(2)
 
             # Take an image
             await self.latiss.take_object(exptime=expTime, n=1, group_id=group_id)
@@ -638,27 +660,25 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.atcs.rem.ataos.cmd_offset.set_start(z=-self.manual_focus_offset)
             self.manual_focus_offset_applied = False
 
-    async def run(self):
-        """"""
+    async def arun(self, checkpoint=False):
         if self.do_acquire:
-            await self.checkpoint("Beginning Target Acquisition")
+            if checkpoint:
+                await self.checkpoint("Beginning Target Acquisition")
             self.log.debug("Beginning target acquisition")
             await self.latiss_acquire()
-            await self.checkpoint("Acquisition Completed")
 
         if self.do_take_sequence:
-            # Do we want to put the instrument back to the original state?
-            # I don't think so since it'll add overhead we may not want.
-            # The offsetting of focus etc is now being done
-            # automatically...
-
             self.log.debug("Beginning taking data for target sequence")
-            await self.checkpoint("Beginning taking data for target sequence")
+            if checkpoint:
+                await self.checkpoint("Beginning taking data for target sequence")
             try:
                 await self.latiss_take_sequence()
-                self.checkpoint("Data taking for target sequence completed")
             except Exception as e:
                 self.log.exception("Exception from latiss_take_sequence()")
                 raise e
             finally:
                 self.log.debug("At finally statement in run")
+
+    async def run(self):
+        """"""
+        await self.arun(checkpoint=True)
