@@ -272,8 +272,7 @@ class TestLatissAcquireAndTakeSequence(
             self.assertEqual(self.script.do_acquire, True)
 
     @asynctest.skipIf(
-        DATA_AVAILABLE is False,
-        "Data not available for test_take_sequence, skipping.",
+        DATA_AVAILABLE is False, "Data not available for test_take_sequence, skipping.",
     )
     async def test_take_sequence(self):
         async with self.make_script():
@@ -394,7 +393,7 @@ class TestLatissAcquireAndTakeSequence(
             object_name = "HD 60753"
             acq_filter = "test_filt1"
             acq_grating = "empty_1"
-            target_pointing_tolerance = 5
+            target_pointing_tolerance = 6
             max_acq_iter = 3
             do_acquire = True
             do_take_sequence = False
@@ -450,7 +449,7 @@ class TestLatissAcquireAndTakeSequence(
             object_name = "HD 185975"
             acq_filter = "test_filt1"
             acq_grating = "empty_1"
-            target_pointing_tolerance = 4
+            target_pointing_tolerance = 5
             max_acq_iter = 4
             do_acquire = True
             do_take_sequence = False
