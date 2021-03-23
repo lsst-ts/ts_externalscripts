@@ -312,7 +312,7 @@ Pixel_size (m)			{}
             grating=self.grating,
         )
 
-        self.angle = await self.atcs.get_bore_sight_angle() - 90.0
+        self.angle = 90.0 - await self.atcs.get_bore_sight_angle()
 
         self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the

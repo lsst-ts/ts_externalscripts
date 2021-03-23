@@ -344,9 +344,18 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # )
 
         # Slew and setup in series for now
-        # set rot_type to align to paralactic angle
+        # set rot_type to align to parallactic angle
+        # await self.atcs.slew_object(
+        #     name=self.object_name, rot_type=RotType.Parallactic,
+        #     slew_timeout=240
+        # )
+
+        # FIXME: Impelemented due to rotator issues - revert in DM-29217
         await self.atcs.slew_object(
-            name=self.object_name, rot_type=RotType.Parallactic, slew_timeout=240
+            name=self.object_name,
+            rot_type=RotType.PhysicalSky,
+            rot=-105,
+            slew_timeout=240,
         )
         # Apply manual focus offset if required
         if self.manual_focus_offset != 0.0 and not self.manual_focus_offset_applied:
@@ -448,11 +457,12 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
 
             # Find brightest star
-            try:
-                loop = asyncio.get_event_loop()
-                executor = concurrent.futures.ThreadPoolExecutor()
-                result = await loop.run_in_executor(executor, self.qm.run, exp)
-            except RuntimeError as e:
+            loop = asyncio.get_event_loop()
+            executor = concurrent.futures.ThreadPoolExecutor()
+            result = await loop.run_in_executor(executor, self.qm.run, exp)
+            # Verify a result was achieved, if not then remove focus
+            # offset before raising the exception
+            if not result.success:
                 # Remove the focus offset if it was applied before
                 # raising an exception
                 if self.manual_focus_offset_applied:
@@ -464,8 +474,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                         z=-self.manual_focus_offset
                     )
                     self.manual_focus_offset_applied = False
-                self.log.exception(e)
-                raise e
+                raise RuntimeError("Centroid finding algorithm was unsuccessful.")
 
             current_position = PointD(
                 result.brightestObjCentroid[0], result.brightestObjCentroid[1]
@@ -506,14 +515,18 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # Offset telescope, using persistent offsets
             self.log.info("Applying x/y offset to telescope pointing.")
 
+            # Use persistent = False otherwise when we go to use
+            # the hologram it offsets to the bottom of the field
+            # FIXME: need to decide how we want to handle persistent offsets
+            # DM-29217
             await self.atcs.offset_xy(
-                dx_arcsec, dy_arcsec, relative=True, persistent=True
+                dx_arcsec, dy_arcsec, relative=True, persistent=False
             )
             self.log.info(
                 f"At end of iteration loop, success is {_success}. So moving to next iteration"
             )
 
-        # Check that maximum number of interations for acquisition
+        # Check that maximum number of iterations for acquisition
         # was not reached
         if not _success:
             self.log.debug(
@@ -635,7 +648,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                             f"Event #{j} - evt_atspectrographCorrectionCompleted is: {_evt2}"
                         )
 
-                    self.log.debug("ATAOS atspectrographCorrectionStarted and Completed events arrived")
+                    self.log.debug(
+                        "ATAOS atspectrographCorrectionStarted and Completed events arrived"
+                    )
 
                     self.log.info(
                         "sleeping for 2s after acquisition due to ATAOS issue "
