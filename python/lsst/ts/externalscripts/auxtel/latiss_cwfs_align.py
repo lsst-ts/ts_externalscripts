@@ -21,38 +21,31 @@
 __all__ = ["LatissCWFSAlign"]
 
 import os
-import time
 import yaml
 import asyncio
 import warnings
-
 import concurrent.futures
+import functools
+import numpy as np
 
 from pathlib import Path
-
-import numpy as np
 from astropy import time as astropytime
-
-from scipy import ndimage
-from scipy.signal import medfilt
-
 from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
 
-import lsst.daf.persistence as dafPersist
-
-# Source detection libraries
-from lsst.meas.algorithms.detection import SourceDetectionTask
-
-import lsst.afw.table as afwTable
-
-from lsst.ip.isr.isrTask import IsrTask
+try:
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import (
+        parse_visit_id,
+    )
+    from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
+    from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
+except ImportError:
+    warnings.warn("Cannot import required libraries. Script will not work.")
 
 # Import CWFS package
 try:
-    # TODO: (DM-24904) Remove this try/except clause when develop env ships
-    # with cwfs
+    # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
     from lsst import cwfs
     from lsst.cwfs.instrument import Instrument
     from lsst.cwfs.algorithm import Algorithm
@@ -61,6 +54,8 @@ except ImportError:
     warnings.warn("Could not import cwfs code.")
 
 import copy  # used to support binning
+
+STD_TIMEOUT = 10  # seconds to perform ISR
 
 
 class LatissCWFSAlign(salobj.BaseScript):
@@ -106,6 +101,13 @@ class LatissCWFSAlign(salobj.BaseScript):
             self.atcs = ATCS(self.domain)
             self.latiss = LATISS(self.domain)
 
+        # instantiate the quick measurement class
+        try:
+            qm_config = QuickFrameMeasurementTask.ConfigClass()
+            self.qm = QuickFrameMeasurementTask(config=qm_config)
+        except NameError:
+            self.log.warning("Library unavailable certain tests will be skipped")
+
         # Timeouts used for telescope commands
         self.short_timeout = 5.0  # used with hexapod offset command
         self.long_timeout = 30.0  # used to wait for in-position event from hexapod
@@ -146,22 +148,15 @@ class LatissCWFSAlign(salobj.BaseScript):
         # Assume perfect mechanical mounting
         self.camera_rotation_angle = 0.0
 
-        # The following attributes can be configured:
-        #
-
-        self.filter = "empty_1"
-        self.grating = "empty_1"
-
+        # The following attributes are set via the configuration:
+        self.filter = None
+        self.grating = None
         # exposure time for the intra/extra images (in seconds)
-        self.exposure_time = 30.0
-
+        self.exposure_time = None
         # offset for the intra/extra images
         self._dz = None
-
         # butler data path.
-        self.dataPath = "/project/shared/auxTel/"
-
-        #
+        self.dataPath = None
         # end of configurable attributes
 
         # Set (oversized) stamp size for centroid estimation
@@ -170,7 +165,8 @@ class LatissCWFSAlign(salobj.BaseScript):
         # 192 pix is size for dz=1.5, but gets automatically
         # scaled based on dz later, so can multiply by an
         # arbitrary factor here to make it larger
-        self._side = 192 * 1.1
+        self._side = 192 * 1.1  # normally 1.1
+        # self.selected_source_centroid = None
 
         # angle between elevation axis and nasmyth2 rotator
         self.angle = None
@@ -182,43 +178,27 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.extra_exposure = None
         self.detection_exp = None
 
-        self.source_selection_result = None
-        self.cwfs_selected_sources = []
-
         self.I1 = []
         self.I2 = []
         self.fieldXY = [0.0, 0.0]
 
         self.inst = None
-        self._binning = 2  # set binning of images to increase processing speed at the expense of resolution
+        # set binning of images to increase processing speed
+        # at the expense of resolution
+        self._binning = 1
         self.algo = None
 
         self.zern = None
         self.hexapod_corr = None
 
+        # make global to expose for unit tests
+        self.total_focus_offset = 0.0
+        self.total_coma_x_offset = 0.0
+        self.total_coma_y_offset = 0.0
+
         self.data_pool_sleep = 5.0
 
-        # Source detection setup
-        self.src_detection_sigma = 12.1
-        self.source_detection_config = SourceDetectionTask.ConfigClass()
-        self.source_detection_config.thresholdValue = (
-            30  # detection threshold after smoothing
-        )
-        self.source_detection_config.minPixels = self.pre_side
-        self.source_detection_config.combinedGrow = True
-        self.source_detection_config.nSigmaToGrow = 1.2
-
-        # ISR setup
-        self.isr_config = IsrTask.ConfigClass()
-        self.isr_config.doLinearize = False
-        self.isr_config.doBias = True
-        self.isr_config.doFlat = False
-        self.isr_config.doDark = False
-        self.isr_config.doFringe = False
-        self.isr_config.doDefect = True
-        self.isr_config.doSaturationInterpolation = False
-        self.isr_config.doSaturation = False
-        self.isr_config.doWrite = False
+        self.log.info("latiss_cwfs_align initialized!")
 
     # define the method that sets the hexapod offset to create intra/extra
     # focal images
@@ -239,7 +219,8 @@ class LatissCWFSAlign(salobj.BaseScript):
 
     @property
     def side(self):
-        return int(self._side * self.dz / 1.5)
+        # must be an even number
+        return int(np.ceil(self._side * self.dz / 1.5 / 2.0) * 2)
 
     @dz.setter
     def dz(self, value):
@@ -312,13 +293,6 @@ Pixel_size (m)			{}
             grating=self.grating,
         )
 
-        self.angle = 90.0 - await self.atcs.get_bore_sight_angle()
-
-        self.log.debug("Moving hexapod back to zero offset (in-focus) position")
-        # This is performed such that the telescope is left in the
-        # same position it was before running the script
-        await self.hexapod_offset(-self.dz)
-
         self.intra_visit_id = int(intra_image[0])
 
         self.log.info(f"intraImage expId for target: {self.intra_visit_id}")
@@ -326,6 +300,14 @@ Pixel_size (m)			{}
         self.extra_visit_id = int(extra_image[0])
 
         self.log.info(f"extraImage expId for target: {self.extra_visit_id}")
+
+        self.angle = 90.0 - await self.atcs.get_bore_sight_angle()
+        self.log.info(f"angle used in cwfs algorithm is {self.angle}")
+
+        self.log.debug("Moving hexapod back to zero offset (in-focus) position")
+        # This is performed such that the telescope is left in the
+        # same position it was before running the script
+        await self.hexapod_offset(-self.dz)
 
     async def hexapod_offset(self, offset, x=0.0, y=0.0):
         """Applies z-offset to the hexapod to move between
@@ -335,9 +317,6 @@ Pixel_size (m)			{}
         ----------
         offset: `float`
              Focus offset to the hexapod in mm
-
-        Returns
-        -------
 
         """
 
@@ -359,52 +338,8 @@ Pixel_size (m)			{}
             flush=False, timeout=self.long_timeout
         )
 
-    def get_isr_exposure(self, exp_id):
-        """Get ISR corrected exposure.
-
-        Parameters
-        ----------
-        exp_id: `string`
-             Exposure ID for butler image retrieval
-
-        Returns
-        -------
-        ISR corrected exposure as an lsst.afw.image.exposure.exposure object
-        """
-
-        isrTask = IsrTask(config=self.isr_config)
-
-        got_exposure = False
-
-        ntries = 0
-
-        data_ref = None
-        while not got_exposure:
-            butler = dafPersist.Butler(self.dataPath)
-            try:
-                data_ref = butler.dataRef("raw", **dict(expId=exp_id))
-            except RuntimeError as e:
-                self.log.warning(
-                    f"Could not get intra focus image from butler. Waiting "
-                    f"{self.data_pool_sleep}s and trying again."
-                )
-                time.sleep(self.data_pool_sleep)
-                if ntries > 10:
-                    raise e
-                ntries += 1
-            else:
-                got_exposure = True
-
-        if data_ref is not None:
-            return isrTask.runDataRef(data_ref).exposure
-        else:
-            raise RuntimeError(f"No data ref for {exp_id}.")
-
     async def run_cwfs(self):
         """Runs CWFS code on intra/extra focal images.
-        Inputs:
-        -------
-        None
 
         Returns
         -------
@@ -432,34 +367,59 @@ Pixel_size (m)			{}
                 f"Running cwfs in " f"{self.intra_visit_id}/{self.extra_visit_id}."
             )
 
-        self.intra_exposure = await loop.run_in_executor(
-            executor, self.get_isr_exposure, self.intra_visit_id
+        self.intra_exposure, self.extra_exposure = await asyncio.gather(
+            get_image(parse_visit_id(self.intra_visit_id)),
+            get_image(parse_visit_id(self.extra_visit_id)),
         )
 
-        # create a clone to be used for detection
-        self.detection_exp = self.intra_exposure.clone()
+        self.log.debug("Running source detection")
 
-        self.extra_exposure = await loop.run_in_executor(
-            executor, self.get_isr_exposure, self.extra_visit_id
+        self.intra_result = await loop.run_in_executor(
+            executor,
+            functools.partial(
+                self.qm.run, self.intra_exposure, donutDiameter=2 * self.side
+            ),
         )
+        self.extra_result = await loop.run_in_executor(
+            executor,
+            functools.partial(
+                self.qm.run, self.extra_exposure, donutDiameter=2 * self.side
+            ),
+        )
+        self.log.debug("Source detection completed")
 
-        # Prepare detection exposure, which adds two donuts together
-        self.detection_exp.image.array += self.extra_exposure.image.array
-        self.detection_exp.image.array -= np.median(self.detection_exp.image.array)
-
-        # Run source detection
-        await loop.run_in_executor(executor, self.select_cwfs_source)
-
-        await loop.run_in_executor(executor, self.center_and_cut_images)
-
-        if self.binning != 1:
-            self.log.info(
-                f"Running CWFS code using images binned by {self.binning} in each dimension."
+        # Verify a result was achieved, if not then raising the exception
+        if not self.intra_result.success or not self.extra_result.success:
+            raise RuntimeError(
+                f"Centroid finding algorithm was unsuccessful. "
+                f"Intra success is {self.intra_result.success}. "
+                f"Extra image success is {self.extra_result.success}."
             )
 
-        # Now we should be ready to run cwfs
+        # Verify that results are within 100 pixels of each other (basically
+        # the size of a typical donut). This should ensure the same source is
+        # used.
+        dy = (
+            self.extra_result.brightestObjCentroidCofM[0]
+            - self.intra_result.brightestObjCentroidCofM[0]
+        )
+        dx = (
+            self.extra_result.brightestObjCentroidCofM[1]
+            - self.intra_result.brightestObjCentroidCofM[1]
+        )
+        dr = np.sqrt(dy ** 2 + dx ** 2)
+        if dr > 100.0:
+            raise RuntimeError(
+                "Intra and Extra source finding algorithm "
+                "found different sources."
+            )
 
-        # reset inputs just incase
+        # Create stamps for CWFS algorithm. Bin (if desired).
+        self.create_donut_stamps_for_cwfs()
+
+        # Now we should be ready to run CWFS
+        self.log.info("Starting CWFS algorithm calculation.")
+        # reset inputs just in case
         self.algo.reset(self.I1[0], self.I2[0])
 
         # for a slow telescope, should be running in paraxial mode
@@ -467,10 +427,6 @@ Pixel_size (m)			{}
             executor, self.algo.runIt, self.inst, self.I1[0], self.I2[0], "paraxial"
         )
 
-        self.log.warning(
-            "TODO: Negative sign being used infront of calculated Coma-X Zernike! Artifact tha "
-            "appeared while checking at NCSA. Needs investigation on other platforms!"
-        )
         self.zern = [
             -self.algo.zer4UpNm[3],  # Coma-X (in detector axes, TBC)
             self.algo.zer4UpNm[4],  # Coma-Y (in detector axes, TBC)
@@ -478,161 +434,96 @@ Pixel_size (m)			{}
         ]
 
         results_dict = self.calculate_results()
-
         return results_dict
 
-    def select_cwfs_source(self):
-        """Finds donut sources and selects the brightest to be used
-        in the cwfs analysis
-        """
-
-        if self.detection_exp is None:
-            raise RuntimeError(
-                "No detection exposure defined. Run take_intra_extra or"
-                "manually define sources before running."
-            )
-
-        self.log.info("Running source detection algorithm")
-
-        # create the output table for source detection
-        schema = afwTable.SourceTable.makeMinimalSchema()
-        source_detection_task = SourceDetectionTask(
-            schema=schema, config=self.source_detection_config
-        )
-
-        tab = afwTable.SourceTable.make(schema)
-        result = source_detection_task.run(
-            tab, self.detection_exp, sigma=self.src_detection_sigma
-        )
-
-        self.log.debug(
-            f"Found {len(result)} sources. Selecting the brightest for CWFS analysis"
-        )
-
-        def sum_source_flux(_source, exp, min_size):
-            bbox = _source.getFootprint().getBBox()
-            if bbox.getDimensions().x < min_size or bbox.getDimensions().y < min_size:
-                return -1.0
-            return np.sum(exp[bbox].image.array)
-
-        selected_source = 0
-        flux_selected = sum_source_flux(
-            result.sources[selected_source], self.detection_exp, min_size=self.pre_side
-        )
-        xy = [
-            result.sources[selected_source].getFootprint().getCentroid().x,
-            result.sources[selected_source].getFootprint().getCentroid().y,
-        ]
-
-        for i in range(1, len(result.sources)):
-            flux_i = sum_source_flux(
-                result.sources[i], self.detection_exp, min_size=self.pre_side
-            )
-            if flux_i > flux_selected:
-                selected_source = i
-                flux_selected = flux_i
-                xy = [
-                    result.sources[selected_source].getFootprint().getCentroid().x,
-                    result.sources[selected_source].getFootprint().getCentroid().y,
-                ]
-
-        self.log.debug(f"Selected source {selected_source} @ [{xy[0]}, {xy[1]}]")
-
-        self.source_selection_result = result
-
-        if selected_source not in self.cwfs_selected_sources:
-            self.cwfs_selected_sources.append(selected_source)
-        else:
-            self.log.warning(f"Source {selected_source} already selected.")
-
-        return xy
-
-    def center_and_cut_images(self):
-        """After defining sources for cwfs cut snippet for cwfs analysis.
-        This is used create a cutout of the image to provide to the CWFS
-        analysis code. The speed of the algorithm if proportional to the number
-        of pixels in the image so having the smallest image, but without any
-        clipping, is ideal.
-        """
-
+    def create_donut_stamps_for_cwfs(self):
+        """Create square stamps with donuts based on centroids."""
         # reset I1 and I2
         self.I1 = []
         self.I2 = []
 
-        for selected_source in self.cwfs_selected_sources:
-            # iter 1
-            source = self.source_selection_result.sources[selected_source]
-            bbox = source.getFootprint().getBBox()
-            image = self.detection_exp[bbox].image.array
+        ceny, cenx = int(self.intra_result.brightestObjCentroidCofM[1]), int(
+            self.intra_result.brightestObjCentroidCofM[0]
+        )
+        self.log.debug(
+            f"Creating stamp for intra_image donut on centroid [y,x] = [{ceny},{cenx}] with a side "
+            f"length of {2 * self.side} pixels"
+        )
+        intra_square = self.intra_exposure.image.array[
+            ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
+        ]
 
-            im_filtered = medfilt(image, [3, 3])
-            im_filtered -= int(np.median(im_filtered))
-            mean = np.mean(im_filtered)
-            im_filtered[im_filtered < mean] = 0.0
-            im_filtered[im_filtered > mean] = 1.0
-            ceny, cenx = np.array(
-                ndimage.measurements.center_of_mass(im_filtered), dtype=int
+        ceny, cenx = int(self.extra_result.brightestObjCentroidCofM[1]), int(
+            self.extra_result.brightestObjCentroidCofM[0]
+        )
+        self.log.debug(
+            f"Creating stamp for intra_image donut on centroid [y,x] = [{ceny},{cenx}] with a side "
+            f"length of {2 * self.side} pixels"
+        )
+
+        extra_square = self.extra_exposure.image.array[
+            ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
+        ]
+
+        # Bin the images
+        if self.binning != 1:
+            self.log.info(
+                f"Stamps for analysis will be binned by {self.binning} in each dimension."
             )
-
-            side = self.side  # side length of image
-            self.log.debug(
-                f"Creating stamps of centroid [y,x] = [{ceny},{cenx}] with a side "
-                f"length of {side} pixels"
-            )
-
-            intra_exp = self.intra_exposure[bbox].image.array
-            extra_exp = self.extra_exposure[bbox].image.array
-            intra_square = intra_exp[
-                ceny - side : ceny + side, cenx - side : cenx + side
-            ]
-            extra_square = extra_exp[
-                ceny - side : ceny + side, cenx - side : cenx + side
-            ]
-
-            # Bin the images
-            if self.binning != 1:
-                intra_square0 = copy.deepcopy(intra_square)
-                extra_square0 = copy.deepcopy(extra_square)
-                # get tuple array from shape array (which is a tuple) and make
-                # an integer
-                new_shape = tuple(
-                    np.asarray(
-                        np.asarray(intra_square0.shape) / self.binning, dtype=np.int32
-                    )
+            intra_square0 = copy.deepcopy(intra_square)
+            extra_square0 = copy.deepcopy(extra_square)
+            # get tuple array from shape array (which is a tuple) and make
+            # an integer
+            new_shape = tuple(
+                np.asarray(
+                    np.asarray(intra_square0.shape) / self.binning, dtype=np.int32
                 )
-                intra_square = self.rebin(intra_square0, new_shape)
-                extra_square = self.rebin(extra_square0, new_shape)
-                self.log.info(f"intra_square shape is {intra_square.shape}")
-                self.log.info(f"extra_square shape is {extra_square.shape}")
+            )
+            intra_square = self.rebin(intra_square0, new_shape)
+            extra_square = self.rebin(extra_square0, new_shape)
+            self.log.info(f"intra_square shape is {intra_square.shape}")
+            self.log.info(f"extra_square shape is {extra_square.shape}")
 
-            self.I1.append(Image(intra_square, self.fieldXY, Image.INTRA))
-            self.I2.append(Image(extra_square, self.fieldXY, Image.EXTRA))
+        self.I1.append(Image(intra_square, self.fieldXY, Image.INTRA))
+        self.I2.append(Image(extra_square, self.fieldXY, Image.EXTRA))
+
+        self.log.debug("create_donut_stamps_for_cwfs completed")
 
     def rebin(self, arr, new_shape):
-        """rebins the array to a new shape"""
+        """Rebins the array to a new shape via taking the mean of the
+        surrounding pixels
+
+        Parameters
+        ----------
+        arr: `np.array`
+            2-D array of arbitrary size
+        new_shape: `np.array`
+            Tuple 2-element array of size of the output array
+
+        Returns
+        -------
+        rebinned: `np.array`
+            Array binned to new shape
+
+        """
         shape = (
             new_shape[0],
             arr.shape[0] // new_shape[0],
             new_shape[1],
             arr.shape[1] // new_shape[1],
         )
-        return arr.reshape(shape).mean(-1).mean(1)
+        rebinned = arr.reshape(shape).mean(-1).mean(1)
+        return rebinned
 
-    def calculate_results(self, silent=False):
+    def calculate_results(self):
         """Calculates hexapod and telescope offsets based on
         derotated zernikes.
 
-        Inputs:
-        -------
-        None
-
         Returns
         -------
-        Dictionary of calculated values
-        results = {'zerns' : (self.zern),
-                  'rot_zerns': (rot_zern),
-                  'hex_offset': (hexapod_offset),
-                  'tel_offset': (tel_offset)}
+        results : `dict`
+            Dictionary of calculated values
+
         """
         rot_zern = np.matmul(
             self.zern, self.rotation_matrix(self.angle + self.camera_rotation_angle)
@@ -642,10 +533,12 @@ Pixel_size (m)			{}
 
         self.log.info(
             f"""==============================
-Measured [coma-X, coma-Y, focus] zernike coefficients in nm : {self.zern}
-De-rotated zernike coefficients: {rot_zern}
-Hexapod offset : {hexapod_offset}
-Telescope offsets: {tel_offset}
+Measured [coma-X, coma-Y, focus] zernike coefficients [nm]: [{
+            (len(self.zern) * '{:0.1f}, ').format(*self.zern)}]
+De-rotated [coma-X, coma-Y, focus]  zernike coefficients [nm]: [{
+            (len(rot_zern) * '{:0.1f}, ').format(*rot_zern)}]
+Hexapod [x, y, z] offsets [mm] : {(len(hexapod_offset) * '{:0.1f}, ').format(*hexapod_offset)}
+Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)}
 ==============================
 """
         )
@@ -704,14 +597,14 @@ Telescope offsets: {tel_offset}
                    value, stop correction loop.
                  type: number
                  default: 0.01
-              comma_threshold:
+              coma_threshold:
                  description: >-
-                   Comma correction threshold. If correction is lower than this
+                   Coma correction threshold. If correction is lower than this
                    value, stop correction loop.
                  type: number
                  default: 0.2
               offset_telescope:
-                description: When correcting comma, also offset the telescope?
+                description: When correcting coma, also offset the telescope?
                 type: boolean
                 default: true
               max_iter:
@@ -731,7 +624,6 @@ Telescope offsets: {tel_offset}
             Script configuration, as defined by `schema`.
         """
 
-        # TODO: check that the filter/grating are mounted on the spectrograph
         self.filter = config.filter
         self.grating = config.grating
 
@@ -750,7 +642,7 @@ Telescope offsets: {tel_offset}
 
         self.threshold = config.threshold
 
-        self.comma_threshold = config.comma_threshold
+        self.coma_threshold = config.coma_threshold
 
         self.offset_telescope = config.offset_telescope
 
@@ -762,56 +654,66 @@ Telescope offsets: {tel_offset}
         metadata.filter = f"{self.filter},{self.grating}"
 
     async def arun(self, checkpoint=False):
-        """"""
+        """Perform the loop to perform CWFS measurements and hexapod
+        adjustments until the threshold is reached."""
 
-        total_focus_offset = 0.0
-        total_commax_offset = 0.0
-        total_commay_offset = 0.0
+        self.total_focus_offset = 0.0
+        self.total_coma_x_offset = 0.0
+        self.total_coma_y_offset = 0.0
         for i in range(self.max_iter):
 
-            self.log.debug(f"CWFS iteration {i+1} starting...")
+            self.log.debug(f"CWFS iteration {i + 1} starting...")
 
             if checkpoint:
-                await self.checkpoint(f"[{i+1}/{self.max_iter}]: CWFS loop starting...")
+                await self.checkpoint(
+                    f"[{i + 1}/{self.max_iter}]: CWFS loop starting..."
+                )
 
             # Setting visit_id's to none so run_cwfs will take a new dataset.
             self.intra_visit_id = None
             self.extra_visit_id = None
             results = await self.run_cwfs()
-            comma_x = results["hex_offset"][0]
-            comma_y = results["hex_offset"][1]
+            coma_x = results["hex_offset"][0]
+            coma_y = results["hex_offset"][1]
             focus_offset = results["hex_offset"][2]
 
-            total_comma_offset = np.sqrt(comma_x ** 2.0 + comma_y ** 2.0)
+            total_coma_offset = np.sqrt(coma_x ** 2.0 + coma_y ** 2.0)
             if (
                 abs(focus_offset) < self.threshold
-                and total_comma_offset < self.comma_threshold
+                and total_coma_offset < self.coma_threshold
             ):
-                total_focus_offset += focus_offset
+                self.total_focus_offset += focus_offset
                 self.log.info(
-                    f"Focus ({focus_offset}) and comma ({total_comma_offset}) offsets "
-                    f"inside tolerance level ({self.threshold}). "
-                    f"Total focus correction: {total_focus_offset} mm. "
-                    f"Total comma-x correction: {total_commax_offset} mm. "
-                    f"Total comma-y correction: {total_commay_offset} mm."
+                    f"Focus ({focus_offset:0.3f}) and coma ({total_coma_offset:0.3f}) offsets "
+                    f"inside tolerance level ({self.threshold:0.3f}). "
+                    f"Total focus correction: {self.total_focus_offset:0.3f} mm. "
+                    f"Total coma-x correction: {self.total_coma_x_offset:0.3f} mm. "
+                    f"Total coma-y correction: {self.total_coma_y_offset:0.3f} mm."
                 )
                 if checkpoint:
-                    await self.checkpoint(f"[{i+1}/{self.max_iter}]: CWFS converged.")
-                total_commax_offset += comma_x
-                total_commay_offset += comma_y
-                await self.hexapod_offset(focus_offset, x=comma_x, y=comma_y)
+                    await self.checkpoint(f"[{i + 1}/{self.max_iter}]: CWFS converged.")
+                # Add coma offsets from previous run
+                self.total_coma_x_offset += coma_x
+                self.total_coma_y_offset += coma_y
+                await self.hexapod_offset(focus_offset, x=coma_x, y=coma_y)
                 if self.offset_telescope:
                     tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
-                    self.log.info(f"Applying telescope offset x/y: {tel_x}/{tel_y}.")
+                    self.log.info(
+                        f"Applying telescope offset [x,y]: [{tel_x:0.3f}, {tel_y:0.3f}]."
+                    )
                     await self.atcs.offset_xy(
                         x=tel_x,
                         y=tel_y,
                         relative=True,
                         persistent=True,
                     )
-                current_target = await self.atcs.rem.atptg.evt_currentTarget.aget()
+                current_target = await self.atcs.rem.atptg.evt_currentTarget.aget(
+                    timeout=self.short_timeout
+                )
                 hexapod_position = (
-                    await self.atcs.rem.athexapod.tel_positionStatus.aget()
+                    await self.atcs.rem.athexapod.tel_positionStatus.aget(
+                        timeout=self.short_timeout
+                    )
                 )
                 self.log.info(
                     f"Hexapod LUT Datapoint - {current_target.targetName} - "
@@ -820,30 +722,31 @@ Telescope offsets: {tel_offset}
                 self.log.debug("Taking in focus acquisition image.")
                 await self.latiss.take_object(self.acq_exposure_time)
                 await self.atcs.add_point_data()
+
                 return
             elif abs(focus_offset) > self.large_defocus:
-                total_focus_offset += focus_offset / 2.0
+                self.total_focus_offset += focus_offset / 2.0
                 self.log.warning(
                     f"Computed focus offset too large: {focus_offset}. "
                     "Applying half correction."
                 )
                 if checkpoint:
                     await self.checkpoint(
-                        f"[{i+1}/{self.max_iter}]: CWFS focus error too large."
+                        f"[{i + 1}/{self.max_iter}]: CWFS focus error too large."
                     )
                 await self.hexapod_offset(focus_offset / 2.0)
             else:
-                total_focus_offset += focus_offset
+                self.total_focus_offset += focus_offset
                 self.log.info(
-                    f"Applying offset: x={comma_x}, y={comma_y}, z={focus_offset}."
+                    f"Applying offset: x={coma_x}, y={coma_y}, z={focus_offset}."
                 )
                 if checkpoint:
                     await self.checkpoint(
-                        f"[{i+1}/{self.max_iter}]: CWFS applying comma and focus correction."
+                        f"[{i + 1}/{self.max_iter}]: CWFS applying coma and focus correction."
                     )
-                total_commax_offset += comma_x
-                total_commay_offset += comma_y
-                await self.hexapod_offset(focus_offset, x=comma_x, y=comma_y)
+                self.total_coma_x_offset += coma_x
+                self.total_coma_y_offset += coma_y
+                await self.hexapod_offset(focus_offset, x=coma_x, y=coma_y)
                 if self.offset_telescope:
                     tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
                     self.log.info(f"Applying telescope offset x/y: {tel_x}/{tel_y}.")
