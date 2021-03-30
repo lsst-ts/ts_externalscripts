@@ -266,8 +266,10 @@ class LaserCoordination(salobj.BaseScript):
                             await asyncio.sleep(10)
                         await self.checkpoint(f"ls 1 pos {ls_pos} ls 2 pos: {ls_2_pos}")
                         if self.electrometer_set:
-                            electrometer_data_coro = self.electrometer.evt_largeFileObjectAvailable.next(
-                                flush=True, timeout=self.timeout
+                            electrometer_data_coro = (
+                                self.electrometer.evt_largeFileObjectAvailable.next(
+                                    flush=True, timeout=self.timeout
+                                )
                             )
                             self.electrometer.cmd_startScanDt.set(
                                 scanDuration=self.scan_duration

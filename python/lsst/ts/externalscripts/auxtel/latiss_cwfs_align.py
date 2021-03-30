@@ -64,7 +64,7 @@ import copy  # used to support binning
 
 
 class LatissCWFSAlign(salobj.BaseScript):
-    """ Perform an optical alignment procedure of Auxiliary Telescope with
+    """Perform an optical alignment procedure of Auxiliary Telescope with
     the LATISS instrument (ATSpectrograph and ATCamera CSCs). This is for
     use with in-focus images and is performed using Curvature-Wavefront
     Sensing Techniques.
@@ -269,7 +269,7 @@ Pixel_size (m)			{}
         self.algo = Algorithm("exp", self.inst, 1)
 
     async def take_intra_extra(self):
-        """ Take pair of Intra/Extra focal images to be used to determine
+        """Take pair of Intra/Extra focal images to be used to determine
         the measured wavefront error.
 
         Returns
@@ -328,7 +328,7 @@ Pixel_size (m)			{}
         self.log.info(f"extraImage expId for target: {self.extra_visit_id}")
 
     async def hexapod_offset(self, offset, x=0.0, y=0.0):
-        """ Applies z-offset to the hexapod to move between
+        """Applies z-offset to the hexapod to move between
         intra/extra/in-focus positions.
 
         Parameters
@@ -401,7 +401,7 @@ Pixel_size (m)			{}
             raise RuntimeError(f"No data ref for {exp_id}.")
 
     async def run_cwfs(self):
-        """ Runs CWFS code on intra/extra focal images.
+        """Runs CWFS code on intra/extra focal images.
         Inputs:
         -------
         None
@@ -548,7 +548,7 @@ Pixel_size (m)			{}
         return xy
 
     def center_and_cut_images(self):
-        """ After defining sources for cwfs cut snippet for cwfs analysis.
+        """After defining sources for cwfs cut snippet for cwfs analysis.
         This is used create a cutout of the image to provide to the CWFS
         analysis code. The speed of the algorithm if proportional to the number
         of pixels in the image so having the smallest image, but without any
@@ -609,8 +609,7 @@ Pixel_size (m)			{}
             self.I2.append(Image(extra_square, self.fieldXY, Image.EXTRA))
 
     def rebin(self, arr, new_shape):
-        """ rebins the array to a new shape
-        """
+        """rebins the array to a new shape"""
         shape = (
             new_shape[0],
             arr.shape[0] // new_shape[0],
@@ -620,7 +619,7 @@ Pixel_size (m)			{}
         return arr.reshape(shape).mean(-1).mean(1)
 
     def calculate_results(self, silent=False):
-        """ Calculates hexapod and telescope offsets based on
+        """Calculates hexapod and telescope offsets based on
         derotated zernikes.
 
         Inputs:
@@ -763,8 +762,7 @@ Telescope offsets: {tel_offset}
         metadata.filter = f"{self.filter},{self.grating}"
 
     async def arun(self, checkpoint=False):
-        """
-        """
+        """"""
 
         total_focus_offset = 0.0
         total_commax_offset = 0.0
@@ -806,7 +804,10 @@ Telescope offsets: {tel_offset}
                     tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
                     self.log.info(f"Applying telescope offset x/y: {tel_x}/{tel_y}.")
                     await self.atcs.offset_xy(
-                        x=tel_x, y=tel_y, relative=True, persistent=True,
+                        x=tel_x,
+                        y=tel_y,
+                        relative=True,
+                        persistent=True,
                     )
                 current_target = await self.atcs.rem.atptg.evt_currentTarget.aget()
                 hexapod_position = (
@@ -847,7 +848,10 @@ Telescope offsets: {tel_offset}
                     tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
                     self.log.info(f"Applying telescope offset x/y: {tel_x}/{tel_y}.")
                     await self.atcs.offset_xy(
-                        x=tel_x, y=tel_y, relative=True, persistent=True,
+                        x=tel_x,
+                        y=tel_y,
+                        relative=True,
+                        persistent=True,
                     )
 
         self.log.warning(

@@ -272,7 +272,8 @@ class TestLatissAcquireAndTakeSequence(
             self.assertEqual(self.script.do_acquire, True)
 
     @asynctest.skipIf(
-        DATA_AVAILABLE is False, "Data not available for test_take_sequence, skipping.",
+        DATA_AVAILABLE is False,
+        "Data not available for test_take_sequence, skipping.",
     )
     async def test_take_sequence(self):
         async with self.make_script():
@@ -374,7 +375,8 @@ class TestLatissAcquireAndTakeSequence(
 
             # Should take two iterations? FIXME
             self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count, 3,
+                self.atcamera.cmd_takeImages.callback.await_count,
+                3,
             )
             # should offset only once
             self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
@@ -429,7 +431,8 @@ class TestLatissAcquireAndTakeSequence(
 
             # Should take two iterations and 3 images
             self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count, 3,
+                self.atcamera.cmd_takeImages.callback.await_count,
+                3,
             )
             # should offset only once
             self.assertEqual(self.script.atcs.offset_xy.call_count, 2)
@@ -483,7 +486,8 @@ class TestLatissAcquireAndTakeSequence(
 
             # Should take two iterations
             self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count, 2,
+                self.atcamera.cmd_takeImages.callback.await_count,
+                2,
             )
             # should offset only once
             self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
@@ -537,7 +541,8 @@ class TestLatissAcquireAndTakeSequence(
 
             # Should take two images for acquisition then two images
             self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count, 2 + 2,
+                self.atcamera.cmd_takeImages.callback.await_count,
+                2 + 2,
             )
             # Make sure offset was applied to telescope
             self.script.atcs.offset_xy.assert_called()

@@ -36,8 +36,7 @@ from lsst.ts.idl.enums import ATMonochromator
 
 
 def is_sequence(value):
-    """Return True if value is a sequence that is not a `str` or `bytes`.
-    """
+    """Return True if value is a sequence that is not a `str` or `bytes`."""
     if isinstance(value, str) or isinstance(value, bytes):
         return False
     return isinstance(value, collections.abc.Sequence)
@@ -76,8 +75,7 @@ def as_array(value, dtype, nelt):
 
 
 class CalSysTakeData(salobj.BaseScript):
-    """
-    """
+    """"""
 
     def __init__(self, index):
         super().__init__(
@@ -392,8 +390,10 @@ class CalSysTakeData(salobj.BaseScript):
         await asyncio.sleep(self.spectrometer_delays[index])
 
         timeout = self.integration_times[index] + self.cmd_timeout
-        fiber_spectrograph_lfo_coro = self.fiber_spectrograph.evt_largeFileObjectAvailable.next(
-            timeout=self.cmd_timeout, flush=True
+        fiber_spectrograph_lfo_coro = (
+            self.fiber_spectrograph.evt_largeFileObjectAvailable.next(
+                timeout=self.cmd_timeout, flush=True
+            )
         )
         self.fiber_spectrograph.cmd_captureSpectImage.set(
             imageType=self.image_types[index],

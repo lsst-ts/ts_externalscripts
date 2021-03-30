@@ -37,8 +37,7 @@ import requests
 
 
 class CalSysTakeNarrowbandData(salobj.BaseScript):
-    """
-    """
+    """"""
 
     def __init__(self, index):
         super().__init__(
@@ -509,8 +508,10 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         await asyncio.sleep(self.fiber_spectrometer_delays[index])
 
         timeout = self.integration_times[index] + self.cmd_timeout
-        fiber_spectrograph_lfo_coro = self.fiber_spectrograph.evt_largeFileObjectAvailable.next(
-            timeout=self.cmd_timeout, flush=True
+        fiber_spectrograph_lfo_coro = (
+            self.fiber_spectrograph.evt_largeFileObjectAvailable.next(
+                timeout=self.cmd_timeout, flush=True
+            )
         )
         self.fiber_spectrograph.cmd_captureSpectImage.set(
             imageType=self.image_types[index],

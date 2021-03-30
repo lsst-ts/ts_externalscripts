@@ -66,7 +66,8 @@ class QuickFrameMeasurement(salobj.BaseScript):
     def __init__(self, index, silent=False):
 
         super().__init__(
-            index=index, descr="Test QuickFrameMeasurementTask.",
+            index=index,
+            descr="Test QuickFrameMeasurementTask.",
         )
 
         # instantiate the quick measurement class
