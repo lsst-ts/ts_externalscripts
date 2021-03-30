@@ -408,8 +408,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # loop to grab all events
             for j in range(len(data)):
                 # flush=false removes the event when grabbed
-                _evt1 = await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
-                    flush=False, timeout=self.cmd_timeout
+                _evt1 = (
+                    await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
+                        flush=False, timeout=self.cmd_timeout
+                    )
                 )
                 self.log.debug(
                     f"Event #{j} - evt_atspectrographCorrectionStarted is: {_evt1}"

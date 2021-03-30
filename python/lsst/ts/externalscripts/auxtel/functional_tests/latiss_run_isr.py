@@ -58,7 +58,8 @@ class LatissRunIsr(salobj.BaseScript):
     def __init__(self, index=1):
 
         super().__init__(
-            index=index, descr="Test Isr task on a set of images.",
+            index=index,
+            descr="Test Isr task on a set of images.",
         )
 
         # butler data path.
