@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import LatissAcquireTarget
+from lsst.ts.externalscripts.auxtel.functional_tests import LatissRunIsr
 
-asyncio.run(LatissAcquireTarget.amain())
+asyncio.run(LatissRunIsr.amain())

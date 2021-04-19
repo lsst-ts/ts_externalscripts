@@ -64,7 +64,7 @@ import copy  # used to support binning
 
 
 class LatissCWFSAlign(salobj.BaseScript):
-    """ Perform an optical alignment procedure of Auxiliary Telescope with
+    """Perform an optical alignment procedure of Auxiliary Telescope with
     the LATISS instrument (ATSpectrograph and ATCamera CSCs). This is for
     use with in-focus images and is performed using Curvature-Wavefront
     Sensing Techniques.
@@ -100,10 +100,10 @@ class LatissCWFSAlign(salobj.BaseScript):
             "Techniques.",
         )
 
-        self.attcs = None
+        self.atcs = None
         self.latiss = None
         if remotes:
-            self.attcs = ATCS(self.domain)
+            self.atcs = ATCS(self.domain)
             self.latiss = LATISS(self.domain)
 
         # Timeouts used for telescope commands
@@ -149,7 +149,7 @@ class LatissCWFSAlign(salobj.BaseScript):
         # The following attributes can be configured:
         #
 
-        self.filter = "KPNO_406_828nm"
+        self.filter = "empty_1"
         self.grating = "empty_1"
 
         # exposure time for the intra/extra images (in seconds)
@@ -216,7 +216,6 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.isr_config.doDark = False
         self.isr_config.doFringe = False
         self.isr_config.doDefect = True
-        self.isr_config.doAddDistortionModel = False
         self.isr_config.doSaturationInterpolation = False
         self.isr_config.doSaturation = False
         self.isr_config.doWrite = False
@@ -270,7 +269,7 @@ Pixel_size (m)			{}
         self.algo = Algorithm("exp", self.inst, 1)
 
     async def take_intra_extra(self):
-        """ Take pair of Intra/Extra focal images to be used to determine
+        """Take pair of Intra/Extra focal images to be used to determine
         the measured wavefront error.
 
         Returns
@@ -313,12 +312,7 @@ Pixel_size (m)			{}
             grating=self.grating,
         )
 
-        azel = await self.attcs.atmcs.tel_mount_AzEl_Encoders.aget()
-        nasmyth = await self.attcs.atmcs.tel_mount_Nasmyth_Encoders.aget()
-
-        self.angle = np.mean(nasmyth.nasmyth2CalculatedAngle) + np.mean(
-            azel.elevationCalculatedAngle
-        )
+        self.angle = 90.0 - await self.atcs.get_bore_sight_angle()
 
         self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the
@@ -333,8 +327,8 @@ Pixel_size (m)			{}
 
         self.log.info(f"extraImage expId for target: {self.extra_visit_id}")
 
-    async def hexapod_offset(self, offset):
-        """ Applies z-offset to the hexapod to move between
+    async def hexapod_offset(self, offset, x=0.0, y=0.0):
+        """Applies z-offset to the hexapod to move between
         intra/extra/in-focus positions.
 
         Parameters
@@ -350,18 +344,18 @@ Pixel_size (m)			{}
         offset = {
             "m1": 0.0,
             "m2": 0.0,
-            "x": 0.0,
-            "y": 0.0,
+            "x": x,
+            "y": y,
             "z": offset,
             "u": 0.0,
             "v": 0.0,
         }
 
-        self.attcs.athexapod.evt_positionUpdate.flush()
-        await self.attcs.ataos.cmd_offset.set_start(
+        self.atcs.rem.athexapod.evt_positionUpdate.flush()
+        await self.atcs.rem.ataos.cmd_offset.set_start(
             **offset, timeout=self.short_timeout
         )
-        await self.attcs.athexapod.evt_positionUpdate.next(
+        await self.atcs.rem.athexapod.evt_positionUpdate.next(
             flush=False, timeout=self.long_timeout
         )
 
@@ -407,7 +401,7 @@ Pixel_size (m)			{}
             raise RuntimeError(f"No data ref for {exp_id}.")
 
     async def run_cwfs(self):
-        """ Runs CWFS code on intra/extra focal images.
+        """Runs CWFS code on intra/extra focal images.
         Inputs:
         -------
         None
@@ -554,7 +548,7 @@ Pixel_size (m)			{}
         return xy
 
     def center_and_cut_images(self):
-        """ After defining sources for cwfs cut snippet for cwfs analysis.
+        """After defining sources for cwfs cut snippet for cwfs analysis.
         This is used create a cutout of the image to provide to the CWFS
         analysis code. The speed of the algorithm if proportional to the number
         of pixels in the image so having the smallest image, but without any
@@ -615,8 +609,7 @@ Pixel_size (m)			{}
             self.I2.append(Image(extra_square, self.fieldXY, Image.EXTRA))
 
     def rebin(self, arr, new_shape):
-        """ rebins the array to a new shape
-        """
+        """rebins the array to a new shape"""
         shape = (
             new_shape[0],
             arr.shape[0] // new_shape[0],
@@ -626,7 +619,7 @@ Pixel_size (m)			{}
         return arr.reshape(shape).mean(-1).mean(1)
 
     def calculate_results(self, silent=False):
-        """ Calculates hexapod and telescope offsets based on
+        """Calculates hexapod and telescope offsets based on
         derotated zernikes.
 
         Inputs:
@@ -678,7 +671,7 @@ Telescope offsets: {tel_offset}
               filter:
                 description: Which filter to use when taking intra/extra focal images.
                 type: string
-                default: KPNO_406_828nm
+                default: empty_1
               grating:
                 description: Which grating to use when taking intra/extra focal images.
                 type: string
@@ -687,6 +680,10 @@ Telescope offsets: {tel_offset}
                 description: The exposure time to use when taking intra/extra focal images (sec).
                 type: number
                 default: 30.
+              acq_exposure_time:
+                description: The exposure time to use when taking an in focus acquisition image(sec).
+                type: number
+                default: 5.
               dz:
                 description: De-focus to apply when acquiring the intra/extra focal images (mm).
                 type: number
@@ -695,6 +692,32 @@ Telescope offsets: {tel_offset}
                 description: Path to the butler data repository.
                 type: string
                 default: /project/shared/auxTel/
+              large_defocus:
+                description: >-
+                    Defines a large defocus. If Defocus is larger than this value, apply only
+                    half of correction.
+                type: number
+                default: 0.08
+              threshold:
+                 description: >-
+                   Focus correction threshold. If correction is lower than this
+                   value, stop correction loop.
+                 type: number
+                 default: 0.01
+              comma_threshold:
+                 description: >-
+                   Comma correction threshold. If correction is lower than this
+                   value, stop correction loop.
+                 type: number
+                 default: 0.2
+              offset_telescope:
+                description: When correcting comma, also offset the telescope?
+                type: boolean
+                default: true
+              max_iter:
+                  description: Maximum number of iterations.
+                  type: integer
+                  default: 5
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -715,16 +738,125 @@ Telescope offsets: {tel_offset}
         # exposure time for the intra/extra images (in seconds)
         self.exposure_time = config.exposure_time
 
+        self.acq_exposure_time = config.acq_exposure_time
+
         # offset for the intra/extra images
         self.dz = config.dz
 
         # butler data path.
         self.dataPath = config.dataPath
 
+        self.large_defocus = config.large_defocus
+
+        self.threshold = config.threshold
+
+        self.comma_threshold = config.comma_threshold
+
+        self.offset_telescope = config.offset_telescope
+
+        self.max_iter = config.max_iter
+
     def set_metadata(self, metadata):
         # It takes about 300s to run the cwfs code, plus the two exposures
         metadata.duration = 300.0 + 2.0 * self.exposure_time
         metadata.filter = f"{self.filter},{self.grating}"
 
+    async def arun(self, checkpoint=False):
+        """"""
+
+        total_focus_offset = 0.0
+        total_commax_offset = 0.0
+        total_commay_offset = 0.0
+        for i in range(self.max_iter):
+
+            self.log.debug(f"CWFS iteration {i+1} starting...")
+
+            if checkpoint:
+                await self.checkpoint(f"[{i+1}/{self.max_iter}]: CWFS loop starting...")
+
+            # Setting visit_id's to none so run_cwfs will take a new dataset.
+            self.intra_visit_id = None
+            self.extra_visit_id = None
+            results = await self.run_cwfs()
+            comma_x = results["hex_offset"][0]
+            comma_y = results["hex_offset"][1]
+            focus_offset = results["hex_offset"][2]
+
+            total_comma_offset = np.sqrt(comma_x ** 2.0 + comma_y ** 2.0)
+            if (
+                abs(focus_offset) < self.threshold
+                and total_comma_offset < self.comma_threshold
+            ):
+                total_focus_offset += focus_offset
+                self.log.info(
+                    f"Focus ({focus_offset}) and comma ({total_comma_offset}) offsets "
+                    f"inside tolerance level ({self.threshold}). "
+                    f"Total focus correction: {total_focus_offset} mm. "
+                    f"Total comma-x correction: {total_commax_offset} mm. "
+                    f"Total comma-y correction: {total_commay_offset} mm."
+                )
+                if checkpoint:
+                    await self.checkpoint(f"[{i+1}/{self.max_iter}]: CWFS converged.")
+                total_commax_offset += comma_x
+                total_commay_offset += comma_y
+                await self.hexapod_offset(focus_offset, x=comma_x, y=comma_y)
+                if self.offset_telescope:
+                    tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
+                    self.log.info(f"Applying telescope offset x/y: {tel_x}/{tel_y}.")
+                    await self.atcs.offset_xy(
+                        x=tel_x,
+                        y=tel_y,
+                        relative=True,
+                        persistent=True,
+                    )
+                current_target = await self.atcs.rem.atptg.evt_currentTarget.aget()
+                hexapod_position = (
+                    await self.atcs.rem.athexapod.tel_positionStatus.aget()
+                )
+                self.log.info(
+                    f"Hexapod LUT Datapoint - {current_target.targetName} - "
+                    f"reported hexapod position is, {hexapod_position.reportedPosition}."
+                )
+                self.log.debug("Taking in focus acquisition image.")
+                await self.latiss.take_object(self.acq_exposure_time)
+                await self.atcs.add_point_data()
+                return
+            elif abs(focus_offset) > self.large_defocus:
+                total_focus_offset += focus_offset / 2.0
+                self.log.warning(
+                    f"Computed focus offset too large: {focus_offset}. "
+                    "Applying half correction."
+                )
+                if checkpoint:
+                    await self.checkpoint(
+                        f"[{i+1}/{self.max_iter}]: CWFS focus error too large."
+                    )
+                await self.hexapod_offset(focus_offset / 2.0)
+            else:
+                total_focus_offset += focus_offset
+                self.log.info(
+                    f"Applying offset: x={comma_x}, y={comma_y}, z={focus_offset}."
+                )
+                if checkpoint:
+                    await self.checkpoint(
+                        f"[{i+1}/{self.max_iter}]: CWFS applying comma and focus correction."
+                    )
+                total_commax_offset += comma_x
+                total_commay_offset += comma_y
+                await self.hexapod_offset(focus_offset, x=comma_x, y=comma_y)
+                if self.offset_telescope:
+                    tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
+                    self.log.info(f"Applying telescope offset x/y: {tel_x}/{tel_y}.")
+                    await self.atcs.offset_xy(
+                        x=tel_x,
+                        y=tel_y,
+                        relative=True,
+                        persistent=True,
+                    )
+
+        self.log.warning(
+            f"Reached maximum iteration ({self.max_iter}) without convergence."
+        )
+
     async def run(self):
-        pass
+        await self.arun(True)

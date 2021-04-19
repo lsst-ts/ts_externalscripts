@@ -21,22 +21,11 @@ build:
 
 test:
   requires:
-    - pytest
-    - pytest-flake8
-    - pytest-cov
-    - asynctest
-    - pytest-tornasync
-    - numpy
-    - astropy
-    - astroquery
-    - jsonschema
-    - pyyaml
-    - boto3
-    - moto
+    - ts-conda-build =0.3
     - scipy
-    - lsst-daf-persistence
-    - ts-idl
-    - ts-salobj
+    - astroquery
+    - ts-idl {{ idl_version }}
+    - ts-salobj {{ salobj_version }}
     - ts-atdome
     - ts-atmcs-simulator
     - ts-atdometrajectory
@@ -64,4 +53,3 @@ requirements:
     - ts-idl
     - ts-salobj
     - ts-observatory-control
-    - lsst-daf-persistence

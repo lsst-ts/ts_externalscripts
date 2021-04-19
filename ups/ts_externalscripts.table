@@ -1,6 +1,8 @@
 setupRequired(sconsUtils)
+setupRequired(lsst_distrib)
 setupRequired(ts_salobj)
 setupRequired(ts_observatory_control)
+setupRequired(ts_standardscripts)
 
 envPrepend(PATH, ${PRODUCT_DIR}/bin)
 envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
