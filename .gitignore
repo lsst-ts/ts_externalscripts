@@ -2,6 +2,7 @@
 config.log
 .sconf_temp
 *.pyc
+.vscode
 
 # Built by sconsUtils
 version.py
