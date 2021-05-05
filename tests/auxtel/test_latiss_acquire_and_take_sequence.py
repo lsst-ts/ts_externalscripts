@@ -22,8 +22,6 @@ __all__ = ["LatissAcquireAndTakeSequence"]
 
 import random
 import unittest
-import asynctest
-import logging
 import asyncio
 
 from lsst.ts import salobj
@@ -31,11 +29,14 @@ from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
 import lsst.daf.persistence as dafPersist
-
-random.seed(47)  # for set_random_lsst_dds_domain
+import logging
 
 # Make matplotlib less chatty
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
+random.seed(47)  # for set_random_lsst_dds_domain
+
+
 logger = logging.getLogger(__name__)
 logger.propagate = True
 
@@ -48,6 +49,7 @@ DATAPATH = "/project/shared/auxTel/"
 try:
     butler = dafPersist.Butler(DATAPATH)
     DATA_AVAILABLE = True
+    logger.info("Data is available for tests.")
 except RuntimeError:
     logger.warning("Data unavailable, certain tests will be skipped")
     DATA_AVAILABLE = False
@@ -62,27 +64,27 @@ except PermissionError:
 
 
 class TestLatissAcquireAndTakeSequence(
-    standardscripts.BaseScriptTestCase, asynctest.TestCase
+    standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     async def basic_make_script(self, index):
+        logger.debug("Starting basic_make_script")
         self.script = LatissAcquireAndTakeSequence(index=index)
+
+        # Mock the telescope slews and offsets
+        self.script.atcs.slew_object = unittest.mock.AsyncMock()
+        self.script.atcs.offset_xy = unittest.mock.AsyncMock()
+        self.script.atcs.add_point_data = unittest.mock.AsyncMock()
+
+        # Mock the latiss instrument setups
+        self.script.latiss.setup_atspec = unittest.mock.AsyncMock(
+            wraps=self.cmd_setup_atspec_callback
+        )
 
         # Load controllers and required callbacks to simulate
         # telescope/instrument behaviour
-
         self.atcamera = salobj.Controller(name="ATCamera")
-        self.atcamera.cmd_takeImages.callback = asynctest.CoroutineMock(
+        self.atcamera.cmd_takeImages.callback = unittest.mock.AsyncMock(
             wraps=self.cmd_take_images_callback
-        )
-
-        # Mock the telescope slews and offsets
-        self.script.atcs.slew_object = asynctest.CoroutineMock()
-        self.script.atcs.offset_xy = asynctest.CoroutineMock()
-        self.script.atcs.add_point_data = asynctest.CoroutineMock()
-
-        # Mock the latiss instrument setups
-        self.script.latiss.setup_atspec = asynctest.CoroutineMock(
-            wraps=self.cmd_setup_atspec_callback
         )
 
         self.atheaderservice = salobj.Controller(name="ATHeaderService")
@@ -100,6 +102,7 @@ class TestLatissAcquireAndTakeSequence(
         self.date = None  # Used to fake dataId output from takeImages
         self.seq_num_start = None  # Used to fake proper dataId from takeImages
 
+        logger.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
         return (self.script,)
 
@@ -140,13 +143,17 @@ class TestLatissAcquireAndTakeSequence(
 
     async def close(self):
         """Optional cleanup before closing the scripts and etc."""
+        logger.debug("Closing end_image_tasks")
         await asyncio.gather(*self.end_image_tasks, return_exceptions=True)
+        logger.debug("Closing remotes")
         await asyncio.gather(
             self.atarchiver.close(),
             self.atcamera.close(),
             self.atspectrograph.close(),
             self.ataos.close(),
+            self.atheaderservice.close(),
         )
+        logger.debug("Remotes closed")
 
     async def cmd_take_images_callback(self, data):
 
@@ -271,12 +278,14 @@ class TestLatissAcquireAndTakeSequence(
             self.assertEqual(self.script.do_take_sequence, True)
             self.assertEqual(self.script.do_acquire, True)
 
-    @asynctest.skipIf(
+    @unittest.skipIf(
         DATA_AVAILABLE is False,
-        "Data not available for test_take_sequence, skipping.",
+        f"Data availibility is {DATA_AVAILABLE}."
+        f"Skipping test_take_sequence.",
     )
     async def test_take_sequence(self):
         async with self.make_script():
+            logger.info("Starting test_take_sequence")
             # Date for file to be produced
             self.date = "20200315"
             # sequence number start
@@ -327,9 +336,10 @@ class TestLatissAcquireAndTakeSequence(
                 self.assertEqual(grating_sequence[i], called_grating)
             # Verify the same group ID was used?
 
-    @asynctest.skipIf(
+    @unittest.skipIf(
         DATA_AVAILABLE is False,
-        "Data not available for test_take_acquisition_pointing, skipping.",
+        f"Data availability is {DATA_AVAILABLE}."
+        f"Skipping test_take_acquisition_pointing.",
     )
     async def test_take_acquisition_pointing(self):
         async with self.make_script():
@@ -381,9 +391,10 @@ class TestLatissAcquireAndTakeSequence(
             # should offset only once
             self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
 
-    @asynctest.skipIf(
+    @unittest.skipIf(
         DATA_AVAILABLE is False,
-        "Data not available for test_take_acquisition_with_verification, skipping.",
+        f"Data availibility is {DATA_AVAILABLE}."
+        f"Skipping test_take_acquisition_with_verification.",
     )
     async def test_take_acquisition_with_verification(self):
         async with self.make_script():
@@ -437,9 +448,10 @@ class TestLatissAcquireAndTakeSequence(
             # should offset only once
             self.assertEqual(self.script.atcs.offset_xy.call_count, 2)
 
-    @asynctest.skipIf(
+    @unittest.skipIf(
         DATA_AVAILABLE is False,
-        "Data not available for test_take_spectral_acquisition, skipping.",
+        f"Data availibility is {DATA_AVAILABLE}."
+        f"Skipping test_take_acquisition_nominal.",
     )
     async def test_take_acquisition_nominal(self):
         # nominal case where no verification is taken, no pointing is done
@@ -492,8 +504,10 @@ class TestLatissAcquireAndTakeSequence(
             # should offset only once
             self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
 
-    @asynctest.skipIf(
-        DATA_AVAILABLE is False, "Data not available for test_full_sequence, skipping."
+    @unittest.skipIf(
+        DATA_AVAILABLE is False,
+        f"Data availibility is {DATA_AVAILABLE}."
+        f"Skipping test_full_sequence.",
     )
     async def test_full_sequence(self):
         """This tests a combined acquisition and data taking sequence.
