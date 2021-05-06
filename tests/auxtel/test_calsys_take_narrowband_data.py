@@ -21,7 +21,6 @@
 import logging
 import unittest
 
-import asynctest
 import numpy as np
 import yaml
 
@@ -44,7 +43,7 @@ class Harness:
         self.script = CalSysTakeNarrowbandData(index=self.index)
 
 
-class TestCalSysTakeNarrowbandData(asynctest.TestCase):
+class TestCalSysTakeNarrowbandData(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         salobj.set_random_lsst_dds_domain()
 

@@ -5,7 +5,7 @@ from setuptools import setup, find_namespace_packages
 import pathlib
 
 install_requires = ["astropy", "astroquery"]
-tests_require = ["pytest", "pytest-cov", "pytest-flake8", "asynctest"]
+tests_require = ["pytest", "pytest-cov", "pytest-flake8"]
 dev_requires = install_requires + tests_require + ["documenteer[pipelines]"]
 tools_path = pathlib.PurePosixPath(setuptools.__path__[0])
 base_prefix = pathlib.PurePosixPath(sys.base_prefix)

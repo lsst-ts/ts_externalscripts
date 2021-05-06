@@ -1,7 +1,6 @@
 import logging
 import unittest
 
-import asynctest
 import numpy as np
 import yaml
 
@@ -24,7 +23,7 @@ class Harness:
         self.script = LaserCoordination(index=self.index)
 
 
-class TestLaserCoordination(asynctest.TestCase):
+class TestLaserCoordination(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         salobj.set_random_lsst_dds_domain()
 
