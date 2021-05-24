@@ -98,8 +98,12 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.atcs = None
         self.latiss = None
         if remotes:
-            self.atcs = ATCS(self.domain)
-            self.latiss = LATISS(self.domain)
+            self.atcs = ATCS(self.domain, log=self.log)
+            self.latiss = LATISS(
+                self.domain,
+                log=self.log,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+            )
 
         # instantiate the quick measurement class
         try:
@@ -410,8 +414,7 @@ Pixel_size (m)			{}
         dr = np.sqrt(dy ** 2 + dx ** 2)
         if dr > 100.0:
             raise RuntimeError(
-                "Intra and Extra source finding algorithm "
-                "found different sources."
+                "Intra and Extra source finding algorithm " "found different sources."
             )
 
         # Create stamps for CWFS algorithm. Bin (if desired).
@@ -719,7 +722,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     f"Hexapod LUT Datapoint - {current_target.targetName} - "
                     f"reported hexapod position is, {hexapod_position.reportedPosition}."
                 )
-                self.log.debug("Taking in focus acquisition image.")
+                self.log.debug("Taking in focus image after applying final results.")
                 await self.latiss.take_object(self.acq_exposure_time)
                 await self.atcs.add_point_data()
 

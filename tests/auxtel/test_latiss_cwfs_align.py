@@ -30,6 +30,7 @@ import os
 try:
     # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
     from lsst import cwfs
+
     CWFS_AVAILABLE = True
 except ImportError:
     CWFS_AVAILABLE = False
@@ -101,6 +102,7 @@ class TestLatissCWFSAlign(
         self.atcamera.cmd_takeImages.callback = unittest.mock.AsyncMock(
             wraps=self.cmd_take_images_callback
         )
+        self.script.latiss.ready_to_take_data = salobj.make_done_future
         # mock latiss instrument setup
         self.script.latiss.setup_atspec = unittest.mock.AsyncMock()
 
@@ -172,8 +174,7 @@ class TestLatissCWFSAlign(
 
     @unittest.skipIf(
         CWFS_AVAILABLE is False,
-        f"CWFS package availibility is {CWFS_AVAILABLE}."
-        f"Skipping test_configure.",
+        f"CWFS package availibility is {CWFS_AVAILABLE}. Skipping test_configure.",
     )
     async def test_configure(self):
         async with self.make_script():
