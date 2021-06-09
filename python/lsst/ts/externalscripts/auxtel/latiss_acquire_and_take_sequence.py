@@ -124,6 +124,17 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
               object_name:
                 description: SIMBAD query-able object name
                 type: string
+                default: ""
+                
+              object_ra:
+                description: RA as a string 
+                type: string
+                default: ""
+                
+              object_dec:
+                description: DEC as a string 
+                type: string
+                default: ""
 
               manual_focus_offset:
                 description: Applies manual focus offset after the slew. This
@@ -248,8 +259,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.do_blind_offset = config.do_blind_offset
 
         # Object name
-        assert config.object_name is not None
+        assert (config.object_name is not None or (config.object_ra is not None and config.object_dec))
         self.object_name = config.object_name
+        self.object_ra = config.object_ra
+        self.object_dec = config.object_dec
 
         # config for the single image acquisition
         self.acq_grating = config.acq_grating
@@ -352,14 +365,33 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # Setup instrument and telescope
         # The following code sets up the instrument and slews the telescope
         # simultaneously.
-        tmp, data = await asyncio.gather(
-            self.atcs.slew_object(
+        if self.object_name:
+            self.log.debug('Using slew_object (object name designation)')
+            _slew_coro = self.atcs.slew_object(
                 name=self.object_name,
                 rot_type=RotType.Parallactic,
                 slew_timeout=240,
                 offset_x=dx_arcsec,
                 offset_y=dy_arcsec,
-            ),
+            )
+        elif (self.object_ra and self.object_dec):
+            self.log.debug('Using slew_icrs (object coordinate designation)')
+            _slew_coro = self.atcs.slew_icrs(
+                ra=self.object_ra,
+                dec=self.object_dec,
+                rot_type=RotType.Parallactic,
+                slew_timeout=240,
+                offset_x=dx_arcsec,
+                offset_y=dy_arcsec,
+            )
+        else:
+            raise IOerror('Insufficient object information. Need either an object name or RA+Dec. '
+                          f'Provided object_name is {self.object_name}.'
+                          f'Provided object_ra is {self.object_ra}.'
+                          f'Provided object_dec is {self.object_dec}.')
+
+        tmp, data = await asyncio.gather(
+            _slew_coro,
             self.latiss.setup_atspec(grating=self.acq_grating, filter=self.acq_filter),
         )
 
