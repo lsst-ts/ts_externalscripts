@@ -347,7 +347,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         # Find offsets to desired detector position, calculate blind offset
         # and send as part of the slew command
-        self.log.info(f"Performing Blind offset set to {self.do_blind_offset}")
+        self.log.info(f"Performing blind offset set to {self.do_blind_offset}")
         if self.do_blind_offset:
             current_position = latiss_constants.boresight
 

@@ -345,7 +345,9 @@ class TestLatissAcquireAndTakeSequence(
             # sequence number start
             self.seq_num_start = 188
 
-            object_name = "HD145600"
+            # object_name = "HD145600"
+            object_ra = "16 14 33.9"
+            object_dec = "-53 33 35.2"
             acq_filter = "test_filt1"
             acq_grating = "empty_1"
             target_pointing_tolerance = 4
@@ -354,7 +356,8 @@ class TestLatissAcquireAndTakeSequence(
             do_take_sequence = False
             do_pointing_model = True
             await self.configure_script(
-                object_name=object_name,
+                object_ra=object_ra,
+                object_dec=object_dec,
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
                 acq_filter=acq_filter,
