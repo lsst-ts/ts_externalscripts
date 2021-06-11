@@ -703,15 +703,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 if self.offset_telescope:
                     tel_el_offset, tel_az_offset = (
                         results["tel_offset"][0],
-                        -results["tel_offset"][1]
-                        * np.cos(
-                            np.radians(
-                                np.mean(
-                                    self.atcs.telescope_position.elevationCalculatedAngle
-                                )
-                            )
-                        ),
-                    )
+                        -results["tel_offset"][1])
                     self.log.info(
                         f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
                     )
@@ -765,13 +757,6 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     tel_el_offset, tel_az_offset = (
                         results["tel_offset"][0],
                         -results["tel_offset"][1]
-                        * np.cos(
-                            np.radians(
-                                np.mean(
-                                    self.atcs.telescope_position.elevationCalculatedAngle
-                                )
-                            )
-                        ),
                     )
                     self.log.info(
                         f"Applying telescope offset az/el: {tel_az_offset}/{tel_el_offset}."
