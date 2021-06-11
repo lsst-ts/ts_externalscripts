@@ -142,9 +142,10 @@ class LatissCWFSAlign(salobj.BaseScript):
 
         # Matrix to map hexapod offset to alt/az offset in the focal plane
         # units are arcsec/mm. X-axis is Elevation
+        # Measured with data from AT run SUMMIT-5027, still unverified.
         self.hexapod_offset_scale = [
-            [60.0, 0.0, 0.0],
-            [0.0, 60.0, 0.0],
+            [56.8, 0.0, 0.0],
+            [0.0, 47.4, 0.0],
             [0.0, 0.0, 0.0],
         ]
 
