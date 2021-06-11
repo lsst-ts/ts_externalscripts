@@ -700,13 +700,23 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 self.total_coma_y_offset += coma_y
                 await self.hexapod_offset(focus_offset, x=coma_x, y=coma_y)
                 if self.offset_telescope:
-                    tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
-                    self.log.info(
-                        f"Applying telescope offset [x,y]: [{tel_x:0.3f}, {tel_y:0.3f}]."
+                    tel_el_offset, tel_az_offset = (
+                        results["tel_offset"][0],
+                        -results["tel_offset"][1]
+                        * np.cos(
+                            np.radians(
+                                np.mean(
+                                    self.atcs.telescope_position.elevationCalculatedAngle
+                                )
+                            )
+                        ),
                     )
-                    await self.atcs.offset_xy(
-                        x=tel_x,
-                        y=tel_y,
+                    self.log.info(
+                        f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
+                    )
+                    await self.atcs.offset_azel(
+                        az=tel_az_offset,
+                        el=tel_el_offset,
                         relative=True,
                         persistent=True,
                     )
@@ -751,11 +761,23 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 self.total_coma_y_offset += coma_y
                 await self.hexapod_offset(focus_offset, x=coma_x, y=coma_y)
                 if self.offset_telescope:
-                    tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
-                    self.log.info(f"Applying telescope offset x/y: {tel_x}/{tel_y}.")
-                    await self.atcs.offset_xy(
-                        x=tel_x,
-                        y=tel_y,
+                    tel_el_offset, tel_az_offset = (
+                        results["tel_offset"][0],
+                        -results["tel_offset"][1]
+                        * np.cos(
+                            np.radians(
+                                np.mean(
+                                    self.atcs.telescope_position.elevationCalculatedAngle
+                                )
+                            )
+                        ),
+                    )
+                    self.log.info(
+                        f"Applying telescope offset az/el: {tel_az_offset}/{tel_el_offset}."
+                    )
+                    await self.atcs.offset_azel(
+                        az=tel_az_offset,
+                        el=tel_el_offset,
                         relative=True,
                         persistent=True,
                     )
