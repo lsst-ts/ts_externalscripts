@@ -282,7 +282,7 @@ class TestLatissAcquireAndTakeSequence(
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
-        f"Data availibility is {DATA_AVAILABLE}. Skipping test_take_sequence.",
+        f"Data availability is {DATA_AVAILABLE}. Skipping test_take_sequence.",
     )
     async def test_take_sequence(self):
         async with self.make_script():

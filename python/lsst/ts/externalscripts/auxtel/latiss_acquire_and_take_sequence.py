@@ -114,12 +114,12 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
               do_acquire:
                 description: Perform target acquisition?
                 type: boolean
-                default: True
+                default: False
 
               do_take_sequence:
                 description: Take sequence of data on target?
                 type: boolean
-                default: True
+                default: False
 
               object_name:
                 description: SIMBAD query-able object name

@@ -307,7 +307,7 @@ Pixel_size (m)			{}
         self.log.info(f"extraImage expId for target: {self.extra_visit_id}")
 
         self.angle = 90.0 - await self.atcs.get_bore_sight_angle()
-        self.log.info(f"angle used in cwfs algorithm is {self.angle}")
+        self.log.info(f"angle used in cwfs algorithm is {self.angle:0.2f}")
 
         self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the
