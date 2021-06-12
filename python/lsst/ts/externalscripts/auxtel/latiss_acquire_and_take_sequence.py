@@ -114,16 +114,31 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
               do_acquire:
                 description: Perform target acquisition?
                 type: boolean
-                default: True
+                default: False
 
               do_take_sequence:
                 description: Take sequence of data on target?
                 type: boolean
-                default: True
+                default: False
 
               object_name:
-                description: SIMBAD query-able object name
+                description: An object name to be passed to the header. If the object name is query-able
+                    in SIMBAD then no coordinates are required.
                 type: string
+
+              object_ra:
+                description: Right Ascension (RA) as a string
+                default: null
+                anyOf:
+                    - type: string
+                    - type: "null"
+
+              object_dec:
+                description: Declination (Dec) as a string
+                default: null
+                anyOf:
+                    - type: string
+                    - type: "null"
 
               manual_focus_offset:
                 description: Applies manual focus offset after the slew. This
@@ -133,10 +148,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 default: 0.0
 
               acq_filter:
-                description: Which filter to use when performing acquisition. Must use
-                             filter = BG40 for now
+                description: Which filter to use when performing acquisition.
                 type: string
-                default: BG40
+                default: RG610
 
               acq_grating:
                 description: Which grating to use when performing acquisition. Must use
@@ -220,7 +234,15 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 default: True
 
             additionalProperties: false
-            required: [object_name]
+            if:
+              properties:
+                object_ra:
+                  const: null
+                object_dec:
+                  const: null
+              required: ["object_name"]
+            else:
+              required: ["object_name", "object_ra", "object_dec"]
         """
         return yaml.safe_load(schema_yaml)
 
@@ -248,8 +270,11 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.do_blind_offset = config.do_blind_offset
 
         # Object name
-        assert config.object_name is not None
+        assert config.object_name is not None, "An object name is a mandatory input"
+
         self.object_name = config.object_name
+        self.object_ra = config.object_ra
+        self.object_dec = config.object_dec
 
         # config for the single image acquisition
         self.acq_grating = config.acq_grating
@@ -334,7 +359,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         # Find offsets to desired detector position, calculate blind offset
         # and send as part of the slew command
-        self.log.info(f"Performing Blind offset set to {self.do_blind_offset}")
+        self.log.info(f"Performing blind offset set to {self.do_blind_offset}")
         if self.do_blind_offset:
             current_position = latiss_constants.boresight
 
@@ -352,14 +377,31 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # Setup instrument and telescope
         # The following code sets up the instrument and slews the telescope
         # simultaneously.
-        tmp, data = await asyncio.gather(
-            self.atcs.slew_object(
+
+        # if coordinates are provided then use those
+        if self.object_ra and self.object_dec:
+            self.log.debug("Using slew_icrs (object coordinate designation)")
+            _slew_coro = self.atcs.slew_icrs(
+                self.object_ra,
+                self.object_dec,
+                target_name=self.object_name,
+                rot_type=RotType.Parallactic,
+                slew_timeout=240,
+                offset_x=dx_arcsec,
+                offset_y=dy_arcsec,
+            )
+        else:
+            self.log.debug("Using slew_object (object name designation)")
+            _slew_coro = self.atcs.slew_object(
                 name=self.object_name,
                 rot_type=RotType.Parallactic,
                 slew_timeout=240,
                 offset_x=dx_arcsec,
                 offset_y=dy_arcsec,
-            ),
+            )
+
+        tmp, data = await asyncio.gather(
+            _slew_coro,
             self.latiss.setup_atspec(grating=self.acq_grating, filter=self.acq_filter),
         )
 
