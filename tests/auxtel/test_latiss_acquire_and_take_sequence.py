@@ -23,6 +23,7 @@ __all__ = ["LatissAcquireAndTakeSequence"]
 import random
 import unittest
 import asyncio
+import pathlib
 
 from lsst.ts import salobj
 from lsst.ts import standardscripts
@@ -53,14 +54,14 @@ try:
 except RuntimeError:
     logger.warning("Data unavailable, certain tests will be skipped")
     DATA_AVAILABLE = False
-    DATAPATH = "tests/data/auxtel/"
+    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
 except PermissionError:
     logger.warning(
         "Data unavailable due to permissions (at a minimum),"
         " certain tests will be skipped"
     )
     DATA_AVAILABLE = False
-    DATAPATH = "tests/data/auxtel/"
+    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
 
 
 class TestLatissAcquireAndTakeSequence(
@@ -72,8 +73,10 @@ class TestLatissAcquireAndTakeSequence(
 
         # Mock the telescope slews and offsets
         self.script.atcs.slew_object = unittest.mock.AsyncMock()
+        self.script.atcs.slew_icrs = unittest.mock.AsyncMock()
         self.script.atcs.offset_xy = unittest.mock.AsyncMock()
         self.script.atcs.add_point_data = unittest.mock.AsyncMock()
+        self.script.latiss.ready_to_take_data = salobj.make_done_future
 
         # Mock the latiss instrument setups
         self.script.latiss.setup_atspec = unittest.mock.AsyncMock(
@@ -173,6 +176,7 @@ class TestLatissAcquireAndTakeSequence(
 
     async def finish_take_images(self):
 
+        # Give result that the telescope is ready
         await asyncio.sleep(0.5)
         imgNum = self.atcamera.cmd_takeImages.callback.await_count - 1
         image_name = f"AT_O_{self.date}_{(imgNum + self.seq_num_start):06d}"
@@ -193,12 +197,14 @@ class TestLatissAcquireAndTakeSequence(
             filter_sequence = "test_filt1"
             exposure_time_sequence = 1.0
             do_acquire = False
+            do_take_sequence = True
             await self.configure_script(
                 object_name=object_name,
                 grating_sequence=grating_sequence,
                 filter_sequence=filter_sequence,
                 exposure_time_sequence=exposure_time_sequence,
                 do_acquire=do_acquire,
+                do_take_sequence=do_take_sequence,
                 dataPath=DATAPATH,
             )
 
@@ -219,6 +225,8 @@ class TestLatissAcquireAndTakeSequence(
                 grating_sequence=grating_sequence,
                 filter_sequence=filter_sequence,
                 exposure_time_sequence=exposure_time_sequence,
+                do_acquire=do_acquire,
+                do_take_sequence=do_take_sequence,
                 dataPath=DATAPATH,
             )
 
@@ -230,7 +238,7 @@ class TestLatissAcquireAndTakeSequence(
                 )
             # Verify defaults
             self.assertEqual(self.script.do_take_sequence, True)
-            self.assertEqual(self.script.do_acquire, True)
+            self.assertEqual(self.script.do_acquire, False)
 
             # Try configure mis-matched array sizes. This should fail
             object_name = "HR8799"
@@ -241,6 +249,8 @@ class TestLatissAcquireAndTakeSequence(
                     object_name=object_name,
                     grating_sequence=grating_sequence,
                     exposure_time_sequence=exposure_time_sequence,
+                    do_acquire=do_acquire,
+                    do_take_sequence=do_take_sequence,
                     dataPath=DATAPATH,
                 )
 
@@ -280,8 +290,7 @@ class TestLatissAcquireAndTakeSequence(
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
-        f"Data availibility is {DATA_AVAILABLE}."
-        f"Skipping test_take_sequence.",
+        f"Data availability is {DATA_AVAILABLE}. Skipping test_take_sequence.",
     )
     async def test_take_sequence(self):
         async with self.make_script():
@@ -295,12 +304,14 @@ class TestLatissAcquireAndTakeSequence(
             filter_sequence = ["test_filt1", "test_filt2"]
             exposure_time_sequence = [0.3, 0.8]
             do_acquire = False
+            do_take_sequence = True
             await self.configure_script(
                 object_name=object_name,
                 grating_sequence=grating_sequence,
                 filter_sequence=filter_sequence,
                 exposure_time_sequence=exposure_time_sequence,
                 do_acquire=do_acquire,
+                do_take_sequence=do_take_sequence,
                 dataPath=DATAPATH,
             )
 
@@ -323,18 +334,14 @@ class TestLatissAcquireAndTakeSequence(
             for i, e in enumerate(exposure_time_sequence):
                 # Inspection into the calls is cryptic. So leaving this as
                 # multiple lines as it's easier to debug/understand
-                # Note that each take_object command also calls setup_atspec,
-                # but with no changes so we only every 2nd instance as
-                # comparison
-                called_filter = self.script.latiss.setup_atspec.call_args_list[2 * i][
-                    1
-                ]["filter"]
-                called_grating = self.script.latiss.setup_atspec.call_args_list[2 * i][
-                    1
-                ]["grating"]
+                called_filter = self.script.latiss.setup_atspec.call_args_list[i][1][
+                    "filter"
+                ]
+                called_grating = self.script.latiss.setup_atspec.call_args_list[i][1][
+                    "grating"
+                ]
                 self.assertEqual(filter_sequence[i], called_filter)
                 self.assertEqual(grating_sequence[i], called_grating)
-            # Verify the same group ID was used?
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
@@ -349,6 +356,8 @@ class TestLatissAcquireAndTakeSequence(
             self.seq_num_start = 188
 
             object_name = "HD145600"
+            object_ra = "16 14 33.9"
+            object_dec = "-53 33 35.2"
             acq_filter = "test_filt1"
             acq_grating = "empty_1"
             target_pointing_tolerance = 4
@@ -358,6 +367,8 @@ class TestLatissAcquireAndTakeSequence(
             do_pointing_model = True
             await self.configure_script(
                 object_name=object_name,
+                object_ra=object_ra,
+                object_dec=object_dec,
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
                 acq_filter=acq_filter,
@@ -506,8 +517,7 @@ class TestLatissAcquireAndTakeSequence(
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
-        f"Data availibility is {DATA_AVAILABLE}."
-        f"Skipping test_full_sequence.",
+        f"Data availibility is {DATA_AVAILABLE}. Skipping test_full_sequence.",
     )
     async def test_full_sequence(self):
         """This tests a combined acquisition and data taking sequence.

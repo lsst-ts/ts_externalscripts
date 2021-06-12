@@ -85,7 +85,11 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         )
 
         self.atcs = ATCS(self.domain, log=self.log)
-        self.latiss = LATISS(self.domain, log=self.log)
+        self.latiss = LATISS(
+            self.domain,
+            log=self.log,
+            tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+        )
         # instantiate the quick measurement class
         try:
             qm_config = QuickFrameMeasurementTask.ConfigClass()
@@ -110,16 +114,31 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
               do_acquire:
                 description: Perform target acquisition?
                 type: boolean
-                default: True
+                default: False
 
               do_take_sequence:
                 description: Take sequence of data on target?
                 type: boolean
-                default: True
+                default: False
 
               object_name:
-                description: SIMBAD query-able object name
+                description: An object name to be passed to the header. If the object name is query-able
+                    in SIMBAD then no coordinates are required.
                 type: string
+
+              object_ra:
+                description: Right Ascension (RA) as a string
+                default: null
+                anyOf:
+                    - type: string
+                    - type: "null"
+
+              object_dec:
+                description: Declination (Dec) as a string
+                default: null
+                anyOf:
+                    - type: string
+                    - type: "null"
 
               manual_focus_offset:
                 description: Applies manual focus offset after the slew. This
@@ -129,10 +148,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 default: 0.0
 
               acq_filter:
-                description: Which filter to use when performing acquisition. Must use
-                             filter = BG40 for now
+                description: Which filter to use when performing acquisition.
                 type: string
-                default: BG40
+                default: RG610
 
               acq_grating:
                 description: Which grating to use when performing acquisition. Must use
@@ -209,8 +227,22 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 type: boolean
                 default: False
 
+              do_blind_offset:
+                description: Perform blind offset during the slew. Useful to reduce iterations
+                    so long as pointing model is accurate.
+                type: boolean
+                default: True
+
             additionalProperties: false
-            required: [object_name]
+            if:
+              properties:
+                object_ra:
+                  const: null
+                object_dec:
+                  const: null
+              required: ["object_name"]
+            else:
+              required: ["object_name", "object_ra", "object_dec"]
         """
         return yaml.safe_load(schema_yaml)
 
@@ -234,10 +266,15 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.do_take_sequence = config.do_take_sequence
         # Do pointing file generation?
         self.do_pointing_model = config.do_pointing_model
+        # Perform blind offsetting?
+        self.do_blind_offset = config.do_blind_offset
 
         # Object name
-        assert config.object_name is not None
+        assert config.object_name is not None, "An object name is a mandatory input"
+
         self.object_name = config.object_name
+        self.object_ra = config.object_ra
+        self.object_dec = config.object_dec
 
         # config for the single image acquisition
         self.acq_grating = config.acq_grating
@@ -320,43 +357,54 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         else:
             target_position = latiss_constants.sweet_spots[self.acq_grating]
 
-        # get filter/disperser currently in the beam
-        (
-            current_filter,
-            current_grating,
-            current_stage_pos,
-        ) = await self.latiss.get_setup()
+        # Find offsets to desired detector position, calculate blind offset
+        # and send as part of the slew command
+        self.log.info(f"Performing blind offset set to {self.do_blind_offset}")
+        if self.do_blind_offset:
+            current_position = latiss_constants.boresight
 
-        # Is the atspectrograph Correction in the ATAOS running?
-        corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
-            timeout=self.cmd_timeout
-        )
+            dx_arcsec, dy_arcsec = calculate_xy_offsets(
+                current_position, target_position
+            )
+            self.log.debug(
+                f"After slew, the target should be at the boresight [{current_position}] whereas the "
+                f"target position is {target_position}. Blindly offsetting"
+                f" [{dx_arcsec:0.1f}, {dy_arcsec:0.1f}] arcsec to this position."
+            )
+        else:
+            dx_arcsec, dy_arcsec = 0.0, 0.0
 
         # Setup instrument and telescope
-        # Following code requires persistent offsets to be functional, but
-        # that's not yet the case therefore this will result in a race
-        # condition where the pointing offsets might be wiped out.
-        # await asyncio.gather(
-        #     self.atcs.slew_object(name=self.object_name,
-        #     rot=rot_type=RotType.Parallactic, slew_timeout=240)
-        #     self.latiss.setup_instrument(grating=self.acq_grating,
-        #     filter=self.acq_filter),
-        # )
+        # The following code sets up the instrument and slews the telescope
+        # simultaneously.
 
-        # Slew and setup in series for now
-        # set rot_type to align to parallactic angle
-        # await self.atcs.slew_object(
-        #     name=self.object_name, rot_type=RotType.Parallactic,
-        #     slew_timeout=240
-        # )
+        # if coordinates are provided then use those
+        if self.object_ra and self.object_dec:
+            self.log.debug("Using slew_icrs (object coordinate designation)")
+            _slew_coro = self.atcs.slew_icrs(
+                self.object_ra,
+                self.object_dec,
+                target_name=self.object_name,
+                rot_type=RotType.Parallactic,
+                slew_timeout=240,
+                offset_x=dx_arcsec,
+                offset_y=dy_arcsec,
+            )
+        else:
+            self.log.debug("Using slew_object (object name designation)")
+            _slew_coro = self.atcs.slew_object(
+                name=self.object_name,
+                rot_type=RotType.Parallactic,
+                slew_timeout=240,
+                offset_x=dx_arcsec,
+                offset_y=dy_arcsec,
+            )
 
-        # FIXME: Impelemented due to rotator issues - revert in DM-29217
-        await self.atcs.slew_object(
-            name=self.object_name,
-            rot_type=RotType.PhysicalSky,
-            rot=-105,
-            slew_timeout=240,
+        tmp, data = await asyncio.gather(
+            _slew_coro,
+            self.latiss.setup_atspec(grating=self.acq_grating, filter=self.acq_filter),
         )
+
         # Apply manual focus offset if required
         if self.manual_focus_offset != 0.0 and not self.manual_focus_offset_applied:
             self.log.debug(
@@ -364,73 +412,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
             await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
             self.manual_focus_offset_applied = True
-
-        # Check if a new instrument configuration is required
-        _new_instrument_required = (self.acq_filter != current_filter) or (
-            self.acq_grating != current_grating
-        )
-        self.log.debug(f"Instrument setup required: {_new_instrument_required}")
-        if _new_instrument_required:
-            self.log.debug(
-                f"Must load new filter {self.acq_filter} or grating {self.acq_grating}"
-            )
-
-            if corr.atspectrograph:
-                # If so, then flush correction events for confirmation of
-                # corrections
-                self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.flush()
-                self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.flush()
-
-        # Once persistent offsets are working this line should be removed
-        # and the slew+setup should be performed asynchronously as seen
-        # in the asyncio.gather statement above.
-
-        # FIXME - need to use setup_atspec for unit tests to work
-        # data = await self.latiss.setup_instrument(
-        #              grating=self.acq_grating, filter=self.acq_filter)
-
-        # Setup the instrument with the new configuration
-        # data = await self.latiss.setup_instrument(filter=filt,
-        #              grating=grating)
-        data = await self.latiss.setup_atspec(
-            filter=self.acq_filter, grating=self.acq_grating
-        )
-
-        # If ATAOS is running wait for adjustments to complete before
-        # moving on.
-        if corr.atspectrograph and _new_instrument_required:
-
-            self.log.debug(
-                "Instrument setup in acquisition now waiting for "
-                f"2*len{data} ATAOS events saying correction started/finished"
-            )
-
-            # loop to grab all events
-            for j in range(len(data)):
-                # flush=false removes the event when grabbed
-                _evt1 = (
-                    await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
-                        flush=False, timeout=self.cmd_timeout
-                    )
-                )
-                self.log.debug(
-                    f"Event #{j} - evt_atspectrographCorrectionStarted is: {_evt1}"
-                )
-            for j in range(len(data)):
-                _evt2 = await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
-                    flush=False, timeout=self.cmd_timeout
-                )
-                self.log.debug(
-                    f"Event #{j} - evt_atspectrographCorrectionCompleted is: {_evt2}"
-                )
-
-            self.log.debug("ATAOS atspectrographCorrectionXXXX events arrived")
-
-            self.log.info(
-                "sleeping for 2s after acquisition due to ATAOS issue "
-                "where corrections might take an extra cycle"
-            )
-            await asyncio.sleep(2)
 
         self.log.info(
             "Beginning Acquisition Iterative Loop, with a maximum amount of "
@@ -444,12 +425,15 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 f"\nStarting iteration number {iter_num + 1}, with a "
                 f"maximum of {self.max_acq_iter}"
             )
-            tmp, data_id = await asyncio.gather(
-                self.latiss.take_object(exptime=self.acq_exposure_time, n=1),
-                self.get_next_image_data_id(
-                    timeout=self.acq_exposure_time + STD_TIMEOUT
-                ),
+
+            # Was not catching event from OODS in time without timing out
+            self.latiss.rem.atarchiver.evt_imageInOODS.flush()
+            tmp = await self.latiss.take_object(exptime=self.acq_exposure_time, n=1)
+            data_id = await self.get_next_image_data_id(
+                timeout=self.acq_exposure_time + STD_TIMEOUT, flush=False
             )
+            self.log.debug(f"Take Object returned {tmp}")
+            self.log.debug("Now waiting for image to land in OODS")
 
             exp = await get_image(
                 data_id,
@@ -482,7 +466,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 result.brightestObjCentroid[0], result.brightestObjCentroid[1]
             )
 
-            # Find offsets
+            # Find offsets to desired position
             self.log.debug(
                 f"Current brightest target position is {current_position} whereas the "
                 f"target position is {target_position}"
@@ -517,10 +501,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # Offset telescope, using persistent offsets
             self.log.info("Applying x/y offset to telescope pointing.")
 
-            # Use persistent = False otherwise when we go to use
-            # the hologram it offsets to the bottom of the field
-            # FIXME: need to decide how we want to handle persistent offsets
-            # DM-29217
+            # Use persistent = False otherwise when we switch gratings
+            # it may keep an offset we no longer want
             await self.atcs.offset_xy(
                 dx_arcsec, dy_arcsec, relative=True, persistent=False
             )
@@ -595,73 +577,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             # Focus and pointing offsets will be made automatically
             # by the TCS upon filter/grating changes
 
-            # get current filter/disperser
-            (
-                current_filter,
-                current_grating,
-                current_stage_pos,
-            ) = await self.latiss.get_setup()
-
-            # Check if a new configuration is required
-            _new_instrument_required = (filt != current_filter) or (
-                grating != current_grating
-            )
-
-            if _new_instrument_required:
-                self.log.debug(f"Must load new filter {filt} or grating {grating}")
-
-                # Is the atspectrograph Correction in the ATAOS running?
-                corr = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
-                    timeout=self.cmd_timeout
-                )
-                if corr.atspectrograph:
-                    # If so, then flush correction events for confirmation
-                    # of corrections
-                    self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.flush()
-                    self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.flush()
-
-                # Setup the instrument with the new configuration
-                # data = await self.latiss.setup_instrument(filter=filt,
-                #               grating=grating)
-                # FIXME - need to use setup_atspec for unit tests to work
-                data = await self.latiss.setup_atspec(filter=filt, grating=grating)
-                # If ATAOS is running wait for adjustments to complete before
-                # moving on.
-                if corr.atspectrograph:
-                    self.log.debug(
-                        "Instrument setup in take_sequence now waiting for "
-                        f"2*len{data} ATAOS events saying correction started/finished"
-                    )
-
-                    # loop to grab all events
-                    for j in range(len(data)):
-                        # flush=false removes the event when grabbed
-                        _evt1 = await self.atcs.rem.ataos.evt_atspectrographCorrectionStarted.next(
-                            flush=False, timeout=self.cmd_timeout
-                        )
-                        self.log.debug(
-                            f"Event #{j} - evt_atspectrographCorrectionStarted is: {_evt1}"
-                        )
-                    for j in range(len(data)):
-                        _evt2 = await self.atcs.rem.ataos.evt_atspectrographCorrectionCompleted.next(
-                            flush=False, timeout=self.cmd_timeout
-                        )
-                        self.log.debug(
-                            f"Event #{j} - evt_atspectrographCorrectionCompleted is: {_evt2}"
-                        )
-
-                    self.log.debug(
-                        "ATAOS atspectrographCorrectionStarted and Completed events arrived"
-                    )
-
-                    self.log.info(
-                        "sleeping for 2s after acquisition due to ATAOS issue "
-                        "where corrections might take an extra cycle"
-                    )
-                    await asyncio.sleep(2)
-
             # Take an image
-            await self.latiss.take_object(exptime=expTime, n=1, group_id=group_id)
+            await self.latiss.take_object(
+                exptime=expTime, n=1, group_id=group_id, filter=filt, grating=grating
+            )
 
             self.log.info(
                 f"Completed exposure {i + 1} of {nexp}. Exptime = {expTime:6.1f}s,"

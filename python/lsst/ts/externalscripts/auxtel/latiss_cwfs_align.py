@@ -98,8 +98,12 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.atcs = None
         self.latiss = None
         if remotes:
-            self.atcs = ATCS(self.domain)
-            self.latiss = LATISS(self.domain)
+            self.atcs = ATCS(self.domain, log=self.log)
+            self.latiss = LATISS(
+                self.domain,
+                log=self.log,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+            )
 
         # instantiate the quick measurement class
         try:
@@ -138,9 +142,12 @@ class LatissCWFSAlign(salobj.BaseScript):
 
         # Matrix to map hexapod offset to alt/az offset in the focal plane
         # units are arcsec/mm. X-axis is Elevation
+        # Measured with data from AT run SUMMIT-5027, still unverified.
+        # x-offset measured with images 2021060800432 - 2021060800452
+        # y-offset measured with images 2021060800452 - 2021060800472
         self.hexapod_offset_scale = [
-            [60.0, 0.0, 0.0],
-            [0.0, 60.0, 0.0],
+            [52.459, 0.0, 0.0],
+            [0.0, 50.468, 0.0],
             [0.0, 0.0, 0.0],
         ]
 
@@ -302,7 +309,7 @@ Pixel_size (m)			{}
         self.log.info(f"extraImage expId for target: {self.extra_visit_id}")
 
         self.angle = 90.0 - await self.atcs.get_bore_sight_angle()
-        self.log.info(f"angle used in cwfs algorithm is {self.angle}")
+        self.log.info(f"angle used in cwfs algorithm is {self.angle:0.2f}")
 
         self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the
@@ -410,8 +417,7 @@ Pixel_size (m)			{}
         dr = np.sqrt(dy ** 2 + dx ** 2)
         if dr > 100.0:
             raise RuntimeError(
-                "Intra and Extra source finding algorithm "
-                "found different sources."
+                "Intra and Extra source finding algorithm " "found different sources."
             )
 
         # Create stamps for CWFS algorithm. Bin (if desired).
@@ -697,13 +703,16 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 self.total_coma_y_offset += coma_y
                 await self.hexapod_offset(focus_offset, x=coma_x, y=coma_y)
                 if self.offset_telescope:
-                    tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
-                    self.log.info(
-                        f"Applying telescope offset [x,y]: [{tel_x:0.3f}, {tel_y:0.3f}]."
+                    tel_el_offset, tel_az_offset = (
+                        results["tel_offset"][0],
+                        -results["tel_offset"][1],
                     )
-                    await self.atcs.offset_xy(
-                        x=tel_x,
-                        y=tel_y,
+                    self.log.info(
+                        f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
+                    )
+                    await self.atcs.offset_azel(
+                        az=tel_az_offset,
+                        el=tel_el_offset,
                         relative=True,
                         persistent=True,
                     )
@@ -719,7 +728,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     f"Hexapod LUT Datapoint - {current_target.targetName} - "
                     f"reported hexapod position is, {hexapod_position.reportedPosition}."
                 )
-                self.log.debug("Taking in focus acquisition image.")
+                self.log.debug("Taking in focus image after applying final results.")
                 await self.latiss.take_object(self.acq_exposure_time)
                 await self.atcs.add_point_data()
 
@@ -748,11 +757,16 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 self.total_coma_y_offset += coma_y
                 await self.hexapod_offset(focus_offset, x=coma_x, y=coma_y)
                 if self.offset_telescope:
-                    tel_x, tel_y = results["tel_offset"][0], -results["tel_offset"][1]
-                    self.log.info(f"Applying telescope offset x/y: {tel_x}/{tel_y}.")
-                    await self.atcs.offset_xy(
-                        x=tel_x,
-                        y=tel_y,
+                    tel_el_offset, tel_az_offset = (
+                        results["tel_offset"][0],
+                        -results["tel_offset"][1],
+                    )
+                    self.log.info(
+                        f"Applying telescope offset az/el: {tel_az_offset}/{tel_el_offset}."
+                    )
+                    await self.atcs.offset_azel(
+                        az=tel_az_offset,
+                        el=tel_el_offset,
                         relative=True,
                         persistent=True,
                     )
