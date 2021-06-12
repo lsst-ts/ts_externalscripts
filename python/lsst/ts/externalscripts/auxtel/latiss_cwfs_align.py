@@ -143,9 +143,11 @@ class LatissCWFSAlign(salobj.BaseScript):
         # Matrix to map hexapod offset to alt/az offset in the focal plane
         # units are arcsec/mm. X-axis is Elevation
         # Measured with data from AT run SUMMIT-5027, still unverified.
+        # x-offset measured with images 2021060800432 - 2021060800452
+        # y-offset measured with images 2021060800452 - 2021060800472
         self.hexapod_offset_scale = [
-            [56.8, 0.0, 0.0],
-            [0.0, 47.4, 0.0],
+            [52.459, 0.0, 0.0],
+            [0.0, 50.468, 0.0],
             [0.0, 0.0, 0.0],
         ]
 
@@ -703,7 +705,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 if self.offset_telescope:
                     tel_el_offset, tel_az_offset = (
                         results["tel_offset"][0],
-                        -results["tel_offset"][1])
+                        -results["tel_offset"][1],
+                    )
                     self.log.info(
                         f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
                     )
@@ -756,7 +759,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 if self.offset_telescope:
                     tel_el_offset, tel_az_offset = (
                         results["tel_offset"][0],
-                        -results["tel_offset"][1]
+                        -results["tel_offset"][1],
                     )
                     self.log.info(
                         f"Applying telescope offset az/el: {tel_az_offset}/{tel_el_offset}."
