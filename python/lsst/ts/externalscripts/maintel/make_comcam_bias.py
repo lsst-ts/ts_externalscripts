@@ -54,9 +54,9 @@ class MakeComCamBias(salobj.BaseScript):
         description: Configuration for making a LSSTComCam master bias SAL Script.
         type: object
         additionalProperties: false
-        required: [instrument, inputCollections]
+        required: [instrument, input_collections]
         properties:
-            nBias:
+            n_bias:
                 type: integer
                 default: 1
                 description: number of biases to take
@@ -74,7 +74,7 @@ class MakeComCamBias(salobj.BaseScript):
                 enum: ["LSSTcComCam", "LATISS", "LSSTCam"]
                 descriptor: Camara name. Must be LSSTComca for now (future: also LATISS or LSSTCam).
 
-            inputCollections:
+            input_collections:
                 type: string
                 descriptor: Input collectiosn to pass to the bias pipetask.
         """
@@ -92,7 +92,7 @@ class MakeComCamBias(salobj.BaseScript):
         # Log information about the configuration
 
         self.log.debug(
-            f"nBias: {config.nBias}, detectors: {config.detectors}, "
+            f"n_bias: {config.n_bias}, detectors: {config.detectors}, "
             f"instrument: {config.instrument}. "
         )
 
@@ -108,12 +108,13 @@ class MakeComCamBias(salobj.BaseScript):
         # Should ComCam and OCPS not be enabled here in the script?
         # original notebook says: "When writing a script, the components
         # should (probably) be enabled by a user."
-        await self.comcam.enable()
+        #await self.comcam.enable()
+        
         await salobj.set_summary_state(self.ocps, salobj.State.ENABLED,
                                        settingsToApply="LSSTComCam.yaml")
 
-        # Take config.nBiases biases, and return a list of IDs
-        tempBiasList = await self.comcam.take_bias(self.config.nBias)
+        # Take config.n_biases biases, and return a list of IDs
+        tempBiasList = await self.comcam.take_bias(self.config.n_bias)
         exposures = tuple(tempBiasList)
         # Bias IDs
         await self.checkpoint(f"Biases taken: {tempBiasList}")
@@ -125,7 +126,7 @@ class MakeComCamBias(salobj.BaseScript):
         # Now run the bias pipetask via the OCPS
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/cpBias.yaml", version="",
-            config=f"-j 8 -i {self.config.inputCollections} --register-dataset-types -c isr:doDefect=False",
+            config=f"-j 8 -i {self.config.input_collections} --register-dataset-types -c isr:doDefect=False",
             data_query=f"instrument='{self.config.instrument}' AND"
                        f" detector IN {self.config.detectors} AND exposure IN {exposures}"
         )
