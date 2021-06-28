@@ -54,7 +54,7 @@ class MakeComCamBias(salobj.BaseScript):
         description: Configuration for making a LSSTComCam master bias SAL Script.
         type: object
         additionalProperties: false
-        required: [instrument, input_collections]
+        required: [input_collections]
         properties:
             n_bias:
                 type: integer
@@ -68,11 +68,6 @@ class MakeComCamBias(salobj.BaseScript):
                     minItems: 1
                 default: (0)
                 descriptor: Detector IDs
-
-            instrument:
-                type: string
-                enum: ["LSSTcComCam", "LATISS", "LSSTCam"]
-                descriptor: Camara name. Must be LSSTComca for now (future: also LATISS or LSSTCam).
 
             input_collections:
                 type: string
@@ -93,7 +88,7 @@ class MakeComCamBias(salobj.BaseScript):
 
         self.log.debug(
             f"n_bias: {config.n_bias}, detectors: {config.detectors}, "
-            f"instrument: {config.instrument}. "
+            f"instrument: LSSTComCam. "
         )
 
         self.config = config
@@ -127,7 +122,7 @@ class MakeComCamBias(salobj.BaseScript):
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/cpBias.yaml", version="",
             config=f"-j 8 -i {self.config.input_collections} --register-dataset-types -c isr:doDefect=False",
-            data_query=f"instrument='{self.config.instrument}' AND"
+            data_query=f"instrument='LSSTComCam' AND"
                        f" detector IN {self.config.detectors} AND exposure IN {exposures}"
         )
         if ack.ack != salobj.SalRetCode.CMD_ACK:
