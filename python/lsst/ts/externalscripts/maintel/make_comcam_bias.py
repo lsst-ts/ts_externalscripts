@@ -50,7 +50,7 @@ class MakeComCamBias(salobj.BaseScript):
         schema = """
         $schema: http://json-schema.org/draft-07/schema#
         $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/externalscripts/>-
-        comcam/make_comcam_bias.py
+        maintel/make_comcam_bias.py
         title: MakeComCamBias v1
         description: Configuration for making a LSSTComCam master bias SAL Script.
         type: object
@@ -105,11 +105,7 @@ class MakeComCamBias(salobj.BaseScript):
         metadata.duration = 10
 
     async def run(self):
-        # Should ComCam and OCPS not be enabled here in the script?
-        # original notebook says: "When writing a script, the components
-        # should (probably) be enabled by a user."
-        # await self.comcam.enable()
-
+        
         await salobj.set_summary_state(self.ocps, salobj.State.ENABLED,
                                        settingsToApply="LSSTComCam.yaml")
 
