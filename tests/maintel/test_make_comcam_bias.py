@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ['MakeComCamBias']
+#__all__ = ['MakeComCamBias']
 
 import unittest
 import logging
@@ -34,13 +34,21 @@ logger.propagate = True
 class TestMakeComCamBias(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
+    async def basic_make_script(self, index):
+        logger.debug("Starting basic_make_script")
+        self.script = MakeComCamBias(index=index)
+        
+        logger.debug("Finished initializing from basic_make_script")
+        # Return a single element tuple
+        return (self.script,)
+
     async def test_configure(self):
         async with self.make_script():
 
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
             n_bias = 2
-            detectors = (0, 1, 2, 3, 4, 5, 6, 7, 8)
+            detectors = "(0, 1, 2, 3, 4, 5, 6, 7, 8)"
             input_collections = "LSSTComCam/calib"
             calib_dir = "LSSTComCam/calib/u/plazas/TEST"
             await self.configure_script(
@@ -50,15 +58,16 @@ class TestMakeComCamBias(
                 calib_dir=calib_dir,
             )
 
-            self.assertEqual(self.script.n_bias, n_bias)
-            self.assertEqual(self.script.detectors, detectors)
-            self.assertEqual(self.script.input_collections, input_collections)
-            self.assertEqual(self.script.calib_dir, calib_dir)
+            self.assertEqual(self.script.config.n_bias, n_bias)
+            self.assertEqual(self.script.config.detectors, detectors)
+            self.assertEqual(self.script.config.input_collections, input_collections)
+            self.assertEqual(self.script.config.calib_dir, calib_dir)
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "maintel" / "make_comcam_bias.py"
         logger.debug(f"Checking for script in {script_path}")
+        print ("HOLA: ", scripts_dir, script_path)
         await self.check_executable(script_path)
 
 

@@ -49,8 +49,7 @@ class MakeComCamBias(BaseMakeBias):
     def get_schema(cls):
         schema = """
         $schema: http://json-schema.org/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/externalscripts/>-
-        maintel/make_comcam_bias.py
+        $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/externalscripts/maintel/make_comcam_bias.py
         title: MakeComCamBias v1
         description: Configuration for making a LSSTComCam master bias SAL Script.
         type: object
