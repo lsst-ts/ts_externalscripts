@@ -103,20 +103,35 @@ class MakeComCamBias(salobj.BaseScript):
         # Should ComCam and OCPS not be enabled here in the script?
         # original notebook says: "When writing a script, the components
         # should (probably) be enabled by a user."
-        #await self.comcam.enable()
-        
+        # await self.comcam.enable()
+
         await salobj.set_summary_state(self.ocps, salobj.State.ENABLED,
                                        settingsToApply="LSSTComCam.yaml")
 
         # Take config.n_biases biases, and return a list of IDs
-        tempBiasList = await self.comcam.take_bias(self.config.n_bias)
-        exposures = tuple(tempBiasList)
+        await self.checkpoint(f"Taking {self.config.n_bias} biases")
+        exposures = tuple(await self.comcam.take_bias(self.config.n_bias))
+
         # Bias IDs
-        await self.checkpoint(f"Biases taken: {tempBiasList}")
+        await self.checkpoint(f"Biases taken: {exposures}")
 
         # did the images get archived and are they available to the butler?
         val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=10)
         await self.checkpoint(f"Biases in ccarchiver: {val}")
+
+        # Check　if val corresponds to last image
+        obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
+
+        # if they are not the same, wait for a couple of more events
+        max_counter = 5
+        counter = 0
+        while obs_id != exposures[-1]:
+            val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=10)
+            obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
+            if counter == max_counter:
+                self.log.info("Warning: last image not found in archiver yet")
+                break
+            counter += 1
 
         # Now run the bias pipetask via the OCPS
         ack = await self.ocps.cmd_execute.set_start(
