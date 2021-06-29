@@ -132,12 +132,12 @@ class MakeComCamBias(salobj.BaseScript):
                 self.log.info("Warning: last image not found in archiver yet")
                 break
             counter += 1
-        
+
         self.ocps.evt_job_result.flush()
 
         # Now run the bias pipetask via the OCPS
         ack = await self.ocps.cmd_execute.set_start(
-            wait_done=True, pipeline="${CP_PIPE_DIR}/pipelines/cpBias.yaml", version="",
+            wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/cpBias.yaml", version="",
             config=f"-j 8 -i {self.config.input_collections} --register-dataset-types -c isr:doDefect=False",
             data_query=f"instrument='LSSTComCam' AND"
                        f" detector IN {self.config.detectors} AND exposure IN {exposures}"
@@ -167,4 +167,4 @@ class MakeComCamBias(salobj.BaseScript):
             if response["jobId"] == job_id:
                 break
 
-        await self.checkpoint(f"Final status: {response}")
+        self.log.info(f"Final status: {response}")
