@@ -22,6 +22,7 @@ __all__ = ["MakeComCamBias"]
 
 import json
 import yaml
+import os
 
 from lsst.ts import salobj
 
@@ -71,7 +72,11 @@ class MakeComCamBias(salobj.BaseScript):
 
             input_collections:
                 type: string
-                descriptor: Input collectiosn to pass to the bias pipetask.
+                descriptor: Input collections to pass to the bias pipetask.
+
+            calib_dir:
+                type: string
+                descriptor: path to the calib directory for the bias when certifying it.
         """
         return yaml.safe_load(schema)
 
@@ -168,3 +173,18 @@ class MakeComCamBias(salobj.BaseScript):
                 break
 
         self.log.info(f"Final status: {response}")
+
+        # Certify the bias, if the job completed successfully
+        if not response['phase'] == 'completed':
+            raise RuntimeError(f"Bias creation not completed successfully: {response['phase']}")
+        else:
+            self.log.info("Certifying bias")
+            # certify the bias
+            REPO = "/repo/LSSTComCam"
+            # This is the output collection where the OCPS puts the biases
+            BIAS_DIR = f"u/ocps/{job_id}"
+            CAL_DIR = self.config.calib_dir
+            cmd = f"butler certify-calibrations {REPO} {BIAS_DIR} {CAL_DIR} "
+            "--begin-date 1980-01-01 --end-date 2050-01-01 bias"
+            os.system(cmd)
+            self.log.info("Finished running command for certifying bias")
