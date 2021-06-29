@@ -18,7 +18,6 @@
 #
 # You should have received a copy of the GNU General Public License
 
-#__all__ = ['MakeComCamBias']
 
 import unittest
 import logging
@@ -67,9 +66,7 @@ class TestMakeComCamBias(
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "maintel" / "make_comcam_bias.py"
         logger.debug(f"Checking for script in {script_path}")
-        print ("HOLA: ", scripts_dir, script_path)
         await self.check_executable(script_path)
-
 
 if __name__ == "__main__":
     unittest.main()
