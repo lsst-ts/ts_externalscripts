@@ -121,7 +121,7 @@ class MakeComCamBias(salobj.BaseScript):
         await self.checkpoint(f"Biases taken: {exposures}")
 
         # did the images get archived and are they available to the butler?
-        val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=10)
+        val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
         await self.checkpoint(f"Biases in ccarchiver: {val}")
 
         # Check　if val corresponds to last image
@@ -131,7 +131,7 @@ class MakeComCamBias(salobj.BaseScript):
         max_counter = 5
         counter = 0
         while obs_id != exposures[-1]:
-            val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=10)
+            val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
             obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
             if counter == max_counter:
                 self.log.info("Warning: last image not found in archiver yet")
