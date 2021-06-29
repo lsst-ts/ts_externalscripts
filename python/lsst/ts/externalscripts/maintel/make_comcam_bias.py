@@ -162,7 +162,7 @@ class MakeComCamBias(salobj.BaseScript):
         # This obviously needs to follow the first acknowledgement
         # (that returns the, job id) but might as well wait for the second.
         while True:
-            msg = await self.ocps.evt_job_result.next(flush=False)
+            msg = await self.ocps.evt_job_result.next(flush=False, timeout=600)
             response = json.loads(msg.result)
             if response["jobId"] == job_id:
                 break
