@@ -70,6 +70,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
             calib_dir:
                 type: string
                 descriptor: path to the calib directory for the bias when certifying it.
+            
             repo:
                 type: string
                 descriptor: Butler repository.
