@@ -104,21 +104,22 @@ class MakeComCamBias(salobj.BaseScript):
         # Temporary number
         metadata.duration = 10
 
-    async def run(self):
-        
-        await salobj.set_summary_state(self.ocps, salobj.State.ENABLED,
-                                       settingsToApply="LSSTComCam.yaml")
+    async def arun(self, checkpoint=False):
 
         # Take config.n_biases biases, and return a list of IDs
-        await self.checkpoint(f"Taking {self.config.n_bias} biases")
+        if checkpoint:
+            await self.checkpoint(f"Taking {self.config.n_bias} biases")
         exposures = tuple(await self.comcam.take_bias(self.config.n_bias))
 
-        # Bias IDs
-        await self.checkpoint(f"Biases taken: {exposures}")
+        if checkpoint:
+            # Bias IDs
+            await self.checkpoint(f"Biases taken: {exposures}")
 
         # did the images get archived and are they available to the butler?
         val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
-        await self.checkpoint(f"Biases in ccarchiver: {val}")
+
+        if checkpoint:
+            await self.checkpoint(f"Biases in ccarchiver: {val}")
 
         # Check　if val corresponds to last image
         obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
@@ -184,3 +185,7 @@ class MakeComCamBias(salobj.BaseScript):
             "--begin-date 1980-01-01 --end-date 2050-01-01 bias"
             os.system(cmd)
             self.log.info("Finished running command for certifying bias")
+
+    async def run(self):
+        """"""
+        await self.arun(checkpoint=True)
