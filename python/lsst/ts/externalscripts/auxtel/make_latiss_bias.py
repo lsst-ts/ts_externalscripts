@@ -18,18 +18,18 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["MakeComCamBias"]
+__all__ = ["MakeLatissBias"]
 
 import json
 import yaml
 import os
 
-from ..base_make_bias import BaseMakeBias
 from lsst.ts import salobj
-from lsst.ts.observatory.control.maintel.comcam import ComCam
+
+from lsst.ts.observatory.control.auxtel.latiss import LATISS
 
 
-class MakeComCamBias(BaseMakeBias):
+class MakeLatissBias(salobj.BaseScript):
     """ Take biases and construct a master bias SAL Script.
 
     This class takes biases with LSSTComCam and constructs
@@ -39,10 +39,10 @@ class MakeComCamBias(BaseMakeBias):
     def __init__(self, index=1):
         super().__init__(
             index=index,
-            descr="This class takes biases with LSSTComCam and constructs "
+            descr="This class takes biases with Auxtel-LATISS and constructs "
                   "a master bias calling the bias pipetask via OCPS.",
         )
-        self.comcam = ComCam(domain=self.domain, log=self.log)
+        self.latiss = LATISS(domain=self.domain, log=self.log)
         self.ocps = salobj.Remote(domain=self.domain, name="OCPS")
 
     @classmethod
@@ -50,9 +50,9 @@ class MakeComCamBias(BaseMakeBias):
         schema = """
         $schema: http://json-schema.org/draft-07/schema#
         $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/externalscripts/>-
-        maintel/make_comcam_bias.py
-        title: MakeComCamBias v1
-        description: Configuration for making a LSSTComCam master bias SAL Script.
+        auxtel/make_latiss_bias.py
+        title: MakeLatissBias v1
+        description: Configuration for making a LATISS bias SAL Script.
         type: object
         """
         return yaml.safe_load(schema)
@@ -70,7 +70,7 @@ class MakeComCamBias(BaseMakeBias):
 
         self.log.debug(
             f"n_bias: {config.n_bias}, detectors: {config.detectors}, "
-            f"instrument: LSSTComCam. "
+            f"instrument: LATISS. "
         )
 
         self.config = config
@@ -86,17 +86,17 @@ class MakeComCamBias(BaseMakeBias):
         # Take config.n_biases biases, and return a list of IDs
         if checkpoint:
             await self.checkpoint(f"Taking {self.config.n_bias} biases")
-        exposures = tuple(await self.comcam.take_bias(self.config.n_bias))
+        exposures = tuple(await self.latiss.take_bias(self.config.n_bias))
 
         if checkpoint:
             # Bias IDs
             await self.checkpoint(f"Biases taken: {exposures}")
 
         # did the images get archived and are they available to the butler?
-        val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
+        val = await self.comcam.rem.atarchiver.evt_imageInOODS.aget(timeout=20)
 
         if checkpoint:
-            await self.checkpoint(f"Biases in ccarchiver: {val}")
+            await self.checkpoint(f"Biases in archiver: {val}")
 
         # Check　if val corresponds to last image
         obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
@@ -105,7 +105,7 @@ class MakeComCamBias(BaseMakeBias):
         max_counter = 5
         counter = 0
         while obs_id != exposures[-1]:
-            val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
+            val = await self.comcam.rem.atarchiver.evt_imageInOODS.aget(timeout=20)
             obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
             if counter == max_counter:
                 self.log.info("Warning: last image not found in archiver yet")
@@ -118,7 +118,7 @@ class MakeComCamBias(BaseMakeBias):
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/cpBias.yaml", version="",
             config=f"-j 8 -i {self.config.input_collections} --register-dataset-types -c isr:doDefect=False",
-            data_query=f"instrument='LSSTComCam' AND"
+            data_query=f"instrument='LATISS' AND"
                        f" detector IN {self.config.detectors} AND exposure IN {exposures}"
         )
         if ack.ack != salobj.SalRetCode.CMD_ACK:
@@ -154,7 +154,7 @@ class MakeComCamBias(BaseMakeBias):
         else:
             self.log.info("Certifying bias")
             # certify the bias
-            REPO = "/repo/LSSTComCam"
+            REPO = "/repo/LATISS"
             # This is the output collection where the OCPS puts the biases
             BIAS_DIR = f"u/ocps/{job_id}"
             CAL_DIR = self.config.calib_dir
