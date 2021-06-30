@@ -161,3 +161,7 @@ class MakeComCamBias(BaseMakeBias):
             "--begin-date 1980-01-01 --end-date 2050-01-01 bias"
             os.system(cmd)
             self.log.info("Finished running command for certifying bias")
+
+    async def run(self):
+        """"""
+        await self.arun(checkpoint=True)
