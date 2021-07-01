@@ -31,9 +31,17 @@ logger = logging.getLogger(__name__)
 logger.propagate = True
 
 
-class TestMakeComCamBias(
+class TestMakeLatissBias(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
+    async def basic_make_script(self, index):
+        logger.debug("Starting basic_make_script")
+        self.script = MakeLatissBias(index=index)
+
+        logger.debug("Finished initializing from basic_make_script")
+        # Return a single element tuple
+        return (self.script,)
+
     async def test_configure(self):
         async with self.make_script():
 
@@ -50,10 +58,10 @@ class TestMakeComCamBias(
                 calib_dir=calib_dir,
             )
 
-            self.assertEqual(self.script.n_bias, n_bias)
-            self.assertEqual(self.script.detectors, detectors)
-            self.assertEqual(self.script.input_collections, input_collections)
-            self.assertEqual(self.script.calib_dir, calib_dir)
+            self.assertEqual(self.script.config.n_bias, n_bias)
+            self.assertEqual(self.script.config.detectors, detectors)
+            self.assertEqual(self.script.config.input_collections, input_collections)
+            self.assertEqual(self.script.config.calib_dir, calib_dir)
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()

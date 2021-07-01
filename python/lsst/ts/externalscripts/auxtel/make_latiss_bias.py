@@ -33,7 +33,7 @@ from ..base_make_bias import BaseMakeBias
 class MakeLatissBias(BaseMakeBias):
     """ Take biases and construct a master bias SAL Script.
 
-    This class takes biases with LSSTComCam and constructs
+    This class takes biases with LATISS and constructs
     a master bias calling the bias pipetask via OCPS.
     """
 
@@ -50,8 +50,7 @@ class MakeLatissBias(BaseMakeBias):
     def get_schema(cls):
         schema = """
         $schema: http://json-schema.org/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/externalscripts/>-
-        auxtel/make_latiss_bias.py
+        $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/externalscripts/auxtel/make_latiss_bias.py
         title: MakeLatissBias v1
         description: Configuration for making a LATISS bias SAL Script.
         type: object
