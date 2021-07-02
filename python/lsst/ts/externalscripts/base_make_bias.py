@@ -99,6 +99,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Temporary number
         metadata.duration = 10
 
+    @abc.abstractmethod
     async def arun(self, checkpoint=False):
         raise NotImplementedError
 
