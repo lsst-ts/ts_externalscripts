@@ -24,9 +24,9 @@ import json
 import yaml
 import os
 
-from ..base_make_bias import BaseMakeBias
 from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel.comcam import ComCam
+from ..base_make_bias import BaseMakeBias
 
 
 class MakeComCamBias(BaseMakeBias):

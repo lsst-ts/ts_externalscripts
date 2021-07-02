@@ -27,9 +27,10 @@ import os
 from lsst.ts import salobj
 
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
+from ..base_make_bias import BaseMakeBias
 
 
-class MakeLatissBias(salobj.BaseScript):
+class MakeLatissBias(BaseMakeBias):
     """ Take biases and construct a master bias SAL Script.
 
     This class takes biases with LSSTComCam and constructs
