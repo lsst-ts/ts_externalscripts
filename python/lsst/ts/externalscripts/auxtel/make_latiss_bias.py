@@ -50,12 +50,20 @@ class MakeLatissBias(BaseMakeBias):
     def get_schema(cls):
         schema = """
         $schema: http://json-schema.org/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/externalscripts/auxtel/make_latiss_bias.py
+        $id: https://github.com/lsst-ts/ts_externalscripts/python/lsst/ts/\
+                externalscripts/auxtel/make_latiss_bias.py
         title: MakeLatissBias v1
         description: Configuration for making a LATISS bias SAL Script.
         type: object
         """
-        return yaml.safe_load(schema)
+        schema_dict = yaml.safe_load(schema)
+
+        base_schema_dict = super(MakeLatissBias, cls).get_schema()
+
+        for prop in base_schema_dict["properties"]:
+            schema_dict["properties"][prop] = base_schema_dict["properties"][prop]
+
+        return schema_dict
 
     async def configure(self, config):
         """Configure the script.
