@@ -70,10 +70,12 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
             calib_dir:
                 type: string
                 descriptor: path to the calib directory for the bias when certifying it.
-            
+
             repo:
                 type: string
-                descriptor: Butler repository.
+                descriptor: Butler repository. /repo/main is the default at NCSA; it migth be different at the
+                summit.
+                default: /repo/main
         """
         return yaml.safe_load(schema)
 
