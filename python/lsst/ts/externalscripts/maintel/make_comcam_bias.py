@@ -24,7 +24,6 @@ import json
 import yaml
 import os
 
-from ..base_make_bias import BaseMakeBias
 from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel.comcam import ComCam
 from ..base_make_bias import BaseMakeBias
@@ -43,8 +42,12 @@ class MakeComCamBias(BaseMakeBias):
             descr="This class takes biases with LSSTComCam and constructs "
                   "a master bias calling the bias pipetask via OCPS.",
         )
-        self.comcam = ComCam(domain=self.domain, log=self.log)
+        self._comcam = ComCam(domain=self.domain, log=self.log)
         self.ocps = salobj.Remote(domain=self.domain, name="OCPS")
+
+    @property
+    def camera(self):
+        return self._comcam
 
     @classmethod
     def get_schema(cls):
@@ -83,25 +86,19 @@ class MakeComCamBias(BaseMakeBias):
 
         self.config = config
 
-    def set_metadata(self, metadata):
-        """Set estimated duration of the script.
-        """
-        # Temporary number
-        metadata.duration = 10
-
     async def arun(self, checkpoint=False):
 
         # Take config.n_biases biases, and return a list of IDs
         if checkpoint:
             await self.checkpoint(f"Taking {self.config.n_bias} biases")
-        exposures = tuple(await self.comcam.take_bias(self.config.n_bias))
+        exposures = tuple(await self.camera.take_bias(self.config.n_bias))
 
         if checkpoint:
             # Bias IDs
             await self.checkpoint(f"Biases taken: {exposures}")
 
         # did the images get archived and are they available to the butler?
-        val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
+        val = await self.camera.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
 
         if checkpoint:
             await self.checkpoint(f"Biases in ccarchiver: {val}")
@@ -113,7 +110,7 @@ class MakeComCamBias(BaseMakeBias):
         max_counter = 5
         counter = 0
         while obs_id != exposures[-1]:
-            val = await self.comcam.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
+            val = await self.camera.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
             obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
             if counter == max_counter:
                 self.log.info("Warning: last image not found in archiver yet")

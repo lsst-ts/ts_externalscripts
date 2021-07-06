@@ -43,8 +43,12 @@ class MakeLatissBias(BaseMakeBias):
             descr="This class takes biases with Auxtel-LATISS and constructs "
                   "a master bias calling the bias pipetask via OCPS.",
         )
-        self.latiss = LATISS(domain=self.domain, log=self.log)
+        self._latiss = LATISS(domain=self.domain, log=self.log)
         self.ocps = salobj.Remote(domain=self.domain, name="OCPS")
+
+    @property
+    def camera(self):
+        return self._latiss
 
     @classmethod
     def get_schema(cls):
@@ -83,18 +87,12 @@ class MakeLatissBias(BaseMakeBias):
 
         self.config = config
 
-    def set_metadata(self, metadata):
-        """Set estimated duration of the script.
-        """
-        # Temporary number
-        metadata.duration = 10
-
     async def arun(self, checkpoint=False):
 
         # Take config.n_biases biases, and return a list of IDs
         if checkpoint:
             await self.checkpoint(f"Taking {self.config.n_bias} biases")
-        exposures = tuple(await self.latiss.take_bias(self.config.n_bias))
+        exposures = tuple(await self.camera.take_bias(self.config.n_bias))
 
         if checkpoint:
             # Bias IDs

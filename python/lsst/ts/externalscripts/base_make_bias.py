@@ -41,6 +41,11 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         # See DM-30483
         self.estimated_process_time = 45
 
+    @property
+    @abc.abstractmethod
+    def camera(self):
+        raise NotImplementedError()
+
     @classmethod
     def get_schema(cls):
         schema = """
