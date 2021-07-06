@@ -37,6 +37,9 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
 
     def __init__(self, index, descr):
         super().__init__(index=index, descr=descr)
+        # cpCombine + ISR per image with -j 1 at the summit [sec]
+        # See DM-30483
+        self.estimated_process_time = 45
 
     @classmethod
     def get_schema(cls):
@@ -99,8 +102,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
     def set_metadata(self, metadata):
         """Set estimated duration of the script.
         """
-        # Temporary number
-        metadata.duration = 10
+        metadata.duration = self.config.n_bias*(self.camera.read_out_time + self.estimated_process_time)
 
     @abc.abstractmethod
     async def arun(self, checkpoint=False):
