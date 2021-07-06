@@ -36,7 +36,7 @@ class TestMakeComCamBias(
     async def basic_make_script(self, index):
         logger.debug("Starting basic_make_script")
         self.script = MakeComCamBias(index=index)
-        
+
         logger.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
         return (self.script,)
@@ -67,6 +67,7 @@ class TestMakeComCamBias(
         script_path = scripts_dir / "maintel" / "make_comcam_bias.py"
         logger.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
+
 
 if __name__ == "__main__":
     unittest.main()
