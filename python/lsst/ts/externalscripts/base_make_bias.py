@@ -40,6 +40,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         # cpCombine + ISR per image with -j 1 at the summit [sec]
         # See DM-30483
         self.estimated_process_time = 45
+        self.ocps = salobj.Remote(domain=self.domain, name="OCPS")
 
     @property
     @abc.abstractmethod

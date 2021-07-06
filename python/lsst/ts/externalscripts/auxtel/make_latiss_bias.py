@@ -44,7 +44,6 @@ class MakeLatissBias(BaseMakeBias):
                   "a master bias calling the bias pipetask via OCPS.",
         )
         self._latiss = LATISS(domain=self.domain, log=self.log)
-        self.ocps = salobj.Remote(domain=self.domain, name="OCPS")
 
     @property
     def camera(self):
