@@ -22,6 +22,8 @@ __all__ = ["BaseMakeBias"]
 
 import yaml
 import abc
+import json
+import os
 
 from lsst.ts import salobj
 
@@ -45,6 +47,18 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def camera(self):
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
+    def instrument_name(self):
+        """String with instrument name for pipeline task"""
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
+    def image_in_oods(self):
+        """Archiver"""
         raise NotImplementedError()
 
     @classmethod
@@ -101,6 +115,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.log.debug(
             f"n_bias: {config.n_bias}, detectors: {config.detectors}, "
+            f"instrument: {self.instrument_name} "
         )
 
         self.config = config
@@ -110,9 +125,87 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         metadata.duration = self.config.n_bias*(self.camera.read_out_time + self.estimated_process_time)
 
-    @abc.abstractmethod
     async def arun(self, checkpoint=False):
-        raise NotImplementedError
+
+        # Take config.n_biases biases, and return a list of IDs
+        if checkpoint:
+            await self.checkpoint(f"Taking {self.config.n_bias} biases")
+        exposures = tuple(await self.camera.take_bias(self.config.n_bias))
+
+        if checkpoint:
+            # Bias IDs
+            await self.checkpoint(f"Biases taken: {exposures}")
+
+        # did the images get archived and are they available to the butler?
+        val = await self.image_in_oods.aget(timeout=20)
+
+        if checkpoint:
+            await self.checkpoint(f"Biases in archiver: {val}")
+
+        # Check　if val corresponds to last image
+        obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
+
+        # if they are not the same, wait for a couple of more events
+        max_counter = 5
+        counter = 0
+        while obs_id != exposures[-1]:
+            val = await self.camera.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
+            obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
+            if counter == max_counter:
+                self.log.info("Warning: last image not found in archiver yet")
+                break
+            counter += 1
+
+        self.ocps.evt_job_result.flush()
+
+        # Now run the bias pipetask via the OCPS
+        ack = await self.ocps.cmd_execute.set_start(
+            wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/cpBias.yaml", version="",
+            config=f"-j 8 -i {self.config.input_collections} --register-dataset-types -c isr:doDefect=False",
+            data_query=f"instrument={self.instrument_name} AND"
+                       f" detector IN {self.config.detectors} AND exposure IN {exposures}"
+        )
+        if ack.ack != salobj.SalRetCode.CMD_ACK:
+            ack.print_vars()
+
+        # Wait for the in-progress acknowledgement with the job identifier.
+        ack = await self.ocps.cmd_execute.next_ackcmd(ack, wait_done=False)
+        self.log.debug('Received acknowledgement of ocps command')
+
+        ack.print_vars()
+        job_id = json.loads(ack.result)["job_id"]
+
+        # Wait for the command completion acknowledgement.
+        ack = await self.ocps.cmd_execute.next_ackcmd(ack)
+        self.log.debug('Received command completion acknowledgement from ocps')
+        if ack.ack != salobj.SalRetCode.CMD_COMPLETE:
+            ack.print_vars()
+        # Wait for the job result message that matches the job id we're
+        # interested in ignoring any others (from other remotes).
+        # This obviously needs to follow the first acknowledgement
+        # (that returns the, job id) but might as well wait for the second.
+        while True:
+            msg = await self.ocps.evt_job_result.next(flush=False, timeout=600)
+            response = json.loads(msg.result)
+            if response["jobId"] == job_id:
+                break
+
+        self.log.info(f"Final status: {response}")
+
+        # Certify the bias, if the job completed successfully
+        if not response['phase'] == 'completed':
+            raise RuntimeError(f"Bias creation not completed successfully: {response['phase']}")
+        else:
+            self.log.info("Certifying bias")
+            # certify the bias
+            REPO = self.config.repo
+            # This is the output collection where the OCPS puts the biases
+            BIAS_DIR = f"u/ocps/{job_id}"
+            CAL_DIR = self.config.calib_dir
+            cmd = f"butler certify-calibrations {REPO} {BIAS_DIR} {CAL_DIR} "
+            "--begin-date 1980-01-01 --end-date 2050-01-01 bias"
+            os.system(cmd)
+            self.log.info("Finished running command for certifying bias.")
 
     async def run(self):
         """"""
