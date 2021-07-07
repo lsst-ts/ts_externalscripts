@@ -64,7 +64,7 @@ class MakeComCamBias(BaseMakeBias):
                 externalscripts/maintel/make_comcam_bias.py
         title: MakeComCamBias v1
         description: Configuration for making a LSSTComCam master bias SAL Script.
-        type: object 
+        type: object
         """
         schema_dict = yaml.safe_load(schema)
         schema_dict["properties"] = {}
