@@ -54,7 +54,7 @@ class MakeLatissBias(BaseMakeBias):
     @property
     def image_in_oods(self):
         """Archiver"""
-        return self.comcam.rem.atarchiver.evt_imageInOODS
+        return self.camera.rem.atarchiver.evt_imageInOODS
 
     @classmethod
     def get_schema(cls):

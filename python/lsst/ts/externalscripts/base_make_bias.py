@@ -162,7 +162,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/cpBias.yaml", version="",
             config=f"-j 8 -i {self.config.input_collections} --register-dataset-types -c isr:doDefect=False",
-            data_query=f"instrument={self.instrument_name} AND"
+            data_query=f"instrument='{self.instrument_name}' AND"
                        f" detector IN {self.config.detectors} AND exposure IN {exposures}"
         )
         if ack.ack != salobj.SalRetCode.CMD_ACK:

@@ -54,7 +54,7 @@ class MakeComCamBias(BaseMakeBias):
     @property
     def image_in_oods(self):
         """Archiver"""
-        return self.comcam.rem.ccarchiver.evt_imageInOODS
+        return self.camera.rem.ccarchiver.evt_imageInOODS
 
     @classmethod
     def get_schema(cls):
