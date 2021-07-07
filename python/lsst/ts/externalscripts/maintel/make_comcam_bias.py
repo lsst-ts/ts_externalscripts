@@ -21,7 +21,6 @@
 __all__ = ["MakeComCamBias"]
 
 import yaml
-import abc
 
 from lsst.ts.observatory.control.maintel.comcam import ComCam
 from ..base_make_bias import BaseMakeBias
@@ -48,13 +47,11 @@ class MakeComCamBias(BaseMakeBias):
         return self._comcam
 
     @property
-    @abc.abstractmethod
-    def instrument(self):
+    def instrument_name(self):
         """String with instrument name for pipeline task"""
         return self._instrument_name
 
     @property
-    @abc.abstractmethod
     def image_in_oods(self):
         """Archiver"""
         return self.comcam.rem.ccarchiver.evt_imageInOODS

@@ -21,7 +21,6 @@
 __all__ = ["MakeLatissBias"]
 
 import yaml
-import abc
 
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
 from ..base_make_bias import BaseMakeBias
@@ -48,13 +47,11 @@ class MakeLatissBias(BaseMakeBias):
         return self._latiss
 
     @property
-    @abc.abstractmethod
     def instrument_name(self):
         """String with instrument name for pipeline task"""
         return self._instrument_name
 
     @property
-    @abc.abstractmethod
     def image_in_oods(self):
         """Archiver"""
         return self.comcam.rem.atarchiver.evt_imageInOODS
