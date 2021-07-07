@@ -149,7 +149,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         max_counter = 5
         counter = 0
         while obs_id != exposures[-1]:
-            val = await self.camera.rem.ccarchiver.evt_imageInOODS.aget(timeout=20)
+            val = await self.image_in_oods.aget(timeout=20)
             obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
             if counter == max_counter:
                 self.log.info("Warning: last image not found in archiver yet")
