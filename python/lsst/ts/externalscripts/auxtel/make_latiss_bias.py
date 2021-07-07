@@ -67,7 +67,7 @@ class MakeLatissBias(BaseMakeBias):
         type: object
         """
         schema_dict = yaml.safe_load(schema)
-
+        schema_dict["properties"] = {}
         base_schema_dict = super(MakeLatissBias, cls).get_schema()
 
         for prop in base_schema_dict["properties"]:

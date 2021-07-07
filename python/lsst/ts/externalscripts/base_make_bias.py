@@ -65,13 +65,11 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
     def get_schema(cls):
         schema = """
         $schema: http://json-schema.org/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/externalscripts/>-
-        maintel/make_comcam_bias.py
+        $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/\
+            externalscripts/maintel/make_comcam_bias.py
         title: BaseMakeBias v1
         description: Configuration for BaseMakeBias.
         type: object
-        additionalProperties: false
-        required: [input_collections, calib_dir, repo]
         properties:
             n_bias:
                 type: integer
@@ -96,9 +94,11 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
 
             repo:
                 type: string
-                descriptor: Butler repository. /repo/main is the default at NCSA; it migth be different at the
-                summit.
+                descriptor: Butler repository. /repo/main is the default at NCSA;\
+                    it migth be different at the summit.
                 default: /repo/main
+        additionalProperties: false
+        required: [input_collections, calib_dir, repo]
         """
         return yaml.safe_load(schema)
 
