@@ -145,16 +145,17 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         for exp in exposures:
             obs_day = f"{exp}"[:8]
             temp = int(f"{exp}"[8:])
+            # See example of ack.obsid below
             seq_num = f"{temp:06}"
             obs_id = obs_day + "_" + seq_num
             exposure_set.add(obs_id)
-        #exposure_set = {f"{exp}"[:8]+"_"+f"{exp}"[8:] for exp in exposures}
+
         images_remaining = len(exposure_set)*n_detectors
         max_counter = 1000
         counter = 0
         while images_remaining > 0:
             ack = await self.image_in_oods.next(flush=False, timeout=600)
-            # ack.obsid of the form, e.g., CC_O_20210708_000019
+            # ack.obsid is of the form, e.g., CC_O_20210708_000019
             if f"{ack.obsid[-15:]}" in exposure_set:
                 images_remaining -= 1
                 counter = 0
@@ -169,7 +170,9 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Now run the bias pipetask via the OCPS
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/cpBias.yaml", version="",
-            config=f"-j 8 -i {self.config.input_collections} --register-dataset-types -c isr:doDefect=False",
+            config=f"-j 8 -i {self.config.input_collections} --register-dataset-types -c isr:doDefect=False "
+                   f"-c isr:doLinearize=False -c isr:doCrosstalk=False "
+                   f"-c isr:overscan.fitType='MEDIAN_PER_ROW'",
             data_query=f"instrument='{self.instrument_name}' AND"
                        f" detector IN {self.config.detectors} AND exposure IN {exposures}"
         )
