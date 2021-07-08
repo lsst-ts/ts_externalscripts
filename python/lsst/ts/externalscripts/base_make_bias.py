@@ -130,6 +130,8 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Take config.n_biases biases, and return a list of IDs
         if checkpoint:
             await self.checkpoint(f"Taking {self.config.n_bias} biases")
+
+        self.image_in_oods.flush()
         exposures = tuple(await self.camera.take_bias(self.config.n_bias))
 
         if checkpoint:
@@ -137,22 +139,28 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
             await self.checkpoint(f"Biases taken: {exposures}")
 
         # did the images get archived and are they available to the butler?
-        val = await self.image_in_oods.aget(timeout=20)
-
-        if checkpoint:
-            await self.checkpoint(f"Biases in archiver: {val}")
-
-        # Check　if val corresponds to last image
-        obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
-
-        # if they are not the same, wait for a couple of more events
-        max_counter = 5
+        n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(','))))
+        # exps are of the form, e.g., 2021070800019
+        exposure_set = set()
+        for exp in exposures:
+            obs_day = f"{exp}"[:8]
+            temp = int(f"{exp}"[8:])
+            seq_num = f"{temp:06}"
+            obs_id = obs_day + "_" + seq_num
+            exposure_set.add(obs_id)
+        #exposure_set = {f"{exp}"[:8]+"_"+f"{exp}"[8:] for exp in exposures}
+        images_remaining = len(exposure_set)*n_detectors
+        max_counter = 1000
         counter = 0
-        while obs_id != exposures[-1]:
-            val = await self.image_in_oods.aget(timeout=20)
-            obs_id = int(val.obsid.split('_')[-2] + val.obsid.split('_')[-1])
+        while images_remaining > 0:
+            ack = await self.image_in_oods.next(flush=False, timeout=600)
+            # ack.obsid of the form, e.g., CC_O_20210708_000019
+            if f"{ack.obsid[-15:]}" in exposure_set:
+                images_remaining -= 1
+                counter = 0
             if counter == max_counter:
-                self.log.info("Warning: last image not found in archiver yet")
+                self.log.info(f"WARN: Maximum number of loops ({max_counter}) reached while waiting "
+                              "for image in archiver")
                 break
             counter += 1
 
