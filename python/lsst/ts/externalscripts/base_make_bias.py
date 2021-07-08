@@ -207,16 +207,20 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         if not response['phase'] == 'completed':
             raise RuntimeError(f"Bias creation not completed successfully: {response['phase']}")
         else:
-            self.log.info("Certifying bias")
+            self.log.info("Certifying bias: ")
             # certify the bias
             REPO = self.config.repo
             # This is the output collection where the OCPS puts the biases
             BIAS_DIR = f"u/ocps/{job_id}"
             CAL_DIR = self.config.calib_dir
-            cmd = f"butler certify-calibrations {REPO} {BIAS_DIR} {CAL_DIR} "
-            "--begin-date 1980-01-01 --end-date 2050-01-01 bias"
-            os.system(cmd)
-            self.log.info("Finished running command for certifying bias.")
+            cmd = f"butler certify-calibrations {REPO} {BIAS_DIR} {CAL_DIR} --begin-date "
+            "1980-01-01 --end-date 2050-01-01 bias"
+            self.log.info(cmd)
+            try:
+                os.system(cmd)
+                self.log.info("Finished running command for certifying bias.")
+            except RuntimeError:
+                self.log.info("Error running command for certifying bias.")
 
     async def run(self):
         """"""
