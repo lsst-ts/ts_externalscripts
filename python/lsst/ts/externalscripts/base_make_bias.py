@@ -220,8 +220,8 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
             # This is the output collection where the OCPS puts the biases
             BIAS_DIR = f"u/ocps/{job_id}"
             CAL_DIR = self.config.calib_dir
-            cmd = f"butler certify-calibrations {REPO} {BIAS_DIR} {CAL_DIR} --begin-date "
-            "1980-01-01 --end-date 2050-01-01 bias"
+            cmd = (f"butler certify-calibrations {REPO} {BIAS_DIR} {CAL_DIR} " 
+                    "--begin-date 1980-01-01 --end-date 2050-01-01 bias")
             self.log.info(cmd)
             try:
                 os.system(cmd)
