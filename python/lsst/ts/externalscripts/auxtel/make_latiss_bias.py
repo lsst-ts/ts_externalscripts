@@ -40,11 +40,10 @@ class MakeLatissBias(BaseMakeBias):
                   "a master bias calling the bias pipetask via OCPS.",
         )
         self._latiss = LATISS(domain=self.domain, log=self.log)
-        self._instrument_name = 'LATISS'
 
     @property
     def camera(self):
-        return self._latiss
+        return "LATISS"
 
     @property
     def instrument_name(self):

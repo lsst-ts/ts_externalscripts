@@ -40,7 +40,6 @@ class MakeComCamBias(BaseMakeBias):
                   "a master bias calling the bias pipetask via OCPS.",
         )
         self._comcam = ComCam(domain=self.domain, log=self.log)
-        self._instrument_name = 'LSSTComCam'
 
     @property
     def camera(self):
@@ -49,7 +48,7 @@ class MakeComCamBias(BaseMakeBias):
     @property
     def instrument_name(self):
         """String with instrument name for pipeline task"""
-        return self._instrument_name
+        return "LSSTComCam"
 
     @property
     def image_in_oods(self):
