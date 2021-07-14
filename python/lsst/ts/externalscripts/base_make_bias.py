@@ -172,8 +172,8 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
                 images_remaining -= 1
                 counter = 0
             if counter == max_counter:
-                self.log.info(f"WARN: Maximum number of loops ({max_counter}) reached while waiting "
-                              "for image in archiver")
+                self.log.warning(f"Maximum number of loops ({max_counter}) reached while waiting "
+                                 "for image in archiver")
                 break
             counter += 1
 
