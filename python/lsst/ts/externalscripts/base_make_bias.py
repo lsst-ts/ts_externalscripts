@@ -104,6 +104,11 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
                 descriptor: Maximum number of loops to wait for confirmation that \
                     images taken were archived and available to butler.
 
+            oods_timeout:
+                type: integer
+                default 600
+                descriptor: Timeout value, in seconds, for OODS.
+
         additionalProperties: false
         required: [input_collections, calib_dir, repo]
         """
@@ -161,7 +166,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         max_counter = self.config.max_counter_archiver_check
         counter = 0
         while images_remaining > 0:
-            ack = await self.image_in_oods.next(flush=False, timeout=600)
+            ack = await self.image_in_oods.next(flush=False, timeout=self.config.oods_timeout)
             # ack.obsid is of the form, e.g., CC_O_20210708_000019
             if f"{ack.obsid[-15:]}" in exposure_set:
                 images_remaining -= 1
@@ -203,7 +208,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         # This obviously needs to follow the first acknowledgement
         # (that returns the, job id) but might as well wait for the second.
         while True:
-            msg = await self.ocps.evt_job_result.next(flush=False, timeout=600)
+            msg = await self.ocps.evt_job_result.next(flush=False, timeout=self.config.oods_timeout)
             response = json.loads(msg.result)
             if response["jobId"] == job_id:
                 break
@@ -220,8 +225,8 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
             # This is the output collection where the OCPS puts the biases
             BIAS_DIR = f"u/ocps/{job_id}"
             CAL_DIR = self.config.calib_dir
-            cmd = (f"butler certify-calibrations {REPO} {BIAS_DIR} {CAL_DIR} " 
-                    "--begin-date 1980-01-01 --end-date 2050-01-01 bias")
+            cmd = (f"butler certify-calibrations {REPO} {BIAS_DIR} {CAL_DIR} "
+                   "--begin-date 1980-01-01 --end-date 2050-01-01 bias")
             self.log.info(cmd)
             try:
                 os.system(cmd)
