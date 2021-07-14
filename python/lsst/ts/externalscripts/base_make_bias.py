@@ -97,6 +97,13 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
                 descriptor: Butler repository. /repo/main is the default at NCSA;\
                     it migth be different at the summit.
                 default: /repo/main
+
+            max_counter_archiver_check:
+                type: integer
+                default: 1000
+                descriptor: Maximum number of loops to wait for confirmation that \
+                    images taken were archived and available to butler.
+
         additionalProperties: false
         required: [input_collections, calib_dir, repo]
         """
@@ -151,7 +158,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
             exposure_set.add(obs_id)
 
         images_remaining = len(exposure_set)*n_detectors
-        max_counter = 1000
+        max_counter = self.config.max_counter_archiver_check
         counter = 0
         while images_remaining > 0:
             ack = await self.image_in_oods.next(flush=False, timeout=600)
