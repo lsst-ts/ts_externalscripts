@@ -31,6 +31,11 @@ from lsst.ts import salobj
 class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
     """ Base class for taking biases and construct a master bias.
 
+    The derived scripts will 1) take biases with LSSTComCam or
+    AuxTel-LATISS, 2) construct a master bias with the bias
+    pipetask via OCPS, 3) verify the bias with the verification
+    pipetask via OCPS, and 4) certify the bias.
+
     Parameters
     ----------
     index : `int`
