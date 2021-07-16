@@ -50,18 +50,20 @@ class TestMakeLatissBias(
             n_bias = 2
             detectors = "(0)"
             input_collections = "LATISS/calib"
-            calib_dir = "LATISS/calib/u/plazas/TEST"
+            calib_collection = "LATISS/calib/u/plazas/TEST"
             await self.configure_script(
                 n_bias=n_bias,
                 detectors=detectors,
-                input_collections=input_collections,
-                calib_dir=calib_dir,
+                input_collections_bias=input_collections,
+                input_collections_verify=input_collections,
+                calib_collection=calib_collection,
             )
 
             self.assertEqual(self.script.config.n_bias, n_bias)
             self.assertEqual(self.script.config.detectors, detectors)
-            self.assertEqual(self.script.config.input_collections, input_collections)
-            self.assertEqual(self.script.config.calib_dir, calib_dir)
+            self.assertEqual(self.script.config.input_collections_bias, input_collections)
+            self.assertEqual(self.script.config.input_collections_verify, input_collections)
+            self.assertEqual(self.script.config.calib_collection, calib_collection)
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
