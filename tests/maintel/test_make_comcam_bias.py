@@ -49,20 +49,18 @@ class TestMakeComCamBias(
             n_bias = 2
             detectors = "(0, 1, 2, 3, 4, 5, 6, 7, 8)"
             input_collections = "LSSTComCam/calib"
-            calib_collection = "LSSTComCam/calib/u/plazas/TEST"
+            calib_dir = "LSSTComCam/calib/u/plazas/TEST"
             await self.configure_script(
                 n_bias=n_bias,
                 detectors=detectors,
-                input_collections_bias=input_collections,
-                input_collections_verify=input_collections,
-                calib_collection=calib_collection,
+                input_collections=input_collections,
+                calib_dir=calib_dir,
             )
 
             self.assertEqual(self.script.config.n_bias, n_bias)
             self.assertEqual(self.script.config.detectors, detectors)
-            self.assertEqual(self.script.config.input_collections_bias, input_collections)
-            self.assertEqual(self.script.config.input_collections_verify, input_collections)
-            self.assertEqual(self.script.config.calib_collection, calib_collection)
+            self.assertEqual(self.script.config.input_collections, input_collections)
+            self.assertEqual(self.script.config.calib_dir, calib_dir)
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
