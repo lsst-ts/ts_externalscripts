@@ -78,10 +78,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
 
             detectors:
                 type: string
-                items:
-                    type: integer
-                    minItems: 1
-                default: (0)
+                default: "(0)"
                 descriptor: Detector IDs
 
             input_collections_bias:
@@ -107,14 +104,14 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
 
             certify_calib_begin_date:
                 type: string
-                default: 2021-01-01
-                descriptor: ISO-8601 datetime (TAI) of the beginning of the\
+                default: "1950-01-01"
+                descriptor: ISO-8601 datetime (TAI) of the beginning of the \
                     validity range for the certified calibrations.
 
-           certify_calib_end_date:
+            certify_calib_end_date:
                 type: string
-                default: 2050-01-01
-                descriptor: ISO-8601 datetime (TAI) of the end of the\
+                default: "2050-01-01"
+                descriptor: ISO-8601 datetime (TAI) of the end of the \
                     validity range for the certified calibrations.
 
             max_counter_archiver_check:
