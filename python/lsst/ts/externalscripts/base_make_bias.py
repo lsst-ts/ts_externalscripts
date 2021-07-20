@@ -78,25 +78,37 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
 
             detectors:
                 type: string
-                items:
-                    type: integer
-                    minItems: 1
-                default: (0)
+                default: "(0)"
                 descriptor: Detector IDs
 
-            input_collections:
+            input_collections_bias:
                 type: string
-                descriptor: Input collections to pass to the bias pipetask.
+                descriptor: Comma-separarted input collections to pass to the bias pipetask.
 
-            calib_dir:
+            calib_collection:
                 type: string
-                descriptor: path to the calib directory for the bias when certifying it.
+                descriptor: Calibration collection where master calibrations will be certified into.
 
             repo:
                 type: string
-                descriptor: Butler repository. /repo/main is the default at NCSA;\
-                    it migth be different at the summit.
-                default: /repo/main
+                descriptor: Butler repository.
+
+            n_processes:
+                type: integer
+                default: 8
+                descriptor: Number of processes that the pipetasks will use.
+
+            certify_calib_begin_date:
+                type: string
+                default: "1950-01-01"
+                descriptor: ISO-8601 datetime (TAI) of the beginning of the \
+                    validity range for the certified calibrations.
+
+            certify_calib_end_date:
+                type: string
+                default: "2050-01-01"
+                descriptor: ISO-8601 datetime (TAI) of the end of the \
+                    validity range for the certified calibrations.
 
             max_counter_archiver_check:
                 type: integer
@@ -110,7 +122,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
                 descriptor: Timeout value, in seconds, for OODS.
 
         additionalProperties: false
-        required: [input_collections, calib_dir, repo]
+        required: [input_collections_bias, calib_collection, repo]
         """
         return yaml.safe_load(schema)
 
@@ -182,7 +194,8 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Now run the bias pipetask via the OCPS
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/cpBias.yaml", version="",
-            config=f"-j 8 -i {self.config.input_collections} --register-dataset-types -c isr:doDefect=False "
+            config=f"-j {self.config.n_processes} -i {self.config.input_collections_bias} "
+                   "--register-dataset-types -c isr:doDefect=False "
                    f"-c isr:doLinearize=False -c isr:doCrosstalk=False "
                    f"-c isr:overscan.fitType='MEDIAN_PER_ROW'",
             data_query=f"instrument='{self.instrument_name}' AND"
@@ -193,14 +206,14 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # Wait for the in-progress acknowledgement with the job identifier.
         ack = await self.ocps.cmd_execute.next_ackcmd(ack, wait_done=False)
-        self.log.debug('Received acknowledgement of ocps command')
+        self.log.debug('Received acknowledgement of ocps command for making bias.')
 
         ack.print_vars()
-        job_id = json.loads(ack.result)["job_id"]
+        job_id_bias = json.loads(ack.result)["job_id"]
 
         # Wait for the command completion acknowledgement.
         ack = await self.ocps.cmd_execute.next_ackcmd(ack)
-        self.log.debug('Received command completion acknowledgement from ocps')
+        self.log.debug('Received command completion acknowledgement from ocps.')
         if ack.ack != salobj.SalRetCode.CMD_COMPLETE:
             ack.print_vars()
         # Wait for the job result message that matches the job id we're
@@ -209,24 +222,25 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
         # (that returns the, job id) but might as well wait for the second.
         while True:
             msg = await self.ocps.evt_job_result.next(flush=False, timeout=self.config.oods_timeout)
-            response = json.loads(msg.result)
-            if response["jobId"] == job_id:
+            response_bias = json.loads(msg.result)
+            if response_bias["jobId"] == job_id_bias:
                 break
 
-        self.log.info(f"Final status: {response}")
+        self.log.info(f"Final status (bias command): {response_bias}")
 
         # Certify the bias, if the job completed successfully
-        if not response['phase'] == 'completed':
-            raise RuntimeError(f"Bias creation not completed successfully: {response['phase']}")
+        if not response_bias['phase'] == 'completed':
+            raise RuntimeError(f"Bias creation not completed successfully: {response_bias['phase']}")
         else:
             self.log.info("Certifying bias: ")
             # certify the bias
             REPO = self.config.repo
             # This is the output collection where the OCPS puts the biases
-            BIAS_DIR = f"u/ocps/{job_id}"
-            CAL_DIR = self.config.calib_dir
-            cmd = (f"butler certify-calibrations {REPO} {BIAS_DIR} {CAL_DIR} "
-                   "--begin-date 1980-01-01 --end-date 2050-01-01 bias")
+            BIAS_COL = f"u/ocps/{job_id_bias}"
+            CAL_COL = self.config.calib_collection
+            cmd = (f"butler certify-calibrations {REPO} {BIAS_COL} {CAL_COL} "
+                   f"--begin-date {self.config.certify_calib_begin_date} "
+                   f"--end-date {self.config.certify_calib_end_date} bias")
             self.log.info(cmd)
 
             process = await asyncio.create_subprocess_shell(cmd)
