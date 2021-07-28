@@ -126,7 +126,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
                 descriptor: Timeout value, in seconds, for OODS.
 
         additionalProperties: false
-        required: [input_collections_bias, calib_collection, repo]
+        required: [input_collections_bias, input_collections_verify, calib_collection, repo]
         """
         return yaml.safe_load(schema)
 
