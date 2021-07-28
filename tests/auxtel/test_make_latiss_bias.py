@@ -55,12 +55,14 @@ class TestMakeLatissBias(
                 n_bias=n_bias,
                 detectors=detectors,
                 input_collections_bias=input_collections,
+                input_collections_verify=input_collections,
                 calib_collection=calib_collection,
             )
 
             self.assertEqual(self.script.config.n_bias, n_bias)
             self.assertEqual(self.script.config.detectors, detectors)
             self.assertEqual(self.script.config.input_collections_bias, input_collections)
+            self.assertEqual(self.script.config.input_collections_verify, input_collections)
             self.assertEqual(self.script.config.calib_collection, calib_collection)
 
     async def test_executable(self):
