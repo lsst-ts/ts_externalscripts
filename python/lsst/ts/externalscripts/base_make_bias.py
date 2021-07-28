@@ -85,6 +85,10 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: string
                 descriptor: Comma-separarted input collections to pass to the bias pipetask.
 
+            input_collections_verify:
+                type: string
+                descriptor: Comma-separarted input collections to pass to the verify pipetask.
+
             calib_collection:
                 type: string
                 descriptor: Calibration collection where master calibrations will be certified into.
@@ -228,15 +232,51 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.log.info(f"Final status (bias command): {response_bias}")
 
-        # Certify the bias, if the job completed successfully
+        # Verify the bias, if the bias generation completed successfully
         if not response_bias['phase'] == 'completed':
-            raise RuntimeError(f"Bias creation not completed successfully: {response_bias['phase']}")
+            raise RuntimeError(f"Bias generation not completed successfully: {response_bias['phase']}"
+                               "Bias verification could not be performed.")
         else:
-            self.log.info("Certifying bias: ")
+            # Verify master bias
+            ack = await self.ocps.cmd_execute.set_start(
+                wait_done=False, pipeline="${CP_VERIFY_DIR}/pipelines/VerifyBias.yaml", version="",
+                config=f"-j {self.config.n_processes} -i {self.config.input_collections_verify} "
+                       f"-i u/ocps/{job_id_bias} "
+                       "--register-dataset-types -c verifyBiasApply:doDefect=False ",
+                data_query=f"instrument='{self.instrument_name}' AND"
+                           f" detector IN {self.config.detectors} AND exposure IN {exposures}"
+            )
+            if ack.ack != salobj.SalRetCode.CMD_ACK:
+                ack.print_vars()
+
+            ack = await self.ocps.cmd_execute.next_ackcmd(ack, wait_done=False)
+            self.log.debug('Received acknowledgement of ocps command for bias verification.')
+
+            ack.print_vars()
+            job_id_verify = json.loads(ack.result)["job_id"]
+
+            ack = await self.ocps.cmd_execute.next_ackcmd(ack)
+            self.log.debug('Received command completion acknowledgement from ocps')
+            if ack.ack != salobj.SalRetCode.CMD_COMPLETE:
+                ack.print_vars()
+
+            while True:
+                msg = await self.ocps.evt_job_result.next(flush=False, timeout=self.config.oods_timeout)
+                response_verify = json.loads(msg.result)
+                if response_verify["jobId"] == job_id_verify:
+                    break
+
+            self.log.info(f"Final status from bias verification: {response_verify}")
+
+        # Certify the bias, if the job completed successfully
+        if not response_verify['phase'] == 'completed':
+            raise RuntimeError(f"Bias verification not completed successfully: {response_verify['phase']}")
+        else:
+            self.log.info("Verifying bias: ")
             # certify the bias
             REPO = self.config.repo
             # This is the output collection where the OCPS puts the biases
-            BIAS_COL = f"u/ocps/{job_id_bias}"
+            BIAS_COL = f"u/ocps/{job_id_verify}"
             CAL_COL = self.config.calib_collection
             cmd = (f"butler certify-calibrations {REPO} {BIAS_COL} {CAL_COL} "
                    f"--begin-date {self.config.certify_calib_begin_date} "
@@ -249,7 +289,7 @@ class BaseMakeBias(salobj.BaseScript, metaclass=abc.ABCMeta):
             if process.returncode != 0:
                 self.log.debug(stdout)
                 self.log.error(stderr)
-                raise RuntimeError("Error running command for certifying bias.")
+                raise RuntimeError("Error running command for verifying bias.")
 
     async def run(self):
         """"""
