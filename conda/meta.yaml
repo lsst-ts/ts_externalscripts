@@ -19,26 +19,6 @@ build:
     - TS_CONFIG_OCS_DIR
     - TS_CONFIG_ATTCS_DIR
 
-test:
-  requires:
-    - ts-conda-build =0.3
-    - scipy
-    - astroquery
-    - ts-idl {{ idl_version }}
-    - ts-salobj {{ salobj_version }}
-    - ts-atdome
-    - ts-atmcs-simulator
-    - ts-atdometrajectory
-    - ts-observatory-control
-    - ts-standardscripts
-  source_files:
-    - python
-    - tests
-    - scripts
-    - setup.cfg
-  commands:
-    - py.test
-
 requirements:
   host:
     - python
