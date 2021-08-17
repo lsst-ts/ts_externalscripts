@@ -1,12 +1,39 @@
 pipeline {
+
     agent any
+
+    options {
+      disableConcurrentBuilds()
+      skipDefaultCheckout()
+    }
+
     environment {
-        network_name = "n_${BUILD_ID}_${JENKINS_NODE_COOKIE}"
-        container_name = "c_${BUILD_ID}_${JENKINS_NODE_COOKIE}"
-        work_branches = "${GIT_BRANCH} ${CHANGE_BRANCH} develop"
+        network_name = "n_${env.BUILD_ID}_${env.JENKINS_NODE_COOKIE}"
+        container_name = "c_${env.BUILD_ID}_${env.JENKINS_NODE_COOKIE}"
+        work_branches = "${env.GIT_BRANCH} ${env.CHANGE_BRANCH} develop"
     }
 
     stages {
+        stage ('Cloning Repos') {
+            steps {
+                dir(env.WORKSPACE + '/ci/ts_externalscripts') {
+                    checkout scm
+                }
+                dir(env.WORKSPACE + '/ci/Spectractor') {
+                    git branch: 'master', url: 'https://github.com/lsst-dm/Spectractor.git'
+                }
+                dir(env.WORKSPACE + '/ci/atmospec') {
+                    git branch: 'master', url: 'https://github.com/lsst-dm/atmospec.git'
+                }
+                dir(env.WORKSPACE + '/ci/rapid_analysis') {
+                    git branch: 'master', url: 'https://github.com/lsst-sitcom/rapid_analysis.git'
+                }
+                dir(env.WORKSPACE + '/ci/cwfs') {
+                    git branch: 'master', url: 'https://github.com/bxin/cwfs.git'
+                }
+            }
+        }
+
         stage("Pulling docker image") {
             steps {
                 script {
@@ -139,20 +166,38 @@ pipeline {
                 }
             }
         }
-//        stage("Checkout rapid_analysis") {
-//            steps {
-//                script {
-//                    sh """
-//                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/rapid_analysis && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-//                    """
-//                }
-//            }
-//        }
+       stage("setup Spectractor") {
+           steps {
+               script {
+                   sh """
+                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/Spectractor && pip install -e . || echo FAILED to install Spectractor. Continuing...\"
+                   """
+               }
+           }
+       }
+       stage("setup atmospec") {
+           steps {
+               script {
+                   sh """
+                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/atmospec && eups declare -r . -t saluser && setup atmospec -t saluser && scons || echo FAILED to build atmospec. Continuing...\"
+                   """
+               }
+           }
+       }
+       stage("setup rapid_analysis") {
+           steps {
+               script {
+                   sh """
+                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/rapid_analysis && eups declare -r . -t saluser && setup atmospec -t saluser && setup rapid_analysis -t saluser && scons || echo FAILED to build rapid_analysis. Continuing...\"
+                   """
+               }
+           }
+       }
         stage("Build IDL files") {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && make_idl_files.py --all\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && make_idl_files.py --all || echo FAILED to build IDL files.\"
                     """
                 }
             }
@@ -161,7 +206,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ && eups declare -r . -t saluser && setup ts_externalscripts -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && py.test --junitxml=tests/.tests/junit.xml\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/ts_externalscripts && eups declare -r . -t saluser && setup ts_externalscripts -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && py.test --junitxml=tests/.tests/junit.xml\"
                     """
                 }
             }
@@ -171,14 +216,14 @@ pipeline {
         always {
             // The path of xml needed by JUnit is relative to
             // the workspace.
-            junit 'tests/.tests/junit.xml'
+            junit 'ci/ts_externalscripts/tests/.tests/junit.xml'
 
             // Publish the HTML report
             publishHTML (target: [
                 allowMissing: false,
                 alwaysLinkToLastBuild: false,
                 keepAll: true,
-                reportDir: 'tests/.tests/',
+                reportDir: 'ci/ts_externalscripts/tests/.tests/',
                 reportFiles: 'index.html',
                 reportName: "Coverage Report"
               ])
