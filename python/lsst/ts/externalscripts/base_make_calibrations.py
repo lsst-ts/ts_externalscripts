@@ -27,10 +27,11 @@ import asyncio
 import collections
 
 from lsst.ts import salobj
+from lsst.ts.observatory.control import RemoteGroup
 
 
 class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
-    """ Base class for taking images,and constructing, verifying, and
+    """ Base class for taking images, and constructing, verifying, and
         certifying master calibrations.
 
     Parameters
@@ -44,11 +45,27 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # See DM-30483
         # 45 sec: Bias.
         self.estimated_process_time = 45*3
+        # OCPS Remote
         self.ocps = salobj.Remote(domain=self.domain, name="OCPS")
+        # Define the OCPS Remote Group (base class) to be able to check
+        # that the OCPS is enabled in `arun` before running the script
+        self.ocps_group = RemoteGroup(domain=self.domain, components=["OCPS"], log=self.log)
 
     @property
     @abc.abstractmethod
     def camera(self):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_instrument_configuration(self):
+        """Get instrument configuration
+
+        Returns
+        -------
+        instrument_configuration: `dict`
+            Dictionary with instrument configuration.
+        """
+
         raise NotImplementedError()
 
     @property
@@ -121,35 +138,23 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: string
                 default: "(0)"
                 descriptor: Detector IDs
-            input_collections_bias:
-                type: string
-                descriptor: Comma-separarted input collections to pass to the bias pipetask.
-            input_collections_verify_bias:
-                type: string
-                descriptor: Comma-separarted input collections to pass to the verify (bias) pipetask.
             config_options_bias:
                 type: string
                 descriptor: Options to be passed to the command-line bias pipetask. They will overwrite \
                     the values in cpBias.yaml.
                 default: "-c isr:doDefect=False -c isr:doLinearize=False -c isr:doCrosstalk=False \
                           -c isr:overscan.fitType='MEDIAN_PER_ROW'"
-            input_collections_dark:
-                type: string
-                descriptor: Comma-separarted input collections to pass to the dark pipetask.
-            input_collections_verify_dark:
-                type: string
-                descriptor: Comma-separarted input collections to pass to the verify (dark) pipetask.
             config_options_dark:
                 type: string
                 descriptor: Options to be passed to the command-line dark pipetask. They will overwrite \
                     the values in cpDark.yaml.
                 default: "-c isr:doDefect=False -c isr:doLinearize=False -c isr:doCrosstalk=False"
-            calib_collection:
+            config_options_flat:
                 type: string
-                descriptor: Calibration collection where master calibrations will be certified into.
-            repo:
-                type: string
-                descriptor: Butler repository.
+                descriptor: Options to be passed to the command-line flat pipetask. They will overwrite \
+                    the values in cpFlat.yaml.
+                default: "-c isr:doDefect=False -c isr:doLinearize=False -c isr:doCrosstalk=False \
+                          -c cpFlatMeasure:doVignette=False "
             n_processes:
                 type: integer
                 default: 8
@@ -174,8 +179,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 default: 600
                 descriptor: Timeout value, in seconds, for OODS.
         additionalProperties: false
-        required: [input_collections_bias, input_collections_verify_bias, calib_collection,\
-                   [input_collections_dark, input_collections_verify_dark, repo]
         """
         return yaml.safe_load(schema)
 
@@ -198,7 +201,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             n_images = self.config.n_images_flat
             exp_times = self.config.exp_times_flat
 
-       if isinstance(exp_times, collections.abc.Iterable):
+        if isinstance(exp_times, collections.abc.Iterable):
             if n_images is not None:
                 if len(exp_times) != n_images:
                     raise ValueError(
@@ -217,7 +220,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
     async def configure(self, config):
         """Configure the script.
-        
+
         Parameters
         ----------
         config: `types.SimpleNamespace`
@@ -234,7 +237,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         )
 
         self.config = config
-        
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script.
@@ -242,7 +244,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         metadata.duration = self.config.n_bias*(self.camera.read_out_time + self.estimated_process_time)
 
     def take_images(self, image_type):
-        """Take images wiht instrument.
+        """Take images with instrument.
 
         Parameters
         ----------
@@ -321,12 +323,18 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                              f"{self.config.config_options_bias}")
         elif image_type == "DARK":
             pipe_yaml = "cpDark.yaml"
+            # Add calib collection to input collections with bias
+            # from bias step.
             config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_dark} "
+                             "-i {self.config.calib_collection} "
                              "--register-dataset-types "
                              f"{self.config.config_options_dark}")
-        elif:
+        else:
             pipe_yaml = "cpFlat.yaml"
+            # Add calib collection to input collections with bias,
+            # and dark from bias and dark steps.
             config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_flat} "
+                             "-i {self.config.calib_collection}"
                              "--register-dataset-types "
                              f"{self.config.config_options_flat}")
 
@@ -400,7 +408,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                              "--register-dataset-types "
                              f"{self.config.config_options_verify_flat}")
 
-
         # Verify the master calibration
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_VERIFY_DIR}/pipelines/" + f"${pipe_yaml}", version="",
@@ -450,9 +457,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         The calibration will certified for use with a timespan that indicates
         its vailidy range.
         """
-        # Certify the bias, if the verification job completed successfully
+        # Certify the calibration, if the verification job
+        # completed successfully
         self.log.info(f"Certifying {image_type} ")
-        # certify the master calibration
         REPO = self.config.repo
         # This is the output collection from the verification step
         CALIB_PRODUCT_COL = f"u/ocps/{job_id_verify}"
@@ -471,6 +478,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             raise RuntimeError(f"Error running command for certifying {image_type}.")
 
     async def arun(self, checkpoint=False):
+
+        # Check that the camera is enabled
+        await self.camera.assert_all_enabled("All camera components need to be enabled to run this script.")
+
+        # Check that the OCPS is enabled
+        await self.ocps_group.assert_all_enabled("All OCPS components need to be enabled to run this script.")
+
+        if checkpoint:
+            await self.checkpoint("setup instrument")
+            await self.camera.setup_instrument(**self.get_instrument_configuration())
+
         image_types = ["BIAS", "DARK", "FLAT"]
         for im_type in image_types:
             # 1. Take images with the instrument
