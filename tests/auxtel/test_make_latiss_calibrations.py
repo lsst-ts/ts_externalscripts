@@ -74,7 +74,7 @@ class TestMakeLatissCalibrations(
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
-        script_path = scripts_dir / "auxtel" / "make_auxtel_calibrations.py"
+        script_path = scripts_dir / "auxtel" / "make_latiss_calibrations.py"
         logger.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
 

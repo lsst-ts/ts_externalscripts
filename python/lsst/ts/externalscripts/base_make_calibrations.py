@@ -93,7 +93,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 anyOf:
                   - type: integer
                     minimum: 1
-                  - type: null
+                  - type: "null"
                 default: 1
                 description: Number of biases to take.
             n_dark:
@@ -121,6 +121,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 1
                   - type: "null"
                 default: 1
+                description: Number of flats to take.
             exp_times_flat:
                 description: The exposure time of each flat image (sec). If a single value,
                   then the same exposure time is used for each exposure.
@@ -136,7 +137,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             detectors:
                 type: string
                 default: "(0)"
-                descriptor: Detector IDs
+                descriptor: Detector IDs.
             config_options_bias:
                 type: string
                 descriptor: Options to be passed to the command-line bias pipetask. They will overwrite \
@@ -191,13 +192,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
 
         if image_type == "BIAS":
-            n_images = self.config.n_images_bias
+            n_images = self.config.n_bias
             exp_times = 0.
         elif image_type == "DARK":
-            n_images = self.config.n_images_dark
+            n_images = self.config.n_dark
             exp_times = self.config.exp_times_dark
         else:
-            n_images = self.config.n_images_flat
+            n_images = self.config.n_flat
             exp_times = self.config.exp_times_flat
 
         if isinstance(exp_times, collections.abc.Iterable):
@@ -499,14 +500,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 else:
                     await self.checkpoint(f"Taking {self.config.n_flat} flats.")
 
-            exposure_ids = self.take_images(im_type)
+            exposure_ids = await self.take_images(im_type)
 
             if checkpoint:
                 # Image IDs
                 await self.checkpoint(f"Images taken: {exposure_ids}")
 
             # 2. Call the calibration pipetask via the OCPS to make a master
-            response_ocps_calib_pipetask = self.call_pipetask(im_type, exposure_ids)
+            response_ocps_calib_pipetask = await self.call_pipetask(im_type, exposure_ids)
 
             # 3. Verify the calibration
             if not response_ocps_calib_pipetask['phase'] == 'completed':
@@ -515,7 +516,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                    f"{im_type} verification could not be performed.")
             else:
                 job_id_calib = response_ocps_calib_pipetask['job_ib']
-                response_ocps_verify_pipetask = self.verify_calib(im_type, job_id_calib, exposure_ids)
+                response_ocps_verify_pipetask = await self.verify_calib(im_type, job_id_calib, exposure_ids)
 
             # 4. Certify the calibration
             if not response_ocps_verify_pipetask['phase'] == 'completed':
@@ -524,4 +525,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                    f"{im_type} certification could not be performed.")
             else:
                 job_id_verify = response_ocps_verify_pipetask['job_id']
-                self.certify_calib(im_type, job_id_verify)
+                await self.certify_calib(im_type, job_id_verify)
+
+    async def run(self):
+        """"""
+        await self.arun(checkpoint=True)

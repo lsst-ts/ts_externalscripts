@@ -111,7 +111,6 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema)
-        schema_dict["properties"] = {}
         base_schema_dict = super(MakeComCamCalibrations, cls).get_schema()
 
         for prop in base_schema_dict["properties"]:
