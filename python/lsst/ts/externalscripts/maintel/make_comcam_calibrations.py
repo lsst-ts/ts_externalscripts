@@ -119,5 +119,5 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
 
         return schema_dict
 
-    def get_intrument_configuration(self):
+    def get_instrument_configuration(self):
         return dict(filter=self.config.filter)

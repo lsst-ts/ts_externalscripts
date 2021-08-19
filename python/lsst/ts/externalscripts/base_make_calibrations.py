@@ -65,7 +65,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         instrument_configuration: `dict`
             Dictionary with instrument configuration.
         """
-
         raise NotImplementedError()
 
     @property
@@ -243,7 +242,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         metadata.duration = self.config.n_bias*(self.camera.read_out_time + self.estimated_process_time)
 
-    def take_images(self, image_type):
+    async def take_images(self, image_type):
         """Take images with instrument.
 
         Parameters
@@ -298,7 +297,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return exposures
 
-    def call_pipetask(self, image_type, exposure_ids):
+    async def call_pipetask(self, image_type, exposure_ids):
         """Call pipetasks via the OCPS.
 
         Parameters
@@ -373,7 +372,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return response
 
-    def verify_calib(self, image_type, job_id_calib, exposures):
+    async def verify_calib(self, image_type, job_id_calib, exposures):
         """Verify the calibration.
 
         Parameters
@@ -440,7 +439,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return response
 
-    def certify_calib(self, image_type, job_id_verify):
+    async def certify_calib(self, image_type, job_id_verify):
         """Certify the calibration.
 
         Parameters
