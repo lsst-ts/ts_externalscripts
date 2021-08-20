@@ -257,7 +257,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
              Tuple with the IDs of the exposures taken.
         """
 
-        exp_times = self.set_exp_times_per_im_type(image_type)
+        exp_times = await self.set_exp_times_per_im_type(image_type)
 
         self.image_in_oods.flush()
 
@@ -391,26 +391,23 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         if image_type == "BIAS":
             pipe_yaml = "VerifyBias.yaml"
-            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_bias_verify} "
+            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_verify_bias} "
                              f"-i u/ocps/{job_id_calib} "
-                             "--register-dataset-types "
-                             f"{self.config.config_options_verify_bias}")
+                             "--register-dataset-types ")
         elif image_type == "DARK":
             pipe_yaml = "VerifyDark.yaml"
-            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_dark_verify} "
+            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_verify_dark} "
                              f"-i u/ocps/{job_id_calib} "
-                             "--register-dataset-types "
-                             f"{self.config.config_options_verify_dark}")
+                             "--register-dataset-types ")
         else:
             pipe_yaml = "VerifyFlat.yaml"
-            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_flat_verify} "
+            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_verify_flat} "
                              f"-i u/ocps/{job_id_calib} "
-                             "--register-dataset-types "
-                             f"{self.config.config_options_verify_flat}")
+                             "--register-dataset-types ")
 
         # Verify the master calibration
         ack = await self.ocps.cmd_execute.set_start(
-            wait_done=False, pipeline="${CP_VERIFY_DIR}/pipelines/" + f"${pipe_yaml}", version="",
+            wait_done=False, pipeline="${CP_VERIFY_DIR}/pipelines/" + f"{pipe_yaml}", version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
                        f" detector IN {self.config.detectors} AND exposure IN {exposures}"
@@ -515,7 +512,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                    f"{response_ocps_calib_pipetask['phase']}"
                                    f"{im_type} verification could not be performed.")
             else:
-                job_id_calib = response_ocps_calib_pipetask['job_ib']
+                job_id_calib = response_ocps_calib_pipetask['jobId']
                 response_ocps_verify_pipetask = await self.verify_calib(im_type, job_id_calib, exposure_ids)
 
             # 4. Certify the calibration
@@ -524,7 +521,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                    f"{response_ocps_verify_pipetask['phase']}"
                                    f"{im_type} certification could not be performed.")
             else:
-                job_id_verify = response_ocps_verify_pipetask['job_id']
+                job_id_verify = response_ocps_verify_pipetask['jobId']
                 await self.certify_calib(im_type, job_id_verify)
 
     async def run(self):
