@@ -222,7 +222,8 @@ additionalProperties: false
             self.log.info(checkpoint_message)
 
     async def execute_grid(self, azimuth, elevation):
-        """Execute one grid position.
+        """Performs target selection, acquisition, and pointing registration
+        for a single grid position.
 
         Parameters
         ----------
