@@ -196,7 +196,7 @@ additionalProperties: false
     @property
     def estimated_average_slew_time(self):
         """The estimated average slew time considers a slew speed of 1 deg/sec.
-        With that in mind, it returs the resolution of the grid in degrees.
+        With that in mind, it returns the resolution of the grid in degrees.
         """
         return hp.nside2resol(self.config.nside, arcmin=True) / 60.0
 
