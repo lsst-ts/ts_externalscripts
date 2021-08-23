@@ -261,6 +261,11 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
 
     @contextlib.asynccontextmanager
     async def make_configured_dry_script(self):
+        """Construct script without remotes.
+
+        This is usefull for developing fast unit tests for methods that do not
+        require DDS communition or when mocking the remotes behavior.
+        """
 
         self.remotes_needed = False
         async with self.make_script():
