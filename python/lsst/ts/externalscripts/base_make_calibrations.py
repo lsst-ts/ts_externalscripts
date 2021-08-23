@@ -326,7 +326,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # Add calib collection to input collections with bias
             # from bias step.
             config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_dark} "
-                             "-i {self.config.calib_collection} "
+                             f"-i {self.config.calib_collection} "
                              "--register-dataset-types "
                              f"{self.config.config_options_dark}")
         else:
@@ -334,7 +334,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # Add calib collection to input collections with bias,
             # and dark from bias and dark steps.
             config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_flat} "
-                             "-i {self.config.calib_collection}"
+                             f"-i {self.config.calib_collection}"
                              "--register-dataset-types "
                              f"{self.config.config_options_flat}")
 
@@ -463,7 +463,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         CALIB_COL = self.config.calib_collection
         cmd = (f"butler certify-calibrations {REPO} {CALIB_PRODUCT_COL} {CALIB_COL} "
                f"--begin-date {self.config.certify_calib_begin_date} "
-               f"--end-date {self.config.certify_calib_end_date}" + f"{image_type}".lower())
+               f"--end-date {self.config.certify_calib_end_date}" + f" {image_type}".lower())
         self.log.info(cmd)
 
         process = await asyncio.create_subprocess_shell(cmd)
@@ -497,6 +497,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 else:
                     await self.checkpoint(f"Taking {self.config.n_flat} flats.")
 
+            # TODO: Before taking flats with LATISS (and also with LSSTComCam),
+            # check that teh telescope is in position to do so. See DM-31496,
+            # DM-3149
             exposure_ids = await self.take_images(im_type)
 
             if checkpoint:

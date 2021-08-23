@@ -85,7 +85,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
             input_collections_dark:
                 type: string
                 descriptor: Additional comma-separarted input collections to pass to the dark pipetask.
-                default: "LATISS/calib"
+                default: "LSSTComCam/calib"
             input_collections_verify_dark:
                 type: string
                 descriptor: Additional comma-separated input collections to pass to \
