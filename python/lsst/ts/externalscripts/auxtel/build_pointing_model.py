@@ -86,24 +86,28 @@ class BuildPointingModel(BaseScript):
     def get_schema(cls):
         yaml_schema = """
 $schema: http://json-schema/draft-07/schema#
-$id: https://github.com/lsst-ts/ts_standardscripts/auxtel/BuildPointingModelAndHexapodLUT.yaml
-title: BuildPointingModelAndHexapodLUT v1
-description: Configuration for BuildPointingModelAndHexapodLUT.
+$id: https://github.com/lsst-ts/ts_standardscripts/auxtel/BuildPointingModel.yaml
+title: BuildPointingModel v1
+description: Configuration for BuildPointingModel.
 type: object
 properties:
     nside:
         type: integer
         default: 3
-        description: Healpix nside parameter.
+        description: >-
+            Healpix nside parameter. The script uses healpix to construct an uniformly spaced grid around
+            the vizible sky. This parameter defines the density of the pointing grid.
     azimuth_origin:
         type: number
         default: 0.
-        description: Origin of the azimuth grid.
+        description: >-
+            Origin of the azimuth grid. This allows users to rotate the entire grid in azimuth, 
+            hence allowing you to run a grid with the same density (nside) in different occasions
+            to map different regions of the sky.
     elevation_minimum:
         type: number
         default: 20.
-        description: >-
-            Lowest elevation limit.
+        description: Lowest elevation limit.
     elevation_maximum:
         type: number
         default: 80.
@@ -111,7 +115,8 @@ properties:
     magnitude_limit:
         type: number
         default: 8.
-        description: Largest/faintest magnitude of the star to search around each position in the grid.
+        description: >-
+            Limiting (faintest) stellar magnitude to use in determining the target at each position.
     datapath:
         type: string
         default: /project/shared/auxTel
