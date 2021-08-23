@@ -164,13 +164,13 @@ additionalProperties: false
             nside=self.config.nside, ipix=healpy_indices, lonlat=True
         )
 
-        mask_out_of_range = np.bitwise_and(
+        position_in_search_area_mask = np.bitwise_and(
             elevation >= self.config.elevation_minimum,
             elevation <= self.config.elevation_maximum,
         )
 
-        self.elevation_grid = np.array(elevation[mask_out_of_range])
-        self.azimuth_grid = np.array(azimuth[mask_out_of_range])
+        self.elevation_grid = np.array(elevation[position_in_search_area_mask])
+        self.azimuth_grid = np.array(azimuth[position_in_search_area_mask])
 
         self.log.debug("Sorting data in azimuth.")
 
