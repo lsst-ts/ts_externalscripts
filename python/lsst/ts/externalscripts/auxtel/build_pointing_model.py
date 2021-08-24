@@ -116,7 +116,13 @@ properties:
         type: number
         default: 8.
         description: >-
-            Limiting (faintest) stellar magnitude to use in determining the target at each position.
+            Limiting (brightest) stellar magnitude to use in determining the target at each position.
+    magnitude_range:
+        type: number
+        default: 2.
+        description: >-
+            Magnitude range. The faintest limit is defined as
+            magnitude_limit+magnitude_range.
     datapath:
         type: string
         default: /project/shared/auxTel
@@ -235,7 +241,10 @@ additionalProperties: false
 
         try:
             target = await self.atcs.find_target(
-                az=azimuth, el=elevation, mag_limit=self.config.magnitude_limit
+                az=azimuth,
+                el=elevation,
+                mag_limit=self.config.magnitude_limit,
+                mag_range=self.config.magnitude_range,
             )
         except Exception:
             self.log.exception(
