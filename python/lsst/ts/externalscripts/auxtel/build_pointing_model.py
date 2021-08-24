@@ -176,7 +176,9 @@ additionalProperties: false
         )
 
         self.elevation_grid = np.array(elevation[position_in_search_area_mask])
-        self.azimuth_grid = np.array(azimuth[position_in_search_area_mask])
+        self.azimuth_grid = (
+            np.array(azimuth[position_in_search_area_mask]) + self.config.azimuth_origin
+        )
 
         self.log.debug("Sorting data in azimuth.")
 
