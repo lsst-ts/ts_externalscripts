@@ -31,6 +31,9 @@ pipeline {
                 dir(env.WORKSPACE + '/ci/cwfs') {
                     git branch: 'master', url: 'https://github.com/bxin/cwfs.git'
                 }
+                dir(env.WORKSPACE + '/ci/ts_observing_utilities') {
+                    git branch: 'master', url: 'https://github.com/lsst-ts/ts_observing_utilities.git'
+                }
             }
         }
 
@@ -109,7 +112,6 @@ pipeline {
                 }
             }
         }
-
 
         stage("Checkout ts_ATDomeTrajectory") {
             steps {
@@ -193,6 +195,17 @@ pipeline {
                }
            }
        }
+
+       stage("setup ts_observing_utilities") {
+           steps {
+               script {
+                   sh """
+                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/ts_observing_utilities && eups declare -r . -t saluser && setup ts_observing_utilities -t saluser && scons || echo FAILED to build ts_observing_utilities. Continuing...\"
+                   """
+               }
+           }
+       }
+       
         stage("Build IDL files") {
             steps {
                 script {
@@ -206,7 +219,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/ts_externalscripts && eups declare -r . -t saluser && setup ts_externalscripts -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && py.test --junitxml=tests/.tests/junit.xml\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/ts_externalscripts && eups declare -r . -t saluser && setup ts_externalscripts -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && setup ts_observing_utilities -t saluser && setup atmospec -t saluser && setup rapid_analysis -t saluser && py.test --junitxml=tests/.tests/junit.xml\"
                     """
                 }
             }
