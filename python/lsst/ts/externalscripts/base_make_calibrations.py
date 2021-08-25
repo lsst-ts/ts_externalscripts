@@ -89,6 +89,15 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         description: Configuration for BaseMakeCalibrations.
         type: object
         properties:
+            script_mode:
+                description: Type of images to make. If "BIAS", only biases will be taken \
+                        and a master bias produced, verified, and certified. If "BIAS_AND_DARK", \
+                        the process will include bias and dark images. Note that a bias is needed \
+                        to produce a dark. If "ALL" (default), biases, darks, and flats will be
+                        produced.
+                type: string
+                enum: ["BIAS", "BIAS_AND_DARK", "ALL"]
+                default: "ALL"
             n_bias:
                 anyOf:
                   - type: integer
@@ -486,7 +495,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             await self.checkpoint("setup instrument")
             await self.camera.setup_instrument(**self.get_instrument_configuration())
 
-        image_types = ["BIAS", "DARK", "FLAT"]
+        mode = self.config.script_mode
+        if mode == "BIAS":
+            image_types = ["BIAS"]
+        elif mode == "BIAS_AND_DARK":
+            image_types = ["BIAS", "DARK"]
+        elif mode == "ALL":
+            image_types == ["BIAS", "DARK", "FLAT"]
+        else:
+            raise RuntimeError("Enter a valid 'script_mode' parameter: 'BIAS', 'BIAS_AND_DARK', or 'ALL'.")
+
         for im_type in image_types:
             # 1. Take images with the instrument
             if checkpoint:
@@ -498,8 +516,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     await self.checkpoint(f"Taking {self.config.n_flat} flats.")
 
             # TODO: Before taking flats with LATISS (and also with LSSTComCam),
-            # check that teh telescope is in position to do so. See DM-31496,
-            # DM-3149
+            # check that the telescope is in position to do so. See DM-31496,
+            # DM-31497
             exposure_ids = await self.take_images(im_type)
 
             if checkpoint:
