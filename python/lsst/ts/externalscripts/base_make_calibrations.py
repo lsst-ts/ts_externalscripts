@@ -253,8 +253,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         metadata.duration = self.config.n_bias*(self.camera.read_out_time + self.estimated_process_time)
 
     async def take_image_type(self, image_type, exp_times):
-        """Take exposures and build set.
-        
+        """Take exposures and build exposure set.
+
         Parameters
         ----------
         image_type : `str`
@@ -273,8 +273,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         for i, exp_time in enumerate(exp_times):
             exp = tuple(await self.camera.take_imgtype(image_type, exp_time, 1))
             exposures += exp
-        
-        # n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(','))))
+
         # exps are of the form, e.g., 2021070800019
         exposure_set = set()
         for exp in exposures:
@@ -288,13 +287,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         return exposure_set
 
     async def get_archiver_acks(self, total_exposures):
-        ack_list=[]
-        for _ in range(len(total_exposures)):
+        """Collect events from archiver ina list"""
+        ack_list = []
+
+        for _ in range(total_exposures):
             ack = await self.image_in_oods.next(flush=False, timeout=self.config.oods_timeout)
             ack_list.append(ack)
 
         return ack_list
-
 
     async def take_images(self, image_type):
         """Take images with instrument.
@@ -313,6 +313,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         exp_times = await self.set_exp_times_per_im_type(image_type)
 
         self.image_in_oods.flush()
+
         n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(','))))
         images_remaining = len(exp_times)*n_detectors
 
@@ -325,47 +326,19 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         task2 = asyncio.create_task(self.get_archiver_acks(images_remaining))
         tasks.append(task2)
 
-        results_gather = await asyncio.gather(*tasks)
-        print (results_gather)
-        stop
+        exposures_set, acks = await asyncio.gather(*tasks)
 
-        """
-        # Take images and return a list of IDs
-        exposures = ()
-        for i, exp_time in enumerate(exp_times):
-            exp = tuple(await self.camera.take_imgtype(image_type, exp_time, 1))
-            exposures += exp
-
-        # did the images get archived and are they available to the butler?
-        n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(','))))
-        # exps are of the form, e.g., 2021070800019
-        exposure_set = set()
-        for exp in exposures:
-            obs_day = f"{exp}"[:8]
-            temp = int(f"{exp}"[8:])
-            # See example of ack.obsid below
-            seq_num = f"{temp:06}"
-            obs_id = obs_day + "_" + seq_num
-            exposure_set.add(obs_id)
-        """
-        #images_remaining = len(exposure_set)*n_detectors
-        max_counter = self.config.max_counter_archiver_check
-        counter = 0
-        while images_remaining > 0:
-            ack = await self.image_in_oods.next(flush=False, timeout=self.config.oods_timeout)
+        for ack in acks:
             # ack.obsid is of the form, e.g., CC_O_20210708_000019
-            if f"{ack.obsid[-15:]}" in exposure_set:
+            if f"{ack.obsid[-15:]}" in exposures_set:
                 images_remaining -= 1
-                counter = 0
-            if counter == max_counter:
-                self.log.warning(f"Maximum number of loops ({max_counter}) reached while waiting "
-                                 "for image in archiver")
-                break
-            counter += 1
+
+        if images_remaining > 0:
+            self.log.warning(f"{images_remaining} images taken were not foundin archiver.")
 
         self.ocps.evt_job_result.flush()
 
-        return exposures
+        return exposures_set
 
     async def call_pipetask(self, image_type, exposure_ids):
         """Call pipetasks via the OCPS.
