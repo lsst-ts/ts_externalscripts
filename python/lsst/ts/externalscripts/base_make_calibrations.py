@@ -265,26 +265,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        exposure_set: `set`
-            Set with exposure IDs.
+        exposures: `list`
+            List with exposure IDs.
         """
 
         exposures = ()
-        for i, exp_time in enumerate(exp_times):
+        for _, exp_time in enumerate(exp_times):
             exp = tuple(await self.camera.take_imgtype(image_type, exp_time, 1))
             exposures += exp
 
-        # exps are of the form, e.g., 2021070800019
-        exposure_set = set()
-        for exp in exposures:
-            obs_day = f"{exp}"[:8]
-            temp = int(f"{exp}"[8:])
-            # See example of ack.obsid below
-            seq_num = f"{temp:06}"
-            obs_id = obs_day + "_" + seq_num
-            exposure_set.add(obs_id)
-
-        return exposure_set
+        return exposures
 
     async def get_archiver_acks(self, total_exposures):
         """Collect events from archiver ina list"""
@@ -326,7 +316,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         task2 = asyncio.create_task(self.get_archiver_acks(images_remaining))
         tasks.append(task2)
 
-        exposures_set, acks = await asyncio.gather(*tasks)
+        exposures, acks = await asyncio.gather(*tasks)
+
+        # exps are of the form, e.g., 2021070800019
+        exposures_set = set()
+        for exp in exposures:
+            obs_day = f"{exp}"[:8]
+            temp = int(f"{exp}"[8:])
+            # See example of ack.obsid below
+            seq_num = f"{temp:06}"
+            obs_id = obs_day + "_" + seq_num
+            exposures_set.add(obs_id)
 
         for ack in acks:
             # ack.obsid is of the form, e.g., CC_O_20210708_000019
@@ -334,11 +334,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 images_remaining -= 1
 
         if images_remaining > 0:
-            self.log.warning(f"{images_remaining} images taken were not foundin archiver.")
+            self.log.warning(f"{images_remaining} of the images taken were not found in archiver.")
 
         self.ocps.evt_job_result.flush()
 
-        return exposures_set
+        return exposures
 
     async def call_pipetask(self, image_type, exposure_ids):
         """Call pipetasks via the OCPS.
