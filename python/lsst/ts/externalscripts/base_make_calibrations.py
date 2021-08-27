@@ -46,8 +46,20 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # 45 sec: Bias.
         self.estimated_process_time = 45*3
         # Define the OCPS Remote Group (base class) to be able to check
-        # that the OCPS is enabled in `arun` before running the script
+        # that the OCPS is enabled in `arun` before running the script.
         self.ocps_group = RemoteGroup(domain=self.domain, components=["OCPS"], log=self.log)
+
+        # Callback so that the archiver queue does not overflow.
+        self.image_in_oods_received_all_expected = asyncio.Event()
+        self.image_in_oods_received_all_expected.clear()
+
+        self.number_of_images_expected = None
+        self.number_of_images_taken = 0
+        self.image_in_oods_samples = dict(BIAS=[], DARK=[], FLAT=[])
+
+        self.number_total_images = None
+
+        self.current_image_type = None
 
     @property
     def ocps(self):
@@ -187,7 +199,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     images taken were archived and available to butler.
             oods_timeout:
                 type: integer
-                default: 600
+                default: 60
                 descriptor: Timeout value, in seconds, for OODS.
         additionalProperties: false
         """
@@ -277,15 +289,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             ]
         )
 
-    async def get_archiver_acks(self, total_exposures):
-        """Collect events from archiver ina list"""
-        ack_list = []
-
-        for _ in range(total_exposures):
-            ack = await self.image_in_oods.next(flush=False, timeout=self.config.oods_timeout)
-            ack_list.append(ack)
-
-        return ack_list
+    async def image_in_oods_callback(self, data):
+        """Callback function to check images are in archiver"""
+        self.image_in_oods_samples[self.current_image_type].append(data)
+        self.number_of_images_taken += 1
+        if self.number_of_images_taken == self.number_of_images_expected:
+            self.image_in_oods_received_all_expected.set()
 
     async def take_images(self, image_type):
         """Take images with instrument.
@@ -306,36 +315,18 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.image_in_oods.flush()
 
         n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(','))))
-        images_remaining = len(exp_times)*n_detectors
 
-        # Need to call the two task at the same time, because we need to flush
-        # the archiver queue as we take exposures, otherwise it will overflow
-        tasks = []
-        task1 = asyncio.create_task(self.take_image_type(image_type, exp_times))
-        tasks.append(task1)
+        self.number_of_images_expected = len(exp_times)*n_detectors
+        self.number_of_images_taken = 0
+        self.image_in_oods_received_all_expected.clear()
+        self.current_image_type = image_type
 
-        task2 = asyncio.create_task(self.get_archiver_acks(images_remaining))
-        tasks.append(task2)
+        # callback
+        self.image_in_oods.callback = self.image_in_oods_callback
 
-        exposures, acks = await asyncio.gather(*tasks)
+        exposures = await self.take_image_type(image_type, exp_times)
 
-        # exps are of the form, e.g., 2021070800019
-        exposures_set = set()
-        for exp in exposures:
-            obs_day = f"{exp}"[:8]
-            temp = int(f"{exp}"[8:])
-            # See example of ack.obsid below
-            seq_num = f"{temp:06}"
-            obs_id = obs_day + "_" + seq_num
-            exposures_set.add(obs_id)
-
-        for ack in acks:
-            # ack.obsid is of the form, e.g., CC_O_20210708_000019
-            if f"{ack.obsid[-15:]}" in exposures_set:
-                images_remaining -= 1
-
-        if images_remaining > 0:
-            self.log.warning(f"{images_remaining} of the images taken were not found in archiver.")
+        await asyncio.wait_for(self.image_in_oods_received_all_expected, timeout=self.config.oods_timeout)
 
         self.ocps.evt_job_result.flush()
 
