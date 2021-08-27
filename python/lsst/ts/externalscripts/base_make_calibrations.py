@@ -63,7 +63,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
     @property
     def ocps(self):
-        self.ocps_group.remp.ocps
+        self.ocps_group.rem.ocps
 
     @property
     @abc.abstractmethod
@@ -199,7 +199,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     images taken were archived and available to butler.
             oods_timeout:
                 type: integer
-                default: 60
+                default: 120
                 descriptor: Timeout value, in seconds, for OODS.
         additionalProperties: false
         """
@@ -326,7 +326,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         exposures = await self.take_image_type(image_type, exp_times)
 
-        await asyncio.wait_for(self.image_in_oods_received_all_expected, timeout=self.config.oods_timeout)
+        await asyncio.wait_for(self.image_in_oods_received_all_expected.wait(),
+                               timeout=self.config.oods_timeout)
 
         self.ocps.evt_job_result.flush()
 
