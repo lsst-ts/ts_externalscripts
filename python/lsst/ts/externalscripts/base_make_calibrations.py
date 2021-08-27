@@ -45,11 +45,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # See DM-30483
         # 45 sec: Bias.
         self.estimated_process_time = 45*3
-        # OCPS Remote
-        self.ocps = salobj.Remote(domain=self.domain, name="OCPS")
         # Define the OCPS Remote Group (base class) to be able to check
         # that the OCPS is enabled in `arun` before running the script
         self.ocps_group = RemoteGroup(domain=self.domain, components=["OCPS"], log=self.log)
+
+    @property
+    def ocps(self):
+        self.ocps_group.remp.ocps
 
     @property
     @abc.abstractmethod
