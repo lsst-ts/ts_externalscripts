@@ -285,7 +285,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return tuple(
             [
-                await self.camera.take_imgtype(image_type, exp_time, 1)
+                (await self.camera.take_imgtype(image_type, exp_time, 1))[0]
                 for exp_time in exp_times
             ]
         )
