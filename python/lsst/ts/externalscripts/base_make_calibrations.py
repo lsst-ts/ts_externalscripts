@@ -267,16 +267,15 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        exposures: `list`
-            List with exposure IDs.
+            Tuple with exposure IDs.
         """
 
-        exposures = ()
-        for _, exp_time in enumerate(exp_times):
-            exp = tuple(await self.camera.take_imgtype(image_type, exp_time, 1))
-            exposures += exp
-
-        return exposures
+        return tuple(
+            [
+                await self.camera.take_imgtype(image_type, exp_time, 1)
+                for exp_time in exp_times
+            ]
+        )
 
     async def get_archiver_acks(self, total_exposures):
         """Collect events from archiver ina list"""
