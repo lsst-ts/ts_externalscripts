@@ -32,7 +32,7 @@ pipeline {
                     git branch: 'master', url: 'https://github.com/bxin/cwfs.git'
                 }
                 dir(env.WORKSPACE + '/ci/ts_observing_utilities') {
-                    git branch: 'master', url: 'https://github.com/lsst-ts/ts_observing_utilities.git'
+                    git branch: 'develop', url: 'https://github.com/lsst-ts/ts_observing_utilities.git'
                 }
             }
         }
