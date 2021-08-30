@@ -101,7 +101,7 @@ properties:
         type: number
         default: 0.
         description: >-
-            Origin of the azimuth grid. This allows users to rotate the entire grid in azimuth, 
+            Origin of the azimuth grid. This allows users to rotate the entire grid in azimuth,
             hence allowing you to run a grid with the same density (nside) in different occasions
             to map different regions of the sky.
     elevation_minimum:
