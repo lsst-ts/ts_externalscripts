@@ -150,7 +150,10 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
     def assert_execute_grid(self, azimuth, elevation, target_name):
 
         self.script.atcs.find_target.assert_awaited_once_with(
-            az=azimuth, el=elevation, mag_limit=self.script.config.magnitude_limit
+            az=azimuth,
+            el=elevation,
+            mag_limit=self.script.config.magnitude_limit,
+            mag_range=self.script.config.magnitude_range,
         )
         self.script.atcs.slew_object.assert_awaited_once_with(
             name=target_name,
@@ -182,7 +185,10 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
     def assert_execute_grid_fail(self, azimuth, elevation):
 
         self.script.atcs.find_target.assert_awaited_once_with(
-            az=azimuth, el=elevation, mag_limit=self.script.config.magnitude_limit
+            az=azimuth,
+            el=elevation,
+            mag_limit=self.script.config.magnitude_limit,
+            mag_range=self.script.config.magnitude_range,
         )
         self.script.atcs.slew_object.assert_not_awaited()
         self.script.center_on_brightest_source.assert_not_awaited()
