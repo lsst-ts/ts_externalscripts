@@ -162,6 +162,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: string
                 default: "(0)"
                 descriptor: Detector IDs.
+            do_verify:
+                type: boolean
+                descriptor: Should the master calibrations be verified? (c.f., cp_verify)
+                default: true
             config_options_bias:
                 type: string
                 descriptor: Options to be passed to the command-line bias pipetask. They will overwrite \
@@ -554,19 +558,26 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # 2. Call the calibration pipetask via the OCPS to make a master
             response_ocps_calib_pipetask = await self.call_pipetask(im_type, exposure_ids)
 
-            # 3. Verify the calibration
-            if not response_ocps_calib_pipetask['phase'] == 'completed':
-                raise RuntimeError(f"{im_type} generation not completed successfully: "
-                                   f"{response_ocps_calib_pipetask['phase']}"
-                                   f"{im_type} verification could not be performed.")
+            if self.config.do_verify:
+                # 3. Verify the calibration
+                if not response_ocps_calib_pipetask['phase'] == 'completed':
+                    raise RuntimeError(f"{im_type} generation not completed successfully: "
+                                       f"Status: {response_ocps_calib_pipetask['phase']}"
+                                       f"{im_type} verification could not be performed.")
+                else:
+                    job_id_calib = response_ocps_calib_pipetask['jobId']
+                    response_ocps_verify_pipetask = await self.verify_calib(im_type,
+                                                                            job_id_calib, exposure_ids)
+                    previous_step = "verification"
             else:
-                job_id_calib = response_ocps_calib_pipetask['jobId']
-                response_ocps_verify_pipetask = await self.verify_calib(im_type, job_id_calib, exposure_ids)
+                self.log.info(f"Skipping verification for {im_type}. ")
+                response_ocps_verify_pipetask = response_ocps_calib_pipetask
+                previous_step = "generation"
 
             # 4. Certify the calibration
             if not response_ocps_verify_pipetask['phase'] == 'completed':
-                raise RuntimeError(f"{im_type} verification not completed successfully: "
-                                   f"{response_ocps_verify_pipetask['phase']}"
+                raise RuntimeError(f"{im_type} {previous_step} not completed successfully: "
+                                   f"Status: {response_ocps_verify_pipetask['phase']}"
                                    f"{im_type} certification could not be performed.")
             else:
                 job_id_verify = response_ocps_verify_pipetask['jobId']
