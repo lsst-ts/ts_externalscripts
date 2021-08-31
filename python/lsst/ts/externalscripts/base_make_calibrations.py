@@ -317,8 +317,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         exp_times = await self.set_exp_times_per_im_type(image_type)
 
-        self.image_in_oods.flush()
-
         n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(','))))
 
         self.number_of_images_expected = len(exp_times)*n_detectors
@@ -374,7 +372,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # Add calib collection to input collections with bias,
             # and dark from bias and dark steps.
             config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_flat} "
-                             f"-i {self.config.calib_collection}"
+                             f"-i {self.config.calib_collection} "
                              "--register-dataset-types "
                              f"{self.config.config_options_flat}")
 
@@ -532,7 +530,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         elif mode == "BIAS_AND_DARK":
             image_types = ["BIAS", "DARK"]
         elif mode == "ALL":
-            image_types == ["BIAS", "DARK", "FLAT"]
+            image_types = ["BIAS", "DARK", "FLAT"]
         else:
             raise RuntimeError("Enter a valid 'script_mode' parameter: 'BIAS', 'BIAS_AND_DARK', or 'ALL'.")
 
@@ -562,7 +560,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 # 3. Verify the calibration
                 if not response_ocps_calib_pipetask['phase'] == 'completed':
                     raise RuntimeError(f"{im_type} generation not completed successfully: "
-                                       f"Status: {response_ocps_calib_pipetask['phase']}"
+                                       f"Status: {response_ocps_calib_pipetask['phase']}. "
                                        f"{im_type} verification could not be performed.")
                 else:
                     job_id_calib = response_ocps_calib_pipetask['jobId']
@@ -577,7 +575,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # 4. Certify the calibration
             if not response_ocps_verify_pipetask['phase'] == 'completed':
                 raise RuntimeError(f"{im_type} {previous_step} not completed successfully: "
-                                   f"Status: {response_ocps_verify_pipetask['phase']}"
+                                   f"Status: {response_ocps_verify_pipetask['phase']}. "
                                    f"{im_type} certification could not be performed.")
             else:
                 job_id_verify = response_ocps_verify_pipetask['jobId']
