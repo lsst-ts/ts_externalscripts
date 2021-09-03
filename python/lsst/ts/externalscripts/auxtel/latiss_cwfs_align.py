@@ -86,7 +86,7 @@ class LatissCWFSAlign(salobj.BaseScript):
 
     __test__ = False  # stop pytest from warning that this is not a test
 
-    def __init__(self, index=1, remotes=False):
+    def __init__(self, index=1, remotes=True):
 
         super().__init__(
             index=index,
@@ -543,7 +543,7 @@ Measured [coma-X, coma-Y, focus] zernike coefficients [nm]: [{
             (len(self.zern) * '{:0.1f}, ').format(*self.zern)}]
 De-rotated [coma-X, coma-Y, focus]  zernike coefficients [nm]: [{
             (len(rot_zern) * '{:0.1f}, ').format(*rot_zern)}]
-Hexapod [x, y, z] offsets [mm] : {(len(hexapod_offset) * '{:0.1f}, ').format(*hexapod_offset)}
+Hexapod [x, y, z] offsets [mm] : {(len(hexapod_offset) * '{:0.3f}, ').format(*hexapod_offset)}
 Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)}
 ==============================
 """
@@ -732,6 +732,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 await self.latiss.take_object(self.acq_exposure_time)
                 await self.atcs.add_point_data()
 
+                self.log.info("latiss_cwfs_align script completed successfully!\n")
                 return
             elif abs(focus_offset) > self.large_defocus:
                 self.total_focus_offset += focus_offset / 2.0
@@ -772,7 +773,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     )
 
         self.log.warning(
-            f"Reached maximum iteration ({self.max_iter}) without convergence."
+            f"Reached maximum iteration ({self.max_iter}) without convergence.\n"
         )
 
     async def run(self):
