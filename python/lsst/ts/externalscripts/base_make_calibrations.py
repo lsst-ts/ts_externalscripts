@@ -106,13 +106,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         properties:
             script_mode:
                 description: Type of images to make. If "BIAS", only biases will be taken \
-                        and a master bias produced, verified, and certified. If "BIAS_AND_DARK", \
+                        and a master bias produced, verified, and certified. If "BIAS_DARK", \
                         the process will include bias and dark images. Note that a bias is needed \
-                        to produce a dark. If "ALL" (default), biases, darks, and flats will be
+                        to produce a dark. If "BIAS_DARK_FLAT" (default), biases, darks, and flats will be
                         produced.
                 type: string
-                enum: ["BIAS", "BIAS_AND_DARK", "ALL"]
-                default: "ALL"
+                enum: ["BIAS", "BIAS_DARK", "BIAS_DARK_FLAT"]
+                default: "BIAS_DARK_FLAT"
             n_bias:
                 anyOf:
                   - type: integer
@@ -183,6 +183,24 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     the values in cpFlat.yaml.
                 default: "-c isr:doDefect=False -c isr:doLinearize=False -c isr:doCrosstalk=False \
                           -c cpFlatMeasure:doVignette=False "
+            do_defect:
+                type: boolean
+                descriptor: Should defects be built using darks and flats?
+                default: false
+            config_options_defects:
+                type: string
+                descriptor: Options to be passed to the command-line defects pipetask. They will overwrite \
+                    the values in findDefects.yaml.
+                default: "-c isr:doDefect=False "
+            do_ptc:
+                type: boolean
+                descriptor: Should a Photon Transfer Curve be constructed from the flats taken?
+                default: false
+            config_options_ptc:
+                type: string
+                descriptor: Options to be passed to the command-line PTC pipetask. They will overwrite \
+                    the values in measurePhotonTransferCurve.yaml.
+                default: "-c ptcSolve:ptcFitType=EXPAPPROXIMATION -c isr:doCrosstalk=False "
             n_processes:
                 type: integer
                 default: 8
@@ -336,16 +354,18 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return exposures
 
-    async def call_pipetask(self, image_type, exposure_ids):
+    async def call_pipetask(self, image_type, exposure_ids_dict):
         """Call pipetasks via the OCPS.
 
         Parameters
         ----------
         image_type : `str`
-            Image type. One of ["BIAS", "DARK", "FLAT"].
+            Image or calibration type. One of ["BIAS", "DARK",
+            "FLAT", "DEFECT", "PTC"].
 
-        exposure_ids: `tuple` [`int`]
-            Tuple with exposure IDs.
+        exposure_ids_dict: `dict` [`str`]
+            Dictionary with tuple with exposure IDs for "BIAS",
+            "DARK", or "FLAT".
 
         Returns
         -------
@@ -359,6 +379,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_bias} "
                              "--register-dataset-types  "
                              f"{self.config.config_options_bias}")
+            exposure_ids = exposure_ids_dict["BIAS"]
         elif image_type == "DARK":
             pipe_yaml = "cpDark.yaml"
             # Add calib collection to input collections with bias
@@ -367,7 +388,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                              f"-i {self.config.calib_collection} "
                              "--register-dataset-types "
                              f"{self.config.config_options_dark}")
-        else:
+            exposure_ids = exposure_ids_dict["DARK"]
+        elif image_type == "FLAT":
             pipe_yaml = "cpFlat.yaml"
             # Add calib collection to input collections with bias,
             # and dark from bias and dark steps.
@@ -375,6 +397,24 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                              f"-i {self.config.calib_collection} "
                              "--register-dataset-types "
                              f"{self.config.config_options_flat}")
+            exposure_ids = exposure_ids_dict["FLAT"]
+        elif image_type == "DEFECT":
+            pipe_yaml = "findDefects.yaml"
+            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_defect} "
+                             f"-i {self.config.calib_collection} "
+                             "--register-dataset-types "
+                             f"{self.config.config_options_defect}")
+            exposure_ids = exposure_ids_dict["DARK"]+exposure_ids_dict["FLAT"]
+        elif image_type == "PTC":
+            pipe_yaml = "measurePhotonTransferCurve.yaml"
+            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_ptc} "
+                             f"-i {self.config.calib_collection} "
+                             "--register-dataset-types "
+                             f"{self.config.config_options_ptc}")
+            exposure_ids = exposure_ids_dict["FLAT"]
+        else:
+            raise RuntimeError("Invalid image or calib type {image_type} in 'call_pipetask' function. "
+                               "Valid options: ['BIAS', 'DARK', 'FLAT', 'DEFECT', 'PTC']")
 
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/"+f"{pipe_yaml}", version="",
@@ -411,17 +451,21 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return response
 
-    async def verify_calib(self, image_type, job_id_calib, exposures):
+    async def verify_calib(self, image_type, job_id_calib, exposure_ids_dict):
         """Verify the calibration.
 
         Parameters
         ----------
         image_type : `str`
-            Image type. One of ["BIAS", "DARK", "FLAT"].
+            Image type. Verification currently only implemented for ["BIAS",
+            "DARK"].
 
         jod_id_calib : `str`
             Job ID returned by OCPS during previous pipetask call.
 
+        exposure_ids_dict: `dict` [`str`]
+                    Dictionary with tuple with exposure IDs for "BIAS",
+                                "DARK", or "FLAT".
         Notes
         -----
         The verification step runs tests in `cp_verify`
@@ -429,33 +473,32 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         if image_type == "BIAS":
             pipe_yaml = "VerifyBias.yaml"
-            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_verify_bias} "
-                             f"-i u/ocps/{job_id_calib} "
+            config_string = (f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
+                             f"-i {self.config.input_collections_verify_bias} "
                              "--register-dataset-types ")
+            exposure_ids = exposure_ids_dict["BIAS"]
         elif image_type == "DARK":
             pipe_yaml = "VerifyDark.yaml"
-            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_verify_dark} "
-                             f"-i u/ocps/{job_id_calib} "
+            config_string = (f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
+                             f"-i {self.config.input_collections_verify_dark} "
                              "--register-dataset-types ")
+            exposure_ids = exposure_ids_dict["DARK"]
         else:
-            pipe_yaml = "VerifyFlat.yaml"
-            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_verify_flat} "
-                             f"-i u/ocps/{job_id_calib} "
-                             "--register-dataset-types ")
+            raise RuntimeError(f"Verification is not currently implemented for {image_type}")
 
         # Verify the master calibration
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_VERIFY_DIR}/pipelines/" + f"{pipe_yaml}", version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
-                       f" detector IN {self.config.detectors} AND exposure IN {exposures}"
+                       f" detector IN {self.config.detectors} AND exposure IN {exposure_ids}"
         )
 
         if ack.ack != salobj.SalRetCode.CMD_ACK:
             ack.print_vars()
 
         ack = await self.ocps.cmd_execute.next_ackcmd(ack, wait_done=False)
-        self.log.debug('Received acknowledgement of ocps command for bias verification.')
+        self.log.debug(f"Received acknowledgement of ocps command for {image_type} verification.")
 
         ack.print_vars()
         job_id_verify = json.loads(ack.result)["job_id"]
@@ -481,7 +524,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Parameters
         ----------
         image_type : `str`
-            Image type. One of ["BIAS", "DARK", "FLAT"].
+            Image type. One of ["BIAS", "DARK", "FLAT", "DEFECT", "PTC"].
 
         jod_id_verify : `str`
             Job ID returned by OCPS during previous verification
@@ -527,37 +570,47 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         mode = self.config.script_mode
         if mode == "BIAS":
             image_types = ["BIAS"]
-        elif mode == "BIAS_AND_DARK":
+        elif mode == "BIAS_DARK":
             image_types = ["BIAS", "DARK"]
-        elif mode == "ALL":
+        elif mode == "BIAS_DARK_FLAT":
             image_types = ["BIAS", "DARK", "FLAT"]
         else:
-            raise RuntimeError("Enter a valid 'script_mode' parameter: 'BIAS', 'BIAS_AND_DARK', or 'ALL'.")
+            raise RuntimeError("Enter a valid 'script_mode' parameter: 'BIAS', 'BIAS_DARK_FLAT', or "
+                               "'BIAS_DARK_FLAT'.")
 
+        if self.config.do_defect and mode == 'BIAS_DARK_FLAT':
+            image_types.append("DEFECT")
+        if self.config.do_ptc and mode == 'BIAS_DARK_FLAT':
+            image_types.append("PTC")
+
+        exposure_ids_dict = {"BIAS": (), "DARK": (), "FLAT": ()}
         for im_type in image_types:
-            # 1. Take images with the instrument
-            if checkpoint:
-                if im_type == "BIAS":
-                    await self.checkpoint(f"Taking {self.config.n_bias} biases.")
-                elif im_type == "DARK":
-                    await self.checkpoint(f"Taking {self.config.n_dark} darks.")
-                else:
-                    await self.checkpoint(f"Taking {self.config.n_flat} flats.")
+            # 1. Take images with the instrument, only for "BIAS,
+            # "DARK", or "FLAT".
+            if im_type in ["BIAS", "DARK", "FLAT"]:
+                if checkpoint:
+                    if im_type == "BIAS":
+                        await self.checkpoint(f"Taking {self.config.n_bias} biases.")
+                    elif im_type == "DARK":
+                        await self.checkpoint(f"Taking {self.config.n_dark} darks.")
+                    elif im_type == "FLAT":
+                        await self.checkpoint(f"Taking {self.config.n_flat} flats.")
 
-            # TODO: Before taking flats with LATISS (and also with LSSTComCam),
-            # check that the telescope is in position to do so. See DM-31496,
-            # DM-31497
-            exposure_ids = await self.take_images(im_type)
+                # TODO: Before taking flats with LATISS (and also
+                # with LSSTComCam), check that the telescope is in
+                # position to do so. See DM-31496, DM-31497.
+                exposure_ids = await self.take_images(im_type)
+                exposure_ids_dict[im_type] = exposure_ids
 
-            if checkpoint:
-                # Image IDs
-                await self.checkpoint(f"Images taken: {exposure_ids}")
+                if checkpoint:
+                    # Image IDs
+                    await self.checkpoint(f"Images taken: {exposure_ids}; type: {im_type}")
 
             # 2. Call the calibration pipetask via the OCPS to make a master
-            response_ocps_calib_pipetask = await self.call_pipetask(im_type, exposure_ids)
+            response_ocps_calib_pipetask = await self.call_pipetask(im_type, exposure_ids_dict)
 
-            if self.config.do_verify:
-                # 3. Verify the calibration
+            # 3. Verify the calibration
+            if self.config.do_verify and im_type in ["BIAS", "DARK"]:
                 if not response_ocps_calib_pipetask['phase'] == 'completed':
                     raise RuntimeError(f"{im_type} generation not completed successfully: "
                                        f"Status: {response_ocps_calib_pipetask['phase']}. "
@@ -565,7 +618,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 else:
                     job_id_calib = response_ocps_calib_pipetask['jobId']
                     response_ocps_verify_pipetask = await self.verify_calib(im_type,
-                                                                            job_id_calib, exposure_ids)
+                                                                            job_id_calib, exposure_ids_dict)
                     previous_step = "verification"
             else:
                 self.log.info(f"Skipping verification for {im_type}. ")
