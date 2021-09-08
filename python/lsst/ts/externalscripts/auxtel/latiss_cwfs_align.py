@@ -371,12 +371,19 @@ Pixel_size (m)			{}
             await self.take_intra_extra()
         else:
             self.log.info(
-                f"Running cwfs in " f"{self.intra_visit_id}/{self.extra_visit_id}."
+                f"Running cwfs on {self.intra_visit_id} and {self.extra_visit_id}."
+            )
+            self.log.debug(
+                f"Using datapath of {self.dataPath}."
+            )
+            self.log.debug(
+                f"Using a data_id of {parse_visit_id(self.intra_visit_id)} "
+                f"and {parse_visit_id(self.extra_visit_id)}."
             )
 
         self.intra_exposure, self.extra_exposure = await asyncio.gather(
-            get_image(parse_visit_id(self.intra_visit_id)),
-            get_image(parse_visit_id(self.extra_visit_id)),
+            get_image(parse_visit_id(self.intra_visit_id), datapath=self.dataPath),
+            get_image(parse_visit_id(self.extra_visit_id), datapath=self.dataPath),
         )
 
         self.log.debug("Running source detection")
@@ -588,9 +595,9 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 type: number
                 default: 0.8
               dataPath:
-                description: Path to the butler data repository.
+                description: Path to the gen3 butler data repository. The default is for the summit.
                 type: string
-                default: /project/shared/auxTel/
+                default: /repo/LATISS/
               large_defocus:
                 description: >-
                     Defines a large defocus. If Defocus is larger than this value, apply only
