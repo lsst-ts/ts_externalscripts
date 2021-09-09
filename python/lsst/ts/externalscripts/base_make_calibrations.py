@@ -187,7 +187,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: boolean
                 descriptor: Should defects be built using darks and flats?
                 default: false
-            config_options_defects:
+            config_options_defect:
                 type: string
                 descriptor: Options to be passed to the command-line defects pipetask. They will overwrite \
                     the values in findDefects.yaml.
@@ -458,14 +458,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         ----------
         image_type : `str`
             Image type. Verification currently only implemented for ["BIAS",
-            "DARK"].
+            "DARK", "FLAT"].
 
         jod_id_calib : `str`
             Job ID returned by OCPS during previous pipetask call.
 
         exposure_ids_dict: `dict` [`str`]
-                    Dictionary with tuple with exposure IDs for "BIAS",
-                                "DARK", or "FLAT".
+            Dictionary with tuple with exposure IDs for "BIAS",
+            "DARK", or "FLAT".
         Notes
         -----
         The verification step runs tests in `cp_verify`
@@ -483,6 +483,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                              f"-i {self.config.input_collections_verify_dark} "
                              "-c verifyMeasureStats:crGrow=0 --register-dataset-types ")
             exposure_ids = exposure_ids_dict["DARK"]
+        elif image_type == "FLAT":
+            pipe_yaml = "VerifyFlat.yaml"
+            config_string = (f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
+                             f"-i {self.config.input_collections_verify_flat} "
+                             "-c verifyMeasureStats:crGrow=0 --register-dataset-types ")
+            exposure_ids = exposure_ids_dict["FLAT"]
         else:
             raise RuntimeError(f"Verification is not currently implemented for {image_type}")
 
@@ -575,7 +581,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         elif mode == "BIAS_DARK_FLAT":
             image_types = ["BIAS", "DARK", "FLAT"]
         else:
-            raise RuntimeError("Enter a valid 'script_mode' parameter: 'BIAS', 'BIAS_DARK_FLAT', or "
+            raise RuntimeError("Enter a valid 'script_mode' parameter: 'BIAS', 'BIAS_DARK', or "
                                "'BIAS_DARK_FLAT'.")
 
         if self.config.do_defect and mode == 'BIAS_DARK_FLAT':
@@ -609,8 +615,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # 2. Call the calibration pipetask via the OCPS to make a master
             response_ocps_calib_pipetask = await self.call_pipetask(im_type, exposure_ids_dict)
 
-            # 3. Verify the calibration
-            if self.config.do_verify and im_type in ["BIAS", "DARK"]:
+            # 3. Verify the calibration (implemented so far for bias,
+            # dark, and flat).
+            if self.config.do_verify and im_type in ["BIAS", "DARK", "FLAT"]:
                 if not response_ocps_calib_pipetask['phase'] == 'completed':
                     raise RuntimeError(f"{im_type} generation not completed successfully: "
                                        f"Status: {response_ocps_calib_pipetask['phase']}. "

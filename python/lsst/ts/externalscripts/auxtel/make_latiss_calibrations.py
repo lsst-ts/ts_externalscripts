@@ -95,6 +95,11 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
                 type: string
                 descriptor: Additional comma-separated input collections to pass to the flat pipetask.
                 default: "LATISS/calib"
+            input_collections_verify_flat:
+                type: string
+                descriptor: Additional comma-separated input collections to pass to \
+                    the verify (flat) pipetask.
+                default: "LATISS/calib"
             input_collections_defect:
                 type: string
                 descriptor: Additional comma-separated input collections to pass to the defect pipetask.
