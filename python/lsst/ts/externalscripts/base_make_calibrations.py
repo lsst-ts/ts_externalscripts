@@ -475,13 +475,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             pipe_yaml = "VerifyBias.yaml"
             config_string = (f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
                              f"-i {self.config.input_collections_verify_bias} "
-                             "--register-dataset-types ")
+                             "-c verifyMeasureStats:crGrow=0 --register-dataset-types ")
             exposure_ids = exposure_ids_dict["BIAS"]
         elif image_type == "DARK":
             pipe_yaml = "VerifyDark.yaml"
             config_string = (f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
                              f"-i {self.config.input_collections_verify_dark} "
-                             "--register-dataset-types ")
+                             "-c verifyMeasureStats:crGrow=0 --register-dataset-types ")
             exposure_ids = exposure_ids_dict["DARK"]
         else:
             raise RuntimeError(f"Verification is not currently implemented for {image_type}")
