@@ -100,9 +100,9 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
                 descriptor: Additional comma-separated input collections to pass to \
                     the verify (flat) pipetask.
                 default: "LSSTComCam/calib"
-            input_collections_defect:
+            input_collections_defects:
                 type: string
-                descriptor: Additional comma-separated input collections to pass to the defect pipetask.
+                descriptor: Additional comma-separated input collections to pass to the defects pipetask.
                 default: "LSSTComCam/calib"
             input_collections_ptc:
                 type: string

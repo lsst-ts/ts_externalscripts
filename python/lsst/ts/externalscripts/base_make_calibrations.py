@@ -44,7 +44,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # cpCombine + ISR per image with -j 1 at the summit [sec]
         # See DM-30483
         # 45 sec: Bias.
-        self.estimated_process_time = 45*3
+        self.estimated_process_time = 600
 
         # Define the OCPS Remote Group (base class) to be able to check
         # that the OCPS is enabled in `arun` before running the script.
@@ -183,11 +183,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     the values in cpFlat.yaml.
                 default: "-c isr:doDefect=False -c isr:doLinearize=False -c isr:doCrosstalk=False \
                           -c cpFlatMeasure:doVignette=False "
-            do_defect:
+            do_defects:
                 type: boolean
                 descriptor: Should defects be built using darks and flats?
                 default: false
-            config_options_defect:
+            config_options_defects:
                 type: string
                 descriptor: Options to be passed to the command-line defects pipetask. They will overwrite \
                     the values in findDefects.yaml.
@@ -361,7 +361,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         ----------
         image_type : `str`
             Image or calibration type. One of ["BIAS", "DARK",
-            "FLAT", "DEFECT", "PTC"].
+            "FLAT", "DEFETCS", "PTC"].
 
         exposure_ids_dict: `dict` [`str`]
             Dictionary with tuple with exposure IDs for "BIAS",
@@ -398,12 +398,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                              "--register-dataset-types "
                              f"{self.config.config_options_flat}")
             exposure_ids = exposure_ids_dict["FLAT"]
-        elif image_type == "DEFECT":
+        elif image_type == "DEFETCS":
             pipe_yaml = "findDefects.yaml"
-            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_defect} "
+            config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_defects} "
                              f"-i {self.config.calib_collection} "
                              "--register-dataset-types "
-                             f"{self.config.config_options_defect}")
+                             f"{self.config.config_options_defects}")
             exposure_ids = exposure_ids_dict["DARK"]+exposure_ids_dict["FLAT"]
         elif image_type == "PTC":
             pipe_yaml = "measurePhotonTransferCurve.yaml"
@@ -414,7 +414,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             exposure_ids = exposure_ids_dict["FLAT"]
         else:
             raise RuntimeError("Invalid image or calib type {image_type} in 'call_pipetask' function. "
-                               "Valid options: ['BIAS', 'DARK', 'FLAT', 'DEFECT', 'PTC']")
+                               "Valid options: ['BIAS', 'DARK', 'FLAT', 'DEFETCS', 'PTC']")
 
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/"+f"{pipe_yaml}", version="",
@@ -475,19 +475,19 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             pipe_yaml = "VerifyBias.yaml"
             config_string = (f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
                              f"-i {self.config.input_collections_verify_bias} "
-                             "-c verifyMeasureStats:crGrow=0 --register-dataset-types ")
+                             "--register-dataset-types ")
             exposure_ids = exposure_ids_dict["BIAS"]
         elif image_type == "DARK":
             pipe_yaml = "VerifyDark.yaml"
             config_string = (f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
                              f"-i {self.config.input_collections_verify_dark} "
-                             "-c verifyMeasureStats:crGrow=0 --register-dataset-types ")
+                             "--register-dataset-types ")
             exposure_ids = exposure_ids_dict["DARK"]
         elif image_type == "FLAT":
             pipe_yaml = "VerifyFlat.yaml"
             config_string = (f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
                              f"-i {self.config.input_collections_verify_flat} "
-                             "-c verifyMeasureStats:crGrow=0 --register-dataset-types ")
+                             "--register-dataset-types ")
             exposure_ids = exposure_ids_dict["FLAT"]
         else:
             raise RuntimeError(f"Verification is not currently implemented for {image_type}")
@@ -524,17 +524,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return response
 
-    async def certify_calib(self, image_type, job_id_verify):
+    async def certify_calib(self, image_type, job_id_calib):
         """Certify the calibration.
 
         Parameters
         ----------
         image_type : `str`
-            Image type. One of ["BIAS", "DARK", "FLAT", "DEFECT", "PTC"].
+            Image type. One of ["BIAS", "DARK", "FLAT", "DEFETCS", "PTC"].
 
-        jod_id_verify : `str`
-            Job ID returned by OCPS during previous verification
-            pipetask call.
+        jod_id_calib : `str`
+            Job ID returned by OCPS during previous calibration
+            generation pipetask call.
 
         Notes
         -----
@@ -546,7 +546,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.log.info(f"Certifying {image_type} ")
         REPO = self.config.repo
         # This is the output collection from the verification step
-        CALIB_PRODUCT_COL = f"u/ocps/{job_id_verify}"
+        CALIB_PRODUCT_COL = f"u/ocps/{job_id_calib}"
         CALIB_COL = self.config.calib_collection
         cmd = (f"butler certify-calibrations {REPO} {CALIB_PRODUCT_COL} {CALIB_COL} "
                f"--begin-date {self.config.certify_calib_begin_date} "
@@ -584,8 +584,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             raise RuntimeError("Enter a valid 'script_mode' parameter: 'BIAS', 'BIAS_DARK', or "
                                "'BIAS_DARK_FLAT'.")
 
-        if self.config.do_defect and mode == 'BIAS_DARK_FLAT':
-            image_types.append("DEFECT")
+        if self.config.do_defects and mode == 'BIAS_DARK_FLAT':
+            image_types.append("DEFETCS")
         if self.config.do_ptc and mode == 'BIAS_DARK_FLAT':
             image_types.append("PTC")
 
@@ -617,13 +617,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
             # 3. Verify the calibration (implemented so far for bias,
             # dark, and flat).
+            job_id_calib = response_ocps_calib_pipetask['jobId']
             if self.config.do_verify and im_type in ["BIAS", "DARK", "FLAT"]:
                 if not response_ocps_calib_pipetask['phase'] == 'completed':
                     raise RuntimeError(f"{im_type} generation not completed successfully: "
                                        f"Status: {response_ocps_calib_pipetask['phase']}. "
                                        f"{im_type} verification could not be performed.")
                 else:
-                    job_id_calib = response_ocps_calib_pipetask['jobId']
                     response_ocps_verify_pipetask = await self.verify_calib(im_type,
                                                                             job_id_calib, exposure_ids_dict)
                     previous_step = "verification"
@@ -638,8 +638,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                    f"Status: {response_ocps_verify_pipetask['phase']}. "
                                    f"{im_type} certification could not be performed.")
             else:
-                job_id_verify = response_ocps_verify_pipetask['jobId']
-                await self.certify_calib(im_type, job_id_verify)
+                await self.certify_calib(im_type, job_id_calib)
 
     async def run(self):
         """"""
