@@ -24,17 +24,21 @@ import yaml
 
 import numpy as np
 import healpy as hp
+import warnings
 
 from lsst.geom import PointD
 
+try:
+    from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
+    from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import (
+        parse_visit_id,
+        calculate_xy_offsets,
+    )
+except ImportError:
+    warnings.warn("Cannot import required libraries. Script will not work.")
 
-from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
 
-from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
-from lsst.ts.observing.utilities.auxtel.latiss.utils import (
-    parse_visit_id,
-    calculate_xy_offsets,
-)
 from lsst.ts.observatory.control.constants.latiss_constants import boresight
 
 
@@ -94,6 +98,7 @@ properties:
     nside:
         type: integer
         default: 3
+        minimum: 1
         description: >-
             Healpix nside parameter. The script uses healpix to construct an uniformly spaced grid around
             the vizible sky. This parameter defines the density of the pointing grid.
@@ -120,6 +125,7 @@ properties:
     magnitude_range:
         type: number
         default: 2.
+        minimum: 1.
         description: >-
             Magnitude range. The faintest limit is defined as
             magnitude_limit+magnitude_range.
@@ -168,6 +174,10 @@ additionalProperties: false
 
         azimuth, elevation = hp.pix2ang(
             nside=self.config.nside, ipix=healpy_indices, lonlat=True
+        )
+
+        elevation += (np.random.rand(npix) - 0.5) * np.degrees(
+            hp.nside2resol(self.config.nside)
         )
 
         position_in_search_area_mask = np.bitwise_and(

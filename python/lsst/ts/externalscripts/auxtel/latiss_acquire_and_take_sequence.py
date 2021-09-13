@@ -150,7 +150,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
               acq_filter:
                 description: Which filter to use when performing acquisition.
                 type: string
-                default: RG610
+                default: FELH0600
 
               acq_grating:
                 description: Which grating to use when performing acquisition. Must use
@@ -168,7 +168,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                              Only used if do_acquire=True.
                 type: number
                 default: 3
-                minimum: 1
+                minimum: 0
 
               target_pointing_tolerance:
                 description: Number of arcsec from source to desired position to consider good enough.
@@ -418,7 +418,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             f"iterations set to {self.max_acq_iter}"
         )
         iter_num = 0
-        _success = False
+        _success = False if self.max_acq_iter > 0 else True
         for iter_num in range(self.max_acq_iter):
             # Take image
             self.log.debug(
@@ -613,7 +613,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 self.log.exception("Exception from latiss_take_sequence()")
                 raise e
             finally:
-                self.log.debug("At finally statement in run")
+                self.log.debug("Latiss_acquire_and_take_sequence script completed\n")
 
     async def run(self):
         """"""
