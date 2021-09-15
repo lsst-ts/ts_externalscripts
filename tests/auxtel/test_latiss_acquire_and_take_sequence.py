@@ -24,12 +24,13 @@ import random
 import unittest
 import asyncio
 import pathlib
+import tempfile
 
 from lsst.ts import salobj
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
-import lsst.daf.persistence as dafPersist
+import lsst.daf.butler as dafButler
 import logging
 
 # Make matplotlib less chatty
@@ -46,22 +47,44 @@ logger.propagate = True
 # for now just checking if butler is instantiated with
 # the default path used on the summit and on the NTS.
 
-DATAPATH = "/project/shared/auxTel/"
+# DATAPATH set to NTS repo
+DATAPATH = "/readonly/repo/main/"
 try:
-    butler = dafPersist.Butler(DATAPATH)
+    butler = dafButler.Butler(
+        DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
+    )
     DATA_AVAILABLE = True
-    logger.info("Data is available for tests.")
-except RuntimeError:
+except FileNotFoundError:
     logger.warning("Data unavailable, certain tests will be skipped")
     DATA_AVAILABLE = False
-    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
+
+    DATAPATH = (tempfile.TemporaryDirectory(prefix="butler-repo")).name
+    butler_config_path = (
+        pathlib.Path(__file__)
+        .parents[1]
+        .joinpath("data", "auxtel", "butler_seed.yaml")
+        .as_posix()
+    )
+    dafButler.Butler(
+        dafButler.Butler.makeRepo(DATAPATH, config=butler_config_path), writeable=True
+    )
+
 except PermissionError:
     logger.warning(
         "Data unavailable due to permissions (at a minimum),"
         " certain tests will be skipped"
     )
     DATA_AVAILABLE = False
-    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
+    DATAPATH = (tempfile.TemporaryDirectory(prefix="butler-repo")).name
+    butler_config_path = (
+        pathlib.Path(__file__)
+        .parents[1]
+        .joinpath("data", "auxtel", "butler_seed.yaml")
+        .as_posix()
+    )
+    dafButler.Butler(
+        dafButler.Butler.makeRepo(DATAPATH, config=butler_config_path), writeable=True
+    )
 
 
 class TestLatissAcquireAndTakeSequence(
@@ -376,6 +399,7 @@ class TestLatissAcquireAndTakeSequence(
                 target_pointing_tolerance=target_pointing_tolerance,
                 max_acq_iter=max_acq_iter,
                 do_pointing_model=do_pointing_model,
+                dataPath=DATAPATH,
             )
 
             # publish ataos event saying corrections are enabled
@@ -435,6 +459,7 @@ class TestLatissAcquireAndTakeSequence(
                 do_pointing_model=do_pointing_model,
                 acq_exposure_time=acq_exposure_time,
                 target_pointing_verification=target_pointing_verification,
+                dataPath=DATAPATH,
             )
 
             # publish ataos event saying corrections are enabled
@@ -489,6 +514,7 @@ class TestLatissAcquireAndTakeSequence(
                 target_pointing_tolerance=target_pointing_tolerance,
                 max_acq_iter=max_acq_iter,
                 target_pointing_verification=target_pointing_verification,
+                dataPath=DATAPATH,
             )
 
             # publish ataos event saying corrections are enabled
@@ -550,6 +576,7 @@ class TestLatissAcquireAndTakeSequence(
                 target_pointing_tolerance=target_pointing_tolerance,
                 exposure_time_sequence=exposure_time_sequence,
                 target_pointing_verification=target_pointing_verification,
+                dataPath=DATAPATH,
             )
 
             # publish ataos event saying corrections are enabled

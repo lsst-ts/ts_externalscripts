@@ -24,7 +24,7 @@ import asyncio
 import collections.abc
 import warnings
 
-import lsst.daf.persistence as dafPersist
+import lsst.daf.butler as dafButler
 import numpy as np
 import yaml
 import concurrent.futures
@@ -217,9 +217,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 default: 2.
 
               dataPath:
-                description: Path to the butler data repository.
+                description: Path to the gen3 butler data repository. The default is for the summit.
                 type: string
-                default: /project/shared/auxTel/
+                default: /repo/LATISS/
 
               do_pointing_model:
                 description: Adjust star position (sweet spot) to use boresight. Save datapoint
@@ -259,7 +259,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.dataPath = config.dataPath
 
         # Instantiate the butler
-        self.butler = dafPersist.Butler(self.dataPath)
+        self.butler = dafButler.Butler(self.dataPath)
 
         # Which processes to perform
         self.do_acquire = config.do_acquire
@@ -344,9 +344,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         )
 
         day_obs, seq_num = parse_obs_id(in_oods.obsid)[-2:]
-        self.log.info(f"seqNum {seq_num} arrived in OODS")
+        self.log.info(f"seq_num {seq_num} arrived in OODS")
 
-        data_id = dict(dayObs=day_obs, seqNum=seq_num)
+        data_id = {'day_obs': day_obs, 'seq_num': seq_num, 'detector': 0, "instrument": 'LATISS'}
 
         return data_id
 
@@ -413,7 +413,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
             self.manual_focus_offset_applied = True
 
-        self.log.info(
+        self.log.debug(
             "Beginning Acquisition Iterative Loop, with a maximum amount of "
             f"iterations set to {self.max_acq_iter}"
         )
@@ -478,9 +478,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             dr_arcsec = np.sqrt(dx_arcsec ** 2 + dy_arcsec ** 2)
 
-            self.log.info(
+            self.log.debug(
                 f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f}, {dy_arcsec:0.2f}] arcsec as calculated"
-                f" from sequence number {data_id['seqNum']} on dayObs of {data_id['dayObs']}"
+                f" from sequence number {data_id['seq_num']} on Observation Day of {data_id['day_obs']}"
             )
 
             # Check if star is in place, if so then we're done
@@ -506,7 +506,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.atcs.offset_xy(
                 dx_arcsec, dy_arcsec, relative=True, persistent=False
             )
-            self.log.info(
+            self.log.debug(
                 f"At end of iteration loop, success is {_success}. So moving to next iteration"
             )
 
@@ -537,7 +537,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         if self.target_pointing_verification:
             await self.latiss.take_object(exptime=self.acq_exposure_time, n=1)
         else:
-            self.log.info(
+            self.log.debug(
                 f"Skipping additional image to verify offset was applied correctly as "
                 f"target_pointing_verification is set to {self.target_pointing_verification}"
             )

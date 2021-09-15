@@ -26,6 +26,7 @@ import asyncio
 import numpy as np
 import warnings
 import os
+import pathlib
 
 try:
     # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
@@ -40,7 +41,7 @@ from lsst.ts import salobj
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissCWFSAlign
-import lsst.daf.persistence as dafPersist
+import lsst.daf.butler as dafButler
 import logging
 
 # Make matplotlib less chatty
@@ -56,26 +57,26 @@ logger.propagate = True
 
 random.seed(47)  # for set_random_lsst_dds_domain
 
-# Check to see if the test data is accessible for testing
+# Check to see if the test data is accessible for testing at NCSA
 # Depending upon how we load test data this will change
 # for now just checking if butler is instantiated with
 # the default path used on the summit and on the NTS.
 
-DATAPATH = "/project/shared/auxTel/"
+DATAPATH = "/readonly/repo/main/"
 try:
-    butler = dafPersist.Butler(DATAPATH)
+    butler = dafButler.Butler(DATAPATH, instrument='LATISS', collections='LATISS/raw/all')
     DATA_AVAILABLE = True
-except RuntimeError:
+except FileNotFoundError:
     logger.warning("Data unavailable, certain tests will be skipped")
     DATA_AVAILABLE = False
-    DATAPATH = "tests/data/auxtel/"
+    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
 except PermissionError:
     logger.warning(
         "Data unavailable due to permissions (at a minimum),"
         " certain tests will be skipped"
     )
     DATA_AVAILABLE = False
-    DATAPATH = "tests/data/auxtel/"
+    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
 
 
 class TestLatissCWFSAlign(
@@ -415,6 +416,7 @@ class TestLatissCWFSAlign(
             self.script.extra_visit_id = 2021032300308
             self.script.angle = 90.0 - await self.atcs_get_bore_sight_angle()
             self.script._binning = 2
+            self.script.dataPath = DATAPATH
             logger.debug(f"boresight angle is {self.script.angle}")
             await self.script.run_cwfs()
 
