@@ -215,11 +215,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 default: "2050-01-01"
                 descriptor: ISO-8601 datetime (TAI) of the end of the \
                     validity range for the certified calibrations.
-            max_counter_archiver_check:
-                type: integer
-                default: 1000
-                descriptor: Maximum number of loops to wait for confirmation that \
-                    images taken were archived and available to butler.
             oods_timeout:
                 type: integer
                 default: 120
@@ -361,7 +356,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         ----------
         image_type : `str`
             Image or calibration type. One of ["BIAS", "DARK",
-            "FLAT", "DEFETCS", "PTC"].
+            "FLAT", "DEFECTS", "PTC"].
 
         exposure_ids_dict: `dict` [`str`]
             Dictionary with tuple with exposure IDs for "BIAS",
@@ -398,7 +393,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                              "--register-dataset-types "
                              f"{self.config.config_options_flat}")
             exposure_ids = exposure_ids_dict["FLAT"]
-        elif image_type == "DEFETCS":
+        elif image_type == "DEFECTS":
             pipe_yaml = "findDefects.yaml"
             config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_defects} "
                              f"-i {self.config.calib_collection} "
@@ -414,7 +409,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             exposure_ids = exposure_ids_dict["FLAT"]
         else:
             raise RuntimeError("Invalid image or calib type {image_type} in 'call_pipetask' function. "
-                               "Valid options: ['BIAS', 'DARK', 'FLAT', 'DEFETCS', 'PTC']")
+                               "Valid options: ['BIAS', 'DARK', 'FLAT', 'DEFECTS', 'PTC']")
 
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/"+f"{pipe_yaml}", version="",
@@ -530,7 +525,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Parameters
         ----------
         image_type : `str`
-            Image type. One of ["BIAS", "DARK", "FLAT", "DEFETCS", "PTC"].
+            Image type. One of ["BIAS", "DARK", "FLAT", "DEFECTS", "PTC"].
 
         jod_id_calib : `str`
             Job ID returned by OCPS during previous calibration
@@ -585,7 +580,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                "'BIAS_DARK_FLAT'.")
 
         if self.config.do_defects and mode == 'BIAS_DARK_FLAT':
-            image_types.append("DEFETCS")
+            image_types.append("DEFECTS")
         if self.config.do_ptc and mode == 'BIAS_DARK_FLAT':
             image_types.append("PTC")
 
