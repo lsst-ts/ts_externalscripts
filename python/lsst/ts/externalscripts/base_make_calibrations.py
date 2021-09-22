@@ -280,7 +280,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
     def set_metadata(self, metadata):
         """Set estimated duration of the script.
         """
-        metadata.duration = self.config.n_bias*(self.camera.read_out_time + self.estimated_process_time)
+        n_images = self.config.n_bias + self.config.n_dark + self.config.n_flat
+        metadata.duration = self.config.n_images*(self.camera.read_out_time + self.estimated_process_time)
 
     async def take_image_type(self, image_type, exp_times):
         """Take exposures and build exposure set.
