@@ -281,7 +281,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """Set estimated duration of the script.
         """
         n_images = self.config.n_bias + self.config.n_dark + self.config.n_flat
-        metadata.duration = self.config.n_images*(self.camera.read_out_time + self.estimated_process_time)
+        metadata.duration = n_images*(self.camera.read_out_time + self.estimated_process_time)
 
     async def take_image_type(self, image_type, exp_times):
         """Take exposures and build exposure set.
@@ -291,7 +291,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         image_type : `str`
             Image type. One of ["BIAS", "DARK", "FLAT"].
 
-        exp_times: `list`
+        exp_times : `list`
             List of exposure times.
 
         Returns
@@ -307,7 +307,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         )
 
     async def image_in_oods_callback(self, data):
-        """Callback function to check images are in archiver"""
+        """Callback function to check images are in archiver
+
+        Parameters
+        ----------
+        data : `evt_imageInOODS.DataType`
+            Archiver, imageInOODS event sample.
+        """
+
         self.image_in_oods_samples[self.current_image_type].append(data)
         self.number_of_images_taken += 1
         if self.number_of_images_taken == self.number_of_images_expected:
