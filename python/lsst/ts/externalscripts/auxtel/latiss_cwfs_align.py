@@ -31,6 +31,7 @@ import numpy as np
 from pathlib import Path
 from astropy import time as astropytime
 from lsst.ts import salobj
+from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
 
@@ -373,9 +374,7 @@ Pixel_size (m)			{}
             self.log.info(
                 f"Running cwfs on {self.intra_visit_id} and {self.extra_visit_id}."
             )
-            self.log.debug(
-                f"Using datapath of {self.dataPath}."
-            )
+            self.log.debug(f"Using datapath of {self.dataPath}.")
             self.log.debug(
                 f"Using a data_id of {parse_visit_id(self.intra_visit_id)} "
                 f"and {parse_visit_id(self.extra_visit_id)}."
@@ -574,6 +573,64 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             description: Configuration for LatissCWFSAlign Script.
             type: object
             properties:
+              find_target:
+                type: object
+                additionalProperties: false
+                required:
+                  - az
+                  - el
+                  - mag_limit
+                description: >-
+                    Optional configuration section. Find a target to perform CWFS in the given
+                    position and magnitude range. If not specified, the step is ignored.
+                properties:
+                  az:
+                    type: number
+                    description: Azimuth (in degrees) to find a target.
+                  el:
+                    type: number
+                    description: Elevation (in degrees) to find a target.
+                  mag_limit:
+                    type: number
+                    description: Minimum (brightest) V-magnitude limit.
+                  mag_range:
+                    type: number
+                    description: >-
+                        Magnitude range. The maximum/faintest limit is defined as
+                        mag_limit+mag_range.
+                  radius:
+                    type: number
+                    description: Radius of the cone search (in degrees).
+              track_target:
+                type: object
+                additionalProperties: false
+                required:
+                  - target_name
+                description: >-
+                    Optional configuration section. Track a specified target to
+                    perform CWFS. If not specified, the step is ignored.
+                properties:
+                  target_name:
+                    description: Target name
+                    type: string
+                  icrs:
+                    type: object
+                    additionalProperties: false
+                    description: Optional ICRS coordinates.
+                    required:
+                      - ra
+                      - dec
+                    properties:
+                      ra:
+                        description: ICRS right ascension (hour).
+                        type: number
+                        minimum: 0
+                        maximum: 24
+                      dec:
+                        description: ICRS declination (deg).
+                        type: number
+                        minimum: -90
+                        maximum: 90
               filter:
                 description: Which filter to use when taking intra/extra focal images.
                 type: string
@@ -637,6 +694,30 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             Script configuration, as defined by `schema`.
         """
 
+        if hasattr(config, "find_target") and hasattr(config, "track_target"):
+            raise RuntimeError(
+                "find_target and track_target configuration sections cannot be specified together."
+            )
+        elif hasattr(config, "find_target"):
+            self.log.debug(f"Finding target for cwfs @ {config.find_target}")
+            self.cwfs_target = await self.atcs.find_target(**config.find_target)
+            self.cwfs_target_ra = None
+            self.cwfs_target_dec = None
+            self.log.debug(f"Using target {self.cwfs_target} for cwfs.")
+        elif hasattr(config, "track_target"):
+            self.log.debug(f"Tracking target {config.track_target} for cwfs.")
+            self.cwfs_target = config.track_target.get("target_name", "cwfs_target")
+            self.cwfs_target_ra = None
+            self.cwfs_target_dec = None
+            if "icrs" in config.track_target:
+                self.cwfs_target_ra = config.track_target["icrs"]["ra"]
+                self.cwfs_target_dec = config.track_target["icrs"]["dec"]
+        else:
+            self.log.debug("No target configured.")
+            self.cwfs_target = None
+            self.cwfs_target_ra = None
+            self.cwfs_target_dec = None
+
         self.filter = config.filter
         self.grating = config.grating
 
@@ -667,8 +748,43 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         metadata.filter = f"{self.filter},{self.grating}"
 
     async def arun(self, checkpoint=False):
-        """Perform the loop to perform CWFS measurements and hexapod
-        adjustments until the threshold is reached."""
+        """Perform CWFS measurements and hexapod adjustments until the
+        thresholds are reached.
+        """
+
+        if self.cwfs_target is not None and self.cwfs_target_dec is None:
+            if checkpoint:
+                await self.checkpoint(f"Slewing to object: {self.cwfs_target}")
+            await self.slew_object(
+                name=self.cwfs_target, rot=0.0, rot_type=RotType.PhysicalSky
+            )
+
+        elif (
+            self.cwfs_target is not None
+            and self.cwfs_target_dec is not None
+            and self.cwfs_target_ra is not None
+        ):
+            if checkpoint:
+                await self.checkpoint(
+                    f"Slewing to icrs coordinates: {self.cwfs_target} @ "
+                    f"ra/dec = {self.cwfs_target_ra}/{self.cwfs_target_dec}."
+                )
+
+            await self.slew_icrs(
+                ra=self.cwfs_target_ra,
+                dec=self.cwfs_target_dec,
+                target_name=self.cwfs_target,
+                rot=0.0,
+                rot_type=RotType.PhysicalSky,
+            )
+        elif (self.cwfs_target_dec is not None and self.cwfs_target_ra is None) or (
+            self.cwfs_target_dec is None and self.cwfs_target_ra is not None
+        ):
+            raise RuntimeError(
+                "Invalid configuration. Only one of ra/dec pair was specified. "
+                "Either define both or neither. "
+                f"Got ra={self.cwfs_target_ra} and dec={self.cwfs_target_dec}."
+            )
 
         self.total_focus_offset = 0.0
         self.total_coma_x_offset = 0.0
