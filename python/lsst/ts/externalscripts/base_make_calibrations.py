@@ -375,6 +375,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
 
         # Run the pipetask via the OCPS
+
         if image_type == "BIAS":
             pipe_yaml = "cpBias.yaml"
             config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_bias} "
@@ -407,7 +408,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                              f"{self.config.config_options_defects}")
             exposure_ids = exposure_ids_dict["DARK"]+exposure_ids_dict["FLAT"]
         elif image_type == "PTC":
-            pipe_yaml = "measurePhotonTransferCurve.yaml"
+            pipe_yaml = "cpPtc.yaml"
             config_string = (f"-j {self.config.n_processes} -i {self.config.input_collections_ptc} "
                              f"-i {self.config.calib_collection} "
                              "--register-dataset-types "
@@ -417,8 +418,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             raise RuntimeError("Invalid image or calib type {image_type} in 'call_pipetask' function. "
                                "Valid options: ['BIAS', 'DARK', 'FLAT', 'DEFECTS', 'PTC']")
 
+        if self.instrument_name == "LATISS":
+            pipeline_instrument = "Latiss"
+        elif self.instrument_name == "LSSTComCam":
+            pipeline_instrument = "LsstComCam"
+        else:
+            raise RuntimeError("Nonvalid instrument name: {self.instrument_name")
+
         ack = await self.ocps.cmd_execute.set_start(
-            wait_done=False, pipeline="${CP_PIPE_DIR}/pipelines/"+f"{pipe_yaml}", version="",
+            wait_done=False,
+            pipeline="${CP_PIPE_DIR}/pipelines/"+f"{pipeline_instrument}/{pipe_yaml}", version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
                        f" detector IN {self.config.detectors} AND exposure IN {exposure_ids}"
