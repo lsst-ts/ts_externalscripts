@@ -170,19 +170,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: string
                 descriptor: Options to be passed to the command-line bias pipetask. They will overwrite \
                     the values in cpBias.yaml.
-                default: "-c isr:doDefect=False -c isr:doLinearize=False -c isr:doCrosstalk=False \
-                          -c isr:overscan.fitType='MEDIAN_PER_ROW'"
+                default: "-c isr:doDefect=False"
             config_options_dark:
                 type: string
                 descriptor: Options to be passed to the command-line dark pipetask. They will overwrite \
                     the values in cpDark.yaml.
-                default: "-c isr:doDefect=False -c isr:doLinearize=False -c isr:doCrosstalk=False"
+                default: "-c isr:doDefect=False "
             config_options_flat:
                 type: string
                 descriptor: Options to be passed to the command-line flat pipetask. They will overwrite \
                     the values in cpFlat.yaml.
-                default: "-c isr:doDefect=False -c isr:doLinearize=False -c isr:doCrosstalk=False \
-                          -c cpFlatMeasure:doVignette=False "
+                default: "-c isr:doDefect=False "
             do_defects:
                 type: boolean
                 descriptor: Should defects be built using darks and flats?
@@ -200,7 +198,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: string
                 descriptor: Options to be passed to the command-line PTC pipetask. They will overwrite \
                     the values in measurePhotonTransferCurve.yaml.
-                default: "-c ptcSolve:ptcFitType=EXPAPPROXIMATION -c isr:doCrosstalk=False "
+                default: "-c ptcSolve:ptcFitType=EXPAPPROXIMATION "
             n_processes:
                 type: integer
                 default: 8

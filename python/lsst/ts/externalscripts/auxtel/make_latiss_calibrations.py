@@ -34,10 +34,11 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
     def __init__(self, index=1):
         super().__init__(
             index=index,
-            descr="This class takes biases, darks, and flats  with Auxtel-LATISS, "
+            descr="This class takes bias, dark, and flat exposureswith Auxtel-LATISS, "
                   "constructs a master calibration for each image type by calling "
-                  "the appropriate pipetask via OCPS, and then veres and certifies "
-                  "each master calibration. ",
+                  "the appropriate pipetask via OCPS, and then verifies and certifies "
+                  "each master calibration. It also optionally produces defects and "
+                  "Photon Transfer Curves."
         )
         self._latiss = LATISS(domain=self.domain, log=self.log)
 
@@ -70,7 +71,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
                 anyOf:
                   - type: string
                   - type: integer
-                    minimun: 1
+                    minimum: 1
                   - type: "null"
                 default: null
             input_collections_bias:

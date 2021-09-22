@@ -34,10 +34,11 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
     def __init__(self, index=1):
         super().__init__(
             index=index,
-            descr="This class takes biases, darks, and flats with LSSTComCam, "
+            descr="This class takes bias, darks, and flat exposures with LSSTComCam, "
                   "constructs a master calibration for each image type by calling "
                   "the appropiate pipetask via OCPS, and then verifies and certifies "
-                  "each master calibration. "
+                  "each master calibration. It also optionally produces defects and "
+                  "Photon Transfer Curves. "
         )
         self._comcam = ComCam(domain=self.domain, log=self.log)
 
@@ -70,7 +71,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
                 anyOf:
                   - type: string
                   - type: integer
-                    minimun: 1
+                    minimum: 1
                   - type: "null"
                 default: null
             input_collections_bias:
