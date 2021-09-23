@@ -65,59 +65,6 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         title: MakeComCamCalibrations v1
         description: Configuration for making a LSSTComCam master calibrations SAL Script.
         type: object
-        properties:
-            filter:
-                description: Filter name or ID; if omitted the filter is not changed.
-                anyOf:
-                  - type: string
-                  - type: integer
-                    minimum: 1
-                  - type: "null"
-                default: null
-            input_collections_bias:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to the bias pipetask.
-                default: "LSSTComCam/calib"
-            input_collections_verify_bias:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to \
-                    the verify (bias) pipetask.
-                default: "LSSTComCam/calib"
-            input_collections_dark:
-                type: string
-                descriptor: Additional comma-separarted input collections to pass to the dark pipetask.
-                default: "LSSTComCam/calib"
-            input_collections_verify_dark:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to \
-                    the verify (dark) pipetask.
-                default: "LSSTComCam/calib"
-            input_collections_flat:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to the flat pipetask.
-                default: "LSSTComCam/calib"
-            input_collections_verify_flat:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to \
-                    the verify (flat) pipetask.
-                default: "LSSTComCam/calib"
-            input_collections_defects:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to the defects pipetask.
-                default: "LSSTComCam/calib"
-            input_collections_ptc:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to the \
-                    Photon Transfer Curve pipetask.
-                default: "LSSTComCam/calib"
-            calib_collection:
-                type: string
-                descriptor: Calibration collection where master calibrations will be certified into.
-                default: "LSSTComCam/calib/daily"
-            repo:
-                type: string
-                descriptor: Butler repository.
-                default: "/repo/LSSTComCam"
         additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema)
