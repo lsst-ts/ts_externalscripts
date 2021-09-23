@@ -23,6 +23,7 @@ __all__ = ["MakeLatissCalibrations"]
 import yaml
 
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
+from lsst.ts.observatory.control import RemoteGroup
 from ..base_make_calibrations import BaseMakeCalibrations
 
 
@@ -45,6 +46,15 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
     @property
     def camera(self):
         return self._latiss
+
+    @property
+    def ocps_group(self):
+        # OCPS:1 for LATISS
+        return RemoteGroup(domain=self.domain, components=["OCPS:1"], log=self.log)
+
+    @property
+    def ocps(self):
+        return self.ocps_group.rem.ocps_1
 
     @property
     def instrument_name(self):

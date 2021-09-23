@@ -23,6 +23,7 @@ __all__ = ["MakeComCamCalibrations"]
 import yaml
 
 from lsst.ts.observatory.control.maintel.comcam import ComCam
+from lsst.ts.observatory.control import RemoteGroup
 from ..base_make_calibrations import BaseMakeCalibrations
 
 
@@ -45,6 +46,15 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
     @property
     def camera(self):
         return self._comcam
+
+    @property
+    def ocps_group(self):
+        # OCPS:2 for LSSTComCam
+        return RemoteGroup(domain=self.domain, components=["OCPS:2"], log=self.log)
+
+    @property
+    def ocps(self):
+        return self.ocps_group.rem.ocps_2
 
     @property
     def instrument_name(self):

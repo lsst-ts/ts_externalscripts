@@ -27,7 +27,6 @@ import asyncio
 import collections
 
 from lsst.ts import salobj
-from lsst.ts.observatory.control import RemoteGroup
 
 
 class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
@@ -46,10 +45,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # 45 sec: Bias.
         self.estimated_process_time = 600
 
-        # Define the OCPS Remote Group (base class) to be able to check
-        # that the OCPS is enabled in `arun` before running the script.
-        self.ocps_group = RemoteGroup(domain=self.domain, components=["OCPS"], log=self.log)
-
         # Callback so that the archiver queue does not overflow.
         self.image_in_oods_received_all_expected = asyncio.Event()
         self.image_in_oods_received_all_expected.clear()
@@ -62,9 +57,18 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.current_image_type = None
 
+    # Define the OCPS Remote Group (base class) to be able to check
+    # that the OCPS is enabled in `arun` before running the script.
+    # make it abstract since each instrument has different OCPS.
     @property
+    @abc.abstractmethod
+    def ocps_group(self):
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
     def ocps(self):
-        return self.ocps_group.rem.ocps
+        return NotImplementedError()
 
     @property
     @abc.abstractmethod
