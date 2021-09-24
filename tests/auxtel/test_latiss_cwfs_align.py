@@ -64,9 +64,7 @@ random.seed(47)  # for set_random_lsst_dds_domain
 
 DATAPATH = "/readonly/repo/main/"
 try:
-    butler = dafButler.Butler(
-        DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
-    )
+    butler = dafButler.Butler(DATAPATH, instrument='LATISS', collections='LATISS/raw/all')
     DATA_AVAILABLE = True
 except FileNotFoundError:
     logger.warning("Data unavailable, certain tests will be skipped")
@@ -118,6 +116,12 @@ class TestLatissCWFSAlign(
         self.script.atcs.get_bore_sight_angle = unittest.mock.AsyncMock(
             wraps=self.atcs_get_bore_sight_angle
         )
+
+        # Mock method that returns the BestEffortIsr class if it is
+        # not available for import
+        if not DATA_AVAILABLE:
+            self.script.get_best_effort_isr = unittest.mock.AsyncMock()
+            self.script.get_butler = unittest.mock.AsyncMock()
 
         # things to track
         self.nimages = 0
@@ -191,7 +195,7 @@ class TestLatissCWFSAlign(
                 grating=grating,
                 filter=filter,
                 exposure_time=exposure_time,
-                dataPath=DATAPATH,
+                datapath=DATAPATH,
             )
 
             self.assertEqual(self.script.filter, filter)
@@ -303,7 +307,7 @@ class TestLatissCWFSAlign(
                 grating=grating,
                 filter=filter,
                 exposure_time=exposure_time,
-                dataPath=DATAPATH,
+                datapath=DATAPATH,
             )
 
             # await self.run_script()
@@ -471,6 +475,9 @@ class TestLatissCWFSAlign(
         """This tests only the analysis part"""
         async with self.make_script():
 
+            await self.configure_script(
+                datapath=DATAPATH,
+            )
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2021032300308: [47.907, -118.61]})
             self.visit_id_angles.update({2021032300310: [47.907, -118.61]})
@@ -478,8 +485,11 @@ class TestLatissCWFSAlign(
             self.script.intra_visit_id = 2021032300307
             self.script.extra_visit_id = 2021032300308
             self.script.angle = 90.0 - await self.atcs_get_bore_sight_angle()
-            self.script._binning = 2
-            self.script.dataPath = DATAPATH
+            # Binning must be set to the default (1) when being instantiated
+            # using the configure_script method above, therefore do not
+            # modify the parameter
+            # self.script._binning = 1
+
             logger.debug(f"boresight angle is {self.script.angle}")
             await self.script.run_cwfs()
 
@@ -554,7 +564,7 @@ class TestLatissCWFSAlign(
 
             # get dict of results from the last run and check they're within
             # ~15nm of the expected values
-            zern_tol = [10, 10, 10]  # [nm]
+            zern_tol = [15, 15, 15]  # [nm]
             hex_tol = abs(np.matmul(zern_tol, self.script.sensitivity_matrix))  # [mm]
             logger.info(
                 f"Hex_tol is {np.matmul(zern_tol, self.script.sensitivity_matrix)}"

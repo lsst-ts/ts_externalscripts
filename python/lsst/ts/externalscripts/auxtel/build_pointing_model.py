@@ -30,6 +30,8 @@ from lsst.geom import PointD
 
 try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
+    from lsst.rapid.analysis import BestEffortIsr
+    import lsst.daf.butler as dafButler
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
     from lsst.ts.observing.utilities.auxtel.latiss.utils import (
         parse_visit_id,
@@ -40,7 +42,6 @@ except ImportError:
 
 
 from lsst.ts.observatory.control.constants.latiss_constants import boresight
-
 
 from lsst.ts.salobj import BaseScript
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
@@ -131,8 +132,10 @@ properties:
             magnitude_limit+magnitude_range.
     datapath:
         type: string
-        default: /project/shared/auxTel
-        description: Path to the data butler where the images can be located.
+        default: /repo/LATISS/
+        description: >-
+            Path to the gen3 butler data repository where the images are located.
+            The default is for the summit.
     exposure_time:
         type: number
         default: 1.
@@ -162,7 +165,21 @@ additionalProperties: false
 
         self.config = config
 
+        # Instantiate BestEffortIsr
+        self.butler = self.get_butler(self.config.datapath)
+        self.best_effort_isr = self.get_best_effort_isr(butler=self.butler)
+
         self.configure_grid()
+
+    def get_butler(self, datapath):
+        # Isolate the butler instantiation so it can be mocked
+        # in unit tests
+        return dafButler.Butler(datapath, instrument='LATISS', collections='LATISS/raw/all')
+
+    def get_best_effort_isr(self, butler):
+        # Isolate the BestEffortIsr class so it can be mocked
+        # in unit tests
+        return BestEffortIsr(butler=butler, repodirIsGen3=True)
 
     def configure_grid(self):
         """Configure the observation grid."""
@@ -296,9 +313,8 @@ additionalProperties: false
 
         exposure = await get_image(
             parse_visit_id(image_id),
-            datapath=self.config.datapath,
+            self.best_effort_isr,
             timeout=self.get_image_timeout,
-            runBestEffortIsr=True,
         )
 
         quick_measurement_config = QuickFrameMeasurementTask.ConfigClass()
@@ -314,4 +330,5 @@ additionalProperties: false
         return dx_arcsec, dy_arcsec
 
     async def run(self):
+
         await self.arun(checkpoint_active=True)
