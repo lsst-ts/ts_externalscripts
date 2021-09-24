@@ -64,7 +64,9 @@ random.seed(47)  # for set_random_lsst_dds_domain
 
 DATAPATH = "/readonly/repo/main/"
 try:
-    butler = dafButler.Butler(DATAPATH, instrument='LATISS', collections='LATISS/raw/all')
+    butler = dafButler.Butler(
+        DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
+    )
     DATA_AVAILABLE = True
 except FileNotFoundError:
     logger.warning("Data unavailable, certain tests will be skipped")
@@ -191,6 +193,67 @@ class TestLatissCWFSAlign(
                 exposure_time=exposure_time,
                 dataPath=DATAPATH,
             )
+
+            self.assertEqual(self.script.filter, filter)
+            self.assertEqual(self.script.grating, grating)
+            self.assertEqual(self.script.exposure_time, exposure_time)
+            self.assertEqual(self.script.cwfs_target, None)
+            self.assertEqual(self.script.cwfs_target_ra, None)
+            self.assertEqual(self.script.cwfs_target_dec, None)
+
+            # Test with find_target
+            find_target = dict(az=-180.0, el=60.0, mag_limit=8.0)
+            await self.configure_script(find_target=find_target)
+
+            self.assertNotEqual(self.script.cwfs_target, None)
+            self.assertEqual(self.script.cwfs_target_ra, None)
+            self.assertEqual(self.script.cwfs_target_dec, None)
+
+            # Test with find_target; fail if only az is provided
+            find_target = dict(az=0.0)
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(find_target=find_target)
+
+            # Test with find_target; fail if only el is provided
+            find_target = dict(el=60.0)
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(find_target=find_target)
+
+            # Test with find_target; fail if only az and el is provided
+            find_target = dict(az=0.0, el=60.0)
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(find_target=find_target)
+
+            # Test with track_target; give target name only
+            track_target = dict(target_name="HD 185975")
+            await self.configure_script(track_target=track_target)
+
+            self.assertEqual(self.script.cwfs_target, track_target["target_name"])
+            self.assertEqual(self.script.cwfs_target_ra, None)
+            self.assertEqual(self.script.cwfs_target_dec, None)
+
+            # Test with track_target; give target name and ra/dec
+            track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5, dec=-87.5))
+            await self.configure_script(track_target=track_target)
+
+            self.assertEqual(self.script.cwfs_target, track_target["target_name"])
+            self.assertEqual(self.script.cwfs_target_ra, track_target["icrs"]["ra"])
+            self.assertEqual(self.script.cwfs_target_dec, track_target["icrs"]["dec"])
+
+            # Test with track_target; fail if name is not provided ra/dec
+            track_target = dict(icrs=dict(ra=20.5, dec=-87.5))
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(track_target=track_target)
+
+            # Test with track_target; fail if only ra is provided
+            track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5))
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(track_target=track_target)
+
+            # Test with track_target; fail if only dec is provided
+            track_target = dict(target_name="HD 185975", icrs=dict(dec=-87.5))
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(track_target=track_target)
 
     async def atcs_get_bore_sight_angle(self):
         """Returns nasmyth rotator value for image"""
