@@ -645,7 +645,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 self.log.info(f"Skipping verification for {im_type}. ")
                 response_ocps_verify_pipetask = response_ocps_calib_pipetask
                 previous_step = "generation"
-
+            # TODO: Currently, we are auto-certifying the calibration.
+            # However, we will have to add a check that looks
+            # at the output of cp_verify in step 3) and does not certify the
+            # calibration if cp_verify does not pass: DM-31897
             # 4. Certify the calibration
             if not response_ocps_verify_pipetask['phase'] == 'completed':
                 raise RuntimeError(f"{im_type} {previous_step} not completed successfully: "
