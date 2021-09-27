@@ -100,8 +100,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
     @classmethod
     def get_schema(cls):
-        instrument_name = cls.instrument_name
-        schema = f"""
+        schema = """
         $schema: http://json-schema.org/draft-07/schema#
         $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/\
             externalscripts/maintel/make_comcam_calibrations.py
@@ -222,58 +221,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: integer
                 default: 120
                 descriptor: Timeout value, in seconds, for OODS.
-            filter:
-                description: Filter name or ID; if omitted the filter is not changed.
-                anyOf:
-                  - type: string
-                  - type: integer
-                    minimum: 1
-                  - type: "null"
-                default: null
-            input_collections_bias:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to the bias pipetask.
-                default: "{instrument_name}/calib"
-            input_collections_verify_bias:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to \
-                    the verify (bias) pipetask.
-                default: "{instrument_name}/calib"
-            input_collections_dark:
-                type: string
-                descriptor: Additional comma-separarted input collections to pass to the dark pipetask.
-                default: "{instrument_name}/calib"
-            input_collections_verify_dark:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to \
-                    the verify (dark) pipetask.
-                default: "{instrument_name}/calib"
-            input_collections_flat:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to the flat pipetask.
-                default: "{instrument_name}/calib"
-            input_collections_verify_flat:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to \
-                    the verify (flat) pipetask.
-                default: "{instrument_name}/calib"
-            input_collections_defects:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to the defects pipetask.
-                default: "{instrument_name}/calib"
-            input_collections_ptc:
-                type: string
-                descriptor: Additional comma-separated input collections to pass to the \
-                    Photon Transfer Curve pipetask.
-                default: "{instrument_name}/calib"
-            calib_collection:
-                type: string
-                descriptor: Calibration collection where master calibrations will be certified into.
-                default: "{instrument_name}/calib/daily"
-            repo:
-                type: string
-                descriptor: Butler repository.
-                default: "/repo/{instrument_name}"
         additionalProperties: false
         """
         return yaml.safe_load(schema)
