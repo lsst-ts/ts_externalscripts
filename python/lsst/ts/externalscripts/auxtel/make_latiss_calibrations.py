@@ -42,6 +42,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
                   "Photon Transfer Curves."
         )
         self._latiss = LATISS(domain=self.domain, log=self.log)
+        self._ocps_group = RemoteGroup(domain=self.domain, components=["OCPS:1"], log=self.log)
 
     @property
     def camera(self):
@@ -50,7 +51,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
     @property
     def ocps_group(self):
         # OCPS:1 for LATISS
-        return RemoteGroup(domain=self.domain, components=["OCPS:1"], log=self.log)
+        return self._ocps_group
 
     @property
     def ocps(self):

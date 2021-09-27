@@ -42,6 +42,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
                   "Photon Transfer Curves. "
         )
         self._comcam = ComCam(domain=self.domain, log=self.log)
+        self._ocps_group = RemoteGroup(domain=self.domain, components=["OCPS:2"], log=self.log)
 
     @property
     def camera(self):
@@ -50,7 +51,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
     @property
     def ocps_group(self):
         # OCPS:2 for LSSTComCam
-        return RemoteGroup(domain=self.domain, components=["OCPS:2"], log=self.log)
+        return self._ocps_group
 
     @property
     def ocps(self):
