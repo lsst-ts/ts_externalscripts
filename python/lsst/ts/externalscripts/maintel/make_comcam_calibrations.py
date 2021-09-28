@@ -30,16 +30,21 @@ from ..base_make_calibrations import BaseMakeCalibrations
 class MakeComCamCalibrations(BaseMakeCalibrations):
     """Class for taking images, constructing, verifying, and
        certifying master calibrations with LSSTComCam.
+
+       This class takes bias, darks, and flat exposures with LSSTComCam,
+       constructs a master calibration for each image type by calling
+       the appropiate pipetask via OCPS, and then verifies and certifies
+       each master calibration. It also optionally produces defects and
+       Photon Transfer Curves. "
+
     """
 
     def __init__(self, index=1):
         super().__init__(
             index=index,
-            descr="This class takes bias, darks, and flat exposures with LSSTComCam, "
-                  "constructs a master calibration for each image type by calling "
-                  "the appropiate pipetask via OCPS, and then verifies and certifies "
-                  "each master calibration. It also optionally produces defects and "
-                  "Photon Transfer Curves. "
+            descr="Takes series of bias, darks and flat-field exposures"
+                  "with LSSTComCam, and constructs master "
+                  "calibrations, verify and certify the results."
         )
         self._comcam = ComCam(domain=self.domain, log=self.log)
         self._ocps_group = RemoteGroup(domain=self.domain, components=["OCPS:2"], log=self.log)
@@ -50,7 +55,10 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
 
     @property
     def ocps_group(self):
-        # OCPS:2 for LSSTComCam
+        """Access the Remote OCPS Groups in the constructor.
+
+        The OCPS index will be 2 for LSSTComCam: OCPS:2.
+        """
         return self._ocps_group
 
     @property
@@ -64,7 +72,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
 
     @property
     def image_in_oods(self):
-        """Archiver"""
+        """Archiver imageInOODS event."""
         return self.camera.rem.ccarchiver.evt_imageInOODS
 
     @classmethod

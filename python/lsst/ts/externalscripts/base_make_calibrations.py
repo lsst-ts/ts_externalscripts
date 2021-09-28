@@ -53,16 +53,19 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.number_of_images_taken = 0
         self.image_in_oods_samples = dict(BIAS=[], DARK=[], FLAT=[])
 
-        self.number_total_images = None
+        self.number_of_images_total = None
 
         self.current_image_type = None
 
-    # Define the OCPS Remote Group (base class) to be able to check
-    # that the OCPS is enabled in `arun` before running the script.
-    # make it abstract since each instrument has different OCPS.
     @property
     @abc.abstractmethod
     def ocps_group(self):
+        """Define the OCPS Remote Group.
+
+         Define the OCPS Remote Group (base class) to be able to check
+         that the OCPS is enabled in `arun` before running the script.
+         make it abstract since each instrument has different OCPS.
+        """
         raise NotImplementedError()
 
     @property
@@ -95,7 +98,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def image_in_oods(self):
-        """Archiver"""
+        """Archiver imageInOODS event"""
         raise NotImplementedError()
 
     @classmethod

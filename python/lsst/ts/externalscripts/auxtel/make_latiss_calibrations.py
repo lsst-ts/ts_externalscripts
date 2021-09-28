@@ -30,16 +30,20 @@ from ..base_make_calibrations import BaseMakeCalibrations
 class MakeLatissCalibrations(BaseMakeCalibrations):
     """Class for taking images, constructing, verifying, and
        certifying master calibrations with LATISS.
+
+       This class takes bias, dark, and flat exposureswith Auxtel-LATISS,
+       constructs a master calibration for each image type by calling
+       the appropriate pipetask via OCPS, and then verifies and certifies
+       each master calibration. It also optionally produces defects and
+       Photon Transfer Curves.
     """
 
     def __init__(self, index=1):
         super().__init__(
             index=index,
-            descr="This class takes bias, dark, and flat exposureswith Auxtel-LATISS, "
-                  "constructs a master calibration for each image type by calling "
-                  "the appropriate pipetask via OCPS, and then verifies and certifies "
-                  "each master calibration. It also optionally produces defects and "
-                  "Photon Transfer Curves."
+            descr="Takes series of bias, darks and flat-field exposures with "
+                  "LATISS/AuxTel, and constructs master calibrations, verify and "
+                  "certify the results."
         )
         self._latiss = LATISS(domain=self.domain, log=self.log)
         self._ocps_group = RemoteGroup(domain=self.domain, components=["OCPS:1"], log=self.log)
@@ -50,7 +54,10 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
 
     @property
     def ocps_group(self):
-        # OCPS:1 for LATISS
+        """Access the Remote OCPS Groups in the constructor.
+
+        The OCPS index will be 1 for LATISS: OCPS:1.
+        """
         return self._ocps_group
 
     @property
@@ -64,7 +71,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
 
     @property
     def image_in_oods(self):
-        """Archiver"""
+        """Archiver imageInOODS event."""
         return self.camera.rem.atarchiver.evt_imageInOODS
 
     @classmethod
