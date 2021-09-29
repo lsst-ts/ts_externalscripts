@@ -40,6 +40,8 @@ try:
         parse_visit_id,
     )
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
+    import lsst.daf.butler as dafButler
+    from lsst.rapid.analysis import BestEffortIsr
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
@@ -164,7 +166,7 @@ class LatissCWFSAlign(salobj.BaseScript):
         # offset for the intra/extra images
         self._dz = None
         # butler data path.
-        self.dataPath = None
+        self.datapath = None
         # end of configurable attributes
 
         # Set (oversized) stamp size for centroid estimation
@@ -374,15 +376,17 @@ Pixel_size (m)			{}
             self.log.info(
                 f"Running cwfs on {self.intra_visit_id} and {self.extra_visit_id}."
             )
-            self.log.debug(f"Using datapath of {self.dataPath}.")
+            self.log.debug(
+                f"Using datapath of {self.datapath}."
+            )
             self.log.debug(
                 f"Using a data_id of {parse_visit_id(self.intra_visit_id)} "
                 f"and {parse_visit_id(self.extra_visit_id)}."
             )
 
         self.intra_exposure, self.extra_exposure = await asyncio.gather(
-            get_image(parse_visit_id(self.intra_visit_id), datapath=self.dataPath),
-            get_image(parse_visit_id(self.extra_visit_id), datapath=self.dataPath),
+            get_image(parse_visit_id(self.intra_visit_id), self.best_effort_isr),
+            get_image(parse_visit_id(self.extra_visit_id), self.best_effort_isr),
         )
 
         self.log.debug("Running source detection")
@@ -651,7 +655,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 description: De-focus to apply when acquiring the intra/extra focal images (mm).
                 type: number
                 default: 0.8
-              dataPath:
+              datapath:
                 description: Path to the gen3 butler data repository. The default is for the summit.
                 type: string
                 default: /repo/LATISS/
@@ -730,7 +734,11 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.dz = config.dz
 
         # butler data path.
-        self.dataPath = config.dataPath
+        self.datapath = config.datapath
+
+        # Instantiate BestEffortIsr
+        self.butler = self.get_butler(self.datapath)
+        self.best_effort_isr = self.get_best_effort_isr(butler=self.butler)
 
         self.large_defocus = config.large_defocus
 
@@ -741,6 +749,16 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.offset_telescope = config.offset_telescope
 
         self.max_iter = config.max_iter
+
+    def get_butler(self, datapath):
+        # Isolate the butler instantiation so it can be mocked
+        # in unit tests
+        return dafButler.Butler(datapath, instrument='LATISS', collections='LATISS/raw/all')
+
+    def get_best_effort_isr(self, butler):
+        # Isolate the BestEffortIsr class so it can be mocked
+        # in unit tests
+        return BestEffortIsr(butler=butler, repodirIsGen3=True)
 
     def set_metadata(self, metadata):
         # It takes about 300s to run the cwfs code, plus the two exposures

@@ -22,6 +22,8 @@ import types
 import unittest
 import contextlib
 import unittest.mock
+import pathlib
+import tempfile
 
 import numpy as np
 
@@ -29,6 +31,21 @@ from lsst.ts.standardscripts import BaseScriptTestCase
 from lsst.ts.externalscripts import get_scripts_dir
 from lsst.ts.externalscripts.auxtel.build_pointing_model import BuildPointingModel
 from lsst.ts.observatory.control.utils.enums import RotType
+import lsst.daf.butler as dafButler
+
+# Declare the local path that has the information to build a
+# local gen3 butler database
+
+DATAPATH = (tempfile.TemporaryDirectory(prefix="butler-repo")).name
+butler_config_path = (
+    pathlib.Path(__file__)
+    .parents[1]
+    .joinpath("data", "auxtel", "butler_seed.yaml")
+    .as_posix()
+)
+dafButler.Butler(
+    dafButler.Butler.makeRepo(DATAPATH, config=butler_config_path), writeable=True
+)
 
 
 class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
@@ -38,6 +55,11 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
     async def basic_make_script(self, index):
 
         self.script = BuildPointingModel(index=index, remotes=self.remotes_needed)
+
+        # Mock the method that returns the BestEffortIsr class if it is
+        # not available for import
+        self.script.get_best_effort_isr = unittest.mock.AsyncMock()
+        self.script.get_butler = unittest.mock.AsyncMock()
 
         return (self.script,)
 
@@ -78,6 +100,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             metadata = types.SimpleNamespace(
                 duration=0.0,
                 nimages=0,
+                datapath=DATAPATH,
             )
 
             self.script.set_metadata(metadata)
@@ -257,7 +280,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             elevation_minimum=20.0,
             elevation_maximum=80.0,
             magnitude_limit=9.0,
-            datapath="/project/shared/auxTel/",
+            datapath=DATAPATH,
             exposure_time=1.0,
         )
 
@@ -269,8 +292,8 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
     async def make_configured_dry_script(self):
         """Construct script without remotes.
 
-        This is usefull for developing fast unit tests for methods that do not
-        require DDS communition or when mocking the remotes behavior.
+        This is useful for developing fast unit tests for methods that do not
+        require DDS communication or when mocking the remote's behavior.
         """
 
         self.remotes_needed = False

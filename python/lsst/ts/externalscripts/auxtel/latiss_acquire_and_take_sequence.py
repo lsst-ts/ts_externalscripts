@@ -24,7 +24,6 @@ import asyncio
 import collections.abc
 import warnings
 
-import lsst.daf.butler as dafButler
 import numpy as np
 import yaml
 import concurrent.futures
@@ -34,7 +33,6 @@ from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observatory.control.utils import RotType
-
 from lsst.ts.standardscripts.utils import format_as_list
 
 try:
@@ -43,6 +41,8 @@ try:
         parse_obs_id,
     )
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
+    from lsst.rapid.analysis import BestEffortIsr
+    import lsst.daf.butler as dafButler
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
@@ -216,7 +216,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     minimum: 0
                 default: 2.
 
-              dataPath:
+              datapath:
                 description: Path to the gen3 butler data repository. The default is for the summit.
                 type: string
                 default: /repo/LATISS/
@@ -256,10 +256,11 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         """
 
         # butler data path
-        self.dataPath = config.dataPath
+        self.datapath = config.datapath
 
-        # Instantiate the butler
-        self.butler = dafButler.Butler(self.dataPath)
+        # Instantiate BestEffortIsr
+        self.butler = self.get_butler(self.datapath)
+        self.best_effort_isr = self.get_best_effort_isr(butler=self.butler)
 
         # Which processes to perform
         self.do_acquire = config.do_acquire
@@ -313,6 +314,16 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
         ]
 
+    def get_butler(self, datapath):
+        # Isolate the butler instantiation so it can be mocked
+        # in unit tests
+        return dafButler.Butler(datapath, instrument='LATISS', collections='LATISS/raw/all')
+
+    def get_best_effort_isr(self, butler):
+        # Isolate the BestEffortIsr class so it can be mocked
+        # in unit tests
+        return BestEffortIsr(butler=butler, repodirIsGen3=True)
+
     # This bit is required for ScriptQueue
     # Does the calculation below need acquisition times?
     # I'm not quite sure what the metadata.filter bit is used for...
@@ -343,10 +354,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             timeout=timeout, flush=flush
         )
 
-        day_obs, seq_num = parse_obs_id(in_oods.obsid)[-2:]
-        self.log.info(f"seq_num {seq_num} arrived in OODS")
-
-        data_id = {'day_obs': day_obs, 'seq_num': seq_num, 'detector': 0, "instrument": 'LATISS'}
+        data_id = parse_obs_id(in_oods.obsid)
+        self.log.info(f"seq_num {data_id['seq_num']} arrived in OODS")
 
         return data_id
 
@@ -437,9 +446,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             exp = await get_image(
                 data_id,
-                datapath=self.dataPath,
+                self.best_effort_isr,
                 timeout=self.acq_exposure_time + STD_TIMEOUT,
-                runBestEffortIsr=True,
             )
 
             # Find brightest star

@@ -28,9 +28,11 @@ import yaml
 import concurrent.futures
 
 try:
+    from lsst.rapid.analysis import BestEffortIsr
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_obs_id
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
+    import lsst.daf.butler as dafButler
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
@@ -80,18 +82,18 @@ class QuickFrameMeasurement(salobj.BaseScript):
             $schema: http://json-schema.org/draft-07/schema#
             $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/QuickFrameMeasurement.yaml
             title: LatissRunIsr v1
-            description: Configuration for LatissCWFSAlign Script.
+            description: Configuration for QuickFrameMeasurement Script.
             type: object
             properties:
-              dataPath:
-                description: Path to the butler data repository.
+              datapath:
+                description: Path to the gen3 butler data repository.
                 type: string
-                default: /project/shared/auxTel/
-              data_id:
-                description: Visit id of the image to process. Format is AT_O_YYYMMDD_NNNNNN.
+                default: /repo/LATISS/
+              visit_id:
+                description: Visit id of the image to process. Format is AT_O_YYYSYMMDD_NNNNNN.
                 type: string
             required:
-              - data_id
+              - visit_id
             additionalProperties: false
         """
 
@@ -108,29 +110,40 @@ class QuickFrameMeasurement(salobj.BaseScript):
 
         self.config = config
 
+        # Instantiate BestEffortIsr
+        self.butler = self.get_butler(self.config.datapath)
+        self.best_effort_isr = self.get_best_effort_isr(butler=self.butler)
+
+    def get_butler(self, datapath):
+        # Isolate the butler instantiation so it can be mocked
+        # in unit tests
+        return dafButler.Butler(datapath, instrument='LATISS', collections='LATISS/raw/all')
+
+    def get_best_effort_isr(self, butler):
+        # Isolate the BestEffortIsr class so it can be mocked
+        # in unit tests
+        return BestEffortIsr(butler=butler, repodirIsGen3=True)
+
     def set_metadata(self, metadata):
         metadata.duration = 60.0
 
-    async def run_qm(self, data_id):
+    async def run_qm(self, visit_id):
 
-        day_obs, seq_num = parse_obs_id(data_id)[-2:]
+        data_id = parse_obs_id(visit_id)
 
         exp = await get_image(
-            dict(dayObs=day_obs, seqNum=seq_num),
-            datapath=self.config.dataPath,
+            data_id,
+            self.best_effort_isr,
             timeout=STD_TIMEOUT,
-            runBestEffortIsr=True,
         )
         loop = asyncio.get_event_loop()
         executor = concurrent.futures.ThreadPoolExecutor()
 
         # Find brightest star
-        try:
-            result = await loop.run_in_executor(executor, self.qm.run, exp)
-        except RuntimeError:
-            # FIXME: Patrick - deal with a failure to find the source here
-            pass  # and remove this
-            # Note that the source finding should be made a function
+        result = await loop.run_in_executor(executor, self.qm.run, exp)
+
+        if not result.success:
+            raise RuntimeError("Centroid finding algorithm was unsuccessful.")
 
         current_position = PointD(
             result.brightestObjCentroid[0], result.brightestObjCentroid[1]
@@ -140,5 +153,5 @@ class QuickFrameMeasurement(salobj.BaseScript):
 
     async def run(self):
 
-        self.log.debug(f"Running QuickFrameMeasurementTask in {self.config.data_id}")
-        await self.run_qm(self.config.data_id)
+        self.log.debug(f"Running QuickFrameMeasurementTask in {self.config.visit_id}")
+        await self.run_qm(self.config.visit_id)
