@@ -317,7 +317,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
     def get_butler(self, datapath):
         # Isolate the butler instantiation so it can be mocked
         # in unit tests
-        return dafButler.Butler(datapath, instrument='LATISS', collections='LATISS/raw/all')
+        return dafButler.Butler(
+            datapath, instrument="LATISS", collections="LATISS/raw/all"
+        )
 
     def get_best_effort_isr(self, butler):
         # Isolate the BestEffortIsr class so it can be mocked

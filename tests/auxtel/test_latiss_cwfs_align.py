@@ -64,7 +64,9 @@ random.seed(47)  # for set_random_lsst_dds_domain
 
 DATAPATH = "/readonly/repo/main/"
 try:
-    butler = dafButler.Butler(DATAPATH, instrument='LATISS', collections='LATISS/raw/all')
+    butler = dafButler.Butler(
+        DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
+    )
     DATA_AVAILABLE = True
 except FileNotFoundError:
     logger.warning("Data unavailable, certain tests will be skipped")

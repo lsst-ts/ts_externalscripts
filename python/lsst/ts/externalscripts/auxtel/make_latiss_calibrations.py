@@ -29,24 +29,26 @@ from ..base_make_calibrations import BaseMakeCalibrations
 
 class MakeLatissCalibrations(BaseMakeCalibrations):
     """Class for taking images, constructing, verifying, and
-       certifying master calibrations with LATISS.
+    certifying master calibrations with LATISS.
 
-       This class takes bias, dark, and flat exposureswith Auxtel-LATISS,
-       constructs a master calibration for each image type by calling
-       the appropriate pipetask via OCPS, and then verifies and certifies
-       each master calibration. It also optionally produces defects and
-       Photon Transfer Curves.
+    This class takes bias, dark, and flat exposureswith Auxtel-LATISS,
+    constructs a master calibration for each image type by calling
+    the appropriate pipetask via OCPS, and then verifies and certifies
+    each master calibration. It also optionally produces defects and
+    Photon Transfer Curves.
     """
 
     def __init__(self, index=1):
         super().__init__(
             index=index,
             descr="Takes series of bias, darks and flat-field exposures with "
-                  "LATISS/AuxTel, and constructs master calibrations, verify and "
-                  "certify the results."
+            "LATISS/AuxTel, and constructs master calibrations, verify and "
+            "certify the results.",
         )
         self._latiss = LATISS(domain=self.domain, log=self.log)
-        self._ocps_group = RemoteGroup(domain=self.domain, components=["OCPS:1"], log=self.log)
+        self._ocps_group = RemoteGroup(
+            domain=self.domain, components=["OCPS:1"], log=self.log
+        )
 
     @property
     def camera(self):
