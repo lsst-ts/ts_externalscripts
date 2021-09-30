@@ -22,7 +22,7 @@ import types
 import unittest
 import contextlib
 import unittest.mock
-import pathlib
+import os
 import tempfile
 
 import numpy as np
@@ -32,16 +32,18 @@ from lsst.ts.externalscripts import get_scripts_dir
 from lsst.ts.externalscripts.auxtel.build_pointing_model import BuildPointingModel
 from lsst.ts.observatory.control.utils.enums import RotType
 import lsst.daf.butler as dafButler
+from lsst.utils import getPackageDir
 
 # Declare the local path that has the information to build a
 # local gen3 butler database
 
 DATAPATH = (tempfile.TemporaryDirectory(prefix="butler-repo")).name
-butler_config_path = (
-    pathlib.Path(__file__)
-    .parents[1]
-    .joinpath("data", "auxtel", "butler_seed.yaml")
-    .as_posix()
+butler_config_path = os.path.join(
+    getPackageDir("ts_externalscripts"),
+    "tests",
+    "data",
+    "auxtel",
+    "butler_seed.yaml",
 )
 dafButler.Butler(
     dafButler.Butler.makeRepo(DATAPATH, config=butler_config_path), writeable=True
@@ -59,7 +61,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         # Mock the method that returns the BestEffortIsr class if it is
         # not available for import
         self.script.get_best_effort_isr = unittest.mock.AsyncMock()
-        self.script.get_butler = unittest.mock.AsyncMock()
 
         return (self.script,)
 

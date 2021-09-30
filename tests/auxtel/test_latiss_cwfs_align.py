@@ -26,10 +26,10 @@ import asyncio
 import numpy as np
 import warnings
 import os
-import pathlib
 
 try:
     # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
+    from lsst.rapid.analysis import BestEffortIsr
     from lsst import cwfs
 
     CWFS_AVAILABLE = True
@@ -42,6 +42,7 @@ from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissCWFSAlign
 import lsst.daf.butler as dafButler
+from lsst.utils import getPackageDir
 import logging
 
 # Make matplotlib less chatty
@@ -62,7 +63,7 @@ random.seed(47)  # for set_random_lsst_dds_domain
 # for now just checking if butler is instantiated with
 # the default path used on the summit and on the NTS.
 
-DATAPATH = "/readonly/repo/main/"
+DATAPATH = "/readonly/repo/main"
 try:
     butler = dafButler.Butler(
         DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
@@ -71,14 +72,24 @@ try:
 except FileNotFoundError:
     logger.warning("Data unavailable, certain tests will be skipped")
     DATA_AVAILABLE = False
-    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
+    DATAPATH = os.path.join(
+        getPackageDir("ts_externalscripts"),
+        "tests",
+        "data",
+        "auxtel",
+    )
 except PermissionError:
     logger.warning(
         "Data unavailable due to permissions (at a minimum),"
         " certain tests will be skipped"
     )
     DATA_AVAILABLE = False
-    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
+    DATAPATH = os.path.join(
+        getPackageDir("ts_externalscripts"),
+        "tests",
+        "data",
+        "auxtel",
+    )
 
 
 class TestLatissCWFSAlign(
@@ -89,6 +100,7 @@ class TestLatissCWFSAlign(
 
         self.visit_id_angles = {}
         self.end_image_tasks = []
+        self.img_cnt_override_list = None
 
         # Load controllers and required callbacks to simulate
         # telescope/instrument behaviour
@@ -123,7 +135,6 @@ class TestLatissCWFSAlign(
         # not available for import
         if not DATA_AVAILABLE:
             self.script.get_best_effort_isr = unittest.mock.AsyncMock()
-            self.script.get_butler = unittest.mock.AsyncMock()
 
         # things to track
         self.nimages = 0
@@ -132,6 +143,10 @@ class TestLatissCWFSAlign(
 
         # Return a single element tuple
         return (self.script,)
+
+    def get_best_effort_isr_mock(self):
+        logger.debug("Mocking BestEffortISR")
+        return BestEffortIsr(self.datapath, doWrite=False)
 
     async def ataos_cmd_offset_callback(self, data):
         """Publishes event from hexapod saying movement completed"""
@@ -173,8 +188,19 @@ class TestLatissCWFSAlign(
 
     async def finish_take_images(self):
         await asyncio.sleep(0.5)
-        imgNum = self.atcamera.cmd_takeImages.callback.await_count - 1
-        image_name = f"AT_O_{self.date}_{(imgNum + self.seq_num_start):06d}"
+        # Allow an override of image numbers incase the test datasets are
+        # non-sequential
+        if not self.img_cnt_override_list:
+            imgNum = self.atcamera.cmd_takeImages.callback.await_count - 1
+            image_name = f"AT_O_{self.date}_{(imgNum + self.seq_num_start):06d}"
+        else:
+            logger.debug("Mock camera using override list")
+            imgNum = self.img_cnt_override_list[
+                self.atcamera.cmd_takeImages.callback.await_count - 1
+            ]
+            image_name = f"AT_O_{self.date}_{(imgNum):06d}"
+
+        logger.debug(f"Mock camera returning imageName={image_name}")
         self.atcamera.evt_endReadout.set_put(imageName=image_name)
         await asyncio.sleep(0.5)
         self.atheaderservice.evt_largeFileObjectAvailable.put()
@@ -208,7 +234,10 @@ class TestLatissCWFSAlign(
             self.assertEqual(self.script.cwfs_target_dec, None)
 
             # Test with find_target
-            find_target = dict(az=-180.0, el=60.0, mag_limit=8.0)
+            # this can fail occasionally if you're unlucky and
+            # don't get a target so the mag_range is large to
+            # prevent this
+            find_target = dict(az=-180.0, el=60.0, mag_limit=6.0, mag_range=14)
             await self.configure_script(find_target=find_target)
 
             self.assertNotEqual(self.script.cwfs_target, None)
@@ -289,17 +318,54 @@ class TestLatissCWFSAlign(
         f"Skipping test_take_sequence.",
     )
     async def test_take_sequence(self):
+        """This tests the taking of an entire sequence.
+        Data was taken on 2021-11-04, images 954-955. This is a middle
+        iteration of a the set used in test_full_sequence.
+        Prior to the set, telescope was focused, then hexapod was
+        offset by x=1, y=1, z=0.05 mm.
+        This test looks at only the analysis of images 954-955, where
+        the output was:
+
+        intraImage expId for target: 2021110400954
+        extraImage expId for target: 2021110400955
+        angle used in cwfs algorithm is 11.77
+        Creating stamp for intra_image donut on centroid
+        [y,x] = [3084,2697] with a side length of 228 pixels
+        Creating stamp for intra_image donut on centroid
+        [y,x] = [3084,2700] with a side length of 228 pixels
+        ==============================
+        Measured [coma-X, coma-Y, focus] zernike coefficients [nm]:
+        [-11.1, 14.5, -9.5, ]
+        De-rotated [coma-X, coma-Y, focus]  zernike coefficients [nm]:
+        [-9.0, 15.9, -9.5, ]
+        Hexapod [x, y, z] offsets [mm] : -0.044, -0.077, -0.004,
+        Telescope offsets [arcsec]: -2.3, -3.9, 0.0,
+        ==============================
+
+        Focus (-0.004) and coma (0.089) offsets inside tolerance level (0.010).
+        Total focus correction: -0.004 mm.
+        Total coma-x correction: 0.000 mm. Total coma-y correction: 0.000 mm.
+        Applying telescope offset [az,el]: [-3.892, -2.297].
+        """
         async with self.make_script():
             # Date for file to be produced
-            self.date = "20210323"
+            self.date = "20211104"
             # sequence number start
             target_name = "HD 24661"
-            self.seq_num_start = 307
+            self.seq_num_start = 950
             grating = "empty_1"
-            filter = "RG610"
+            filter = "FELH0600"
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
-            self.visit_id_angles.update({2021032300308: [47.907, -118.61]})
-            self.visit_id_angles.update({2021032300310: [47.907, -118.61]})
+            self.visit_id_angles.update({2021110400950: [76.5, 96.16]})
+            self.visit_id_angles.update({2021110400951: [76.5, 96.75]})
+            self.visit_id_angles.update({2021110400954: [76.95, 89.09]})
+            self.visit_id_angles.update({2021110400955: [76.96, 88.79]})
+            self.visit_id_angles.update({2021110400958: [77.08, 85.1]})
+            self.visit_id_angles.update({2021110400959: [77.09, 84.79]})
+
+            # Use override of images since we need them to be non-sequential
+            # Note that 960 is the in-focus image, but needs to be declared
+            self.img_cnt_override_list = [950, 951, 954, 955, 958, 959, 960]
             # publish required events
             self.atptg.evt_currentTarget.set_put(targetName=target_name)
 
@@ -315,61 +381,24 @@ class TestLatissCWFSAlign(
             # await self.run_script()
             await self.script.arun()
 
-            # output on-sky from first pair
-            # Selected source 2 @ [1915.2870675674224, 1629.638405]
-            # Looking at image 309, centroid is ~1926, 1450
-            # the centroid above is for image 308
-            # Poor centroid, so eyeballing gives this.
-            centroid = [1926.0, 1450.0]  # [y,x]
+            # output on-sky from last pair
+            centroid = [2708, 3094]  # [y,x]
 
-            # == == == == == == == == == == == == == == ==
-            # Measured[coma - X, coma - Y, focus] zernike
-            # coefficients in nm: [-19.40256, -51.19022, -11.11000]
+            meas_zerns = [-11.1, 14.5, -9.5]
             # De - rotated zernike
-            # coefficients: [30.81990987 45.24411764 - 11.11000346]
-            # Hexapod offset: [0.14961121 - 0.21963164 0.0083452]
-            # Telescope offsets: [8.97667278 - 13.17789834 0.]
-            # == == == == == == == == == == == == == == ==
-            # Applying offset: x = 0.14961121297507113, y = -0.219631639005,
-            # z = 0.008345202883904302.
-            # Applying telescope offset
-            # x / y: 8.976672778504268 / 13.177898340311959.
+            rot_zerns = [-9.0, 15.9, -9.5]
+            # Hexapod offsets
+            hex_offsets = [-0.044, -0.077, -0.004]
+            # Telescope offsets
+            tel_offsets = [-2.3, -3.9, 0.0]
 
-            # second pair
-            # Selected source 1  @ [1908.3507014028055, 1454.0437162985766]
-
-            # == == == == == == == == == == == == == == ==
-            # Measured[coma - X, coma - Y, focus] zernike
-            # coefficients in nm: [-5.15634, 0.65542, -19.83415]
-            meas_zerns = [-5.156342491620025, 0.6554215087770965, -19.8341551660864]
-            # De - rotated zernike
-            # coefficients: [4.86354471 - 1.83395149 - 19.83415517]
-            rot_zerns = [4.86354471, -1.83395149, -19.83415517]
-            # Hexapod offset: [0.02360944 0.00890268 0.00449137]
-            hex_offsets = [0.02360944, 0.00890268, 0.00449137]
-            # Telescope
-            # offsets: [1.41656642 0.53416063 0.]
-            # tel_offsets = [1.41656642, 0.53416063, 0.0]
-            # == == == == == == == == == == == == == == ==
-
-            # Focus(0.0044913722282236765) and comma(0.025232188452070977)
-            # offsets inside  tolerance
-            # level(0.01).Total focus correction: 0.012836575112127978
-            total_focus = 0.012836575112127978
-            # mm.Total
-            # comma - x
-            # correction: 0.14961121297507113
-            # mm.Total
-            # comma - y
-            # correction: -0.21963163900519933
-            # mm.
-            # Applying telescope offset
-            # x / y: 1.4165664213786795 / -0.5341606280075011.
+            # UPDATE ME!
+            total_focus = -0.060 + 0.0067 - 0.0044
 
             # Note that printed coma corrections above do *NOT* have the final
             # adjustment included
-            total_xcoma = 0.14961121297507113 + 0.02360944
-            total_ycoma = -0.21963163900519933 + 0.00890268
+            total_xcoma = -0.712 - 0.255 - 0.044  # -1.011
+            total_ycoma = -0.66 - 0.206 - 0.077  # -0.943
 
             with self.subTest(
                 msg="Y-Centroid Comparison, index=0",
@@ -404,8 +433,11 @@ class TestLatissCWFSAlign(
             logger.info(
                 f"Hex_tol is {np.matmul(zern_tol, self.script.sensitivity_matrix)}"
             )
-            results = self.script.calculate_results()
 
+            tel_offset_tol = np.matmul(hex_tol, self.script.hexapod_offset_scale)
+            logger.debug(f"tel_offset_tol is {tel_offset_tol}")
+
+            results = self.script.calculate_results()
             for i, z in enumerate(results["zerns"]):
                 with self.subTest(
                     msg="zern comparison", z=z, measured=meas_zerns[i], i=i
@@ -422,49 +454,42 @@ class TestLatissCWFSAlign(
                 ):
                     self.assertTrue(abs(h - hex_offsets[i]) <= hex_tol[i])
 
-            # Note that there is a known issue with the sign of the telescope
-            # offsets, omitting for now.
-            # for i, t in enumerate(results['tel_offset']):
-            #     if t != 0:
-            #         with self.subTest(t=t, i=i):
-            #             self.assertTrue(abs(t - tel_offsets[i])
-            #             / abs(tel_offsets[i]) <= 0.05)
+            for i, t in enumerate(results["tel_offset"]):
+                if t != 0:
+                    with self.subTest(
+                        msg="telescope offset comparison",
+                        t=t,
+                        measured=tel_offsets[i],
+                        i=i,
+                    ):
+                        self.assertTrue(abs(t - tel_offsets[i]) <= tel_offset_tol[i])
 
             # Check that hexapod offsets were applied -  too hard to keep
             # track of how many calls should happen since
             # it also calls this to take the intra/extra focal images
             self.assertTrue(self.ataos.cmd_offset.callback.called)
             # check that telescope offsets were applied twice
-            self.assertEqual(self.script.atcs.offset_xy.call_count, 2)
-            # check that total offsets are correct within the tolerance or 5%
+            self.assertEqual(self.script.atcs.offset_xy.call_count, 3)
+            # check that total offsets are correct within the tolerance
             #
             self.assertTrue(
-                (
-                    abs(self.script.total_coma_x_offset - total_xcoma)
-                    / abs(total_xcoma)
-                    <= 0.05
-                )
-                or (abs(self.script.total_coma_x_offset - total_xcoma) < hex_tol[0])
+                abs(self.script.total_coma_x_offset - total_xcoma) < hex_tol[0],
+                msg=f"Total xComa is {self.script.total_coma_x_offset:0.5f}"
+                f"compared to the expected results of {total_xcoma:0.5f},"
+                f"which exceeds the tolerance of {hex_tol[0]:0.5f}",
             )
             self.assertTrue(
-                (
-                    abs(self.script.total_coma_y_offset - total_ycoma)
-                    / abs(total_ycoma)
-                    <= 0.05
-                )
-                or (abs(self.script.total_coma_x_offset - total_xcoma) < hex_tol[1])
+                abs(self.script.total_coma_y_offset - total_ycoma) < hex_tol[1],
+                msg=f"Total yComa is {self.script.total_coma_y_offset:0.5f} "
+                f"compared to the expected results of {total_ycoma:0.5f}, "
+                f"which exceeds the tolerance of {hex_tol[1]:0.5f}",
             )
-            logger.debug(
-                f"Measured total focus offset is {self.script.total_focus_offset:0.5f}"
-            )
-            logger.debug(f"Reference total focus offset value is {total_focus:0.5f}")
-            logger.debug(f"Tolerance is {max((0.05*total_focus, hex_tol[2])):0.5f}")
+
             self.assertTrue(
-                (
-                    abs(self.script.total_focus_offset - total_focus) / abs(total_focus)
-                    <= 0.05
-                )
-                or (abs(self.script.total_focus_offset - total_focus) < hex_tol[2])
+                abs(self.script.total_focus_offset - total_focus) < hex_tol[2],
+                msg=f"Total focus offset is {self.script.total_focus_offset:0.5f} "
+                f"compared to the expected results of {total_focus:0.5f}, "
+                f"which exceeds the tolerance of {hex_tol[2]:0.5f}",
             )
 
     @unittest.skipIf(
@@ -474,18 +499,49 @@ class TestLatissCWFSAlign(
         f"Skipping test_analysis.",
     )
     async def test_analysis(self):
-        """This tests only the analysis part"""
+        """This tests only the analysis of a single pair of donuts.
+        It checks the fitting algormithm solution only and should be
+        run before the test_full_sequence test.
+        Data was taken on 2021-11-04, images 954-955. This is a middle
+        iteration of a the set used in test_full_sequence.
+        Prior to the set, telescope was focused, then hexapod was
+        offset by x=1, y=1, z=0.05 mm.
+        This test looks at only the analysis of images 954-955, where
+        the output was:
+
+        intraImage expId for target: 2021110400954
+        extraImage expId for target: 2021110400955
+        angle used in cwfs algorithm is 11.77
+        Creating stamp for intra_image donut on centroid
+        [y,x] = [3094,2708] with a side length of 228 pixels
+        Creating stamp for intra_image donut on centroid
+        [y,x] = [3090,2713] with a side length of 228 pixels
+        ==============================
+        Measured [coma-X, coma-Y, focus] zernike coefficients [nm]:
+        [-60.1, 30.8, 50.7, ]
+        De-rotated [coma-X, coma-Y, focus]  zernike coefficients [nm]:
+        [-52.6, 42.4, 50.7, ]
+        Hexapod [x, y, z] offsets [mm] : -0.255, -0.206, 0.007,
+        Telescope offsets [arcsec]: -13.4, -10.4, 0.0,
+        ==============================
+        Applying offset:
+        x=-0.2551161770829597, y=-0.20577598056746502, z=0.006737514919628802.
+        """
         async with self.make_script():
 
             await self.configure_script(
                 datapath=DATAPATH,
             )
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
-            self.visit_id_angles.update({2021032300308: [47.907, -118.61]})
-            self.visit_id_angles.update({2021032300310: [47.907, -118.61]})
+            self.visit_id_angles.update({2021110400954: [76.95, 89.09]})
+            self.visit_id_angles.update({2021110400955: [76.96, 88.79]})
 
-            self.script.intra_visit_id = 2021032300307
-            self.script.extra_visit_id = 2021032300308
+            # intra and extra were reversed prior to this branch, so trying
+            # to test this therefore I'll invert the image order
+            #
+            self.script.intra_visit_id = 2021110400954
+            self.script.extra_visit_id = 2021110400955
+
             self.script.angle = 90.0 - await self.atcs_get_bore_sight_angle()
             # Binning must be set to the default (1) when being instantiated
             # using the configure_script method above, therefore do not
@@ -496,44 +552,23 @@ class TestLatissCWFSAlign(
             await self.script.run_cwfs()
 
             # output on-sky from first pair
-            # Selected source 2 @ [1915.2870675674224, 1629.638405]
-            centroid = [1915.2870675674224, 1629.638405]  # [y,x]
-            # Looking at image 309, centroid is ~1926, 1450
-            # the centroid above is for image 308
+            centroid = [2708, 3094]  # [x,y]
 
-            # == == == == == == == == == == == == == == ==
-            # Measured[coma - X, coma - Y, focus] zernike
-            # coefficients in nm: [-19.40256, -51.19022, -11.11000]
-            meas_zerns = [-19.40256, -51.19022, -11.11000]
-            # De - rotated zernike
-            # coefficients: [30.81990987 45.24411764 - 11.11000346]
-            rot_zerns = [30.81990987, 45.24411764, -11.11000346]
-            # Hexapod offset: [0.14961121 - 0.21963164 0.0083452]
-            hex_offsets = [0.14961121, -0.21963164, 0.0083452]
-            # Telescope
-            # offsets: [8.97667278 - 13.17789834 0.]
-            # == == == == == == == == == == == == == == ==
-            # Applying
-            # offset: x = 0.14961121297507113, y = -0.21963163900519933,
-            # z = 0.008345202883904302.
-            # Applying telescope offset
-            # x / y: 8.976672778504268 / 13.177898340311959.
-
-            # second pair
-            # Selected source 1  @ [1908.3507014028055, 1454.0437162985766]
-
-            # == == == == == == == == == == == == == == ==
-            # Measured[coma - X, coma - Y, focus] zernike
-            # coefficients in nm: [-5.15634, 0.65542, -19.83415]
-            # meas_zerns = [-5.156342491620025, 0.6554215087770965, -19.834155]
-            # De - rotated zernike
-            # coefficients: [4.86354471 - 1.83395149 - 19.83415517]
-            # rot_zerns = [4.86354471, -1.83395149, -19.83415517]
-            # Hexapod offset: [0.02360944 0.00890268 0.00449137]
-            # hex_offsets = [0.02360944, 0.00890268, 0.00449137]
-            # Telescope offsets: [1.41656642 0.53416063 0.]
-            # tel_offsets = [1.41656642, 0.53416063, 0.0]
-            # == == == == == == == == == == == == == == ==
+            meas_zerns = [
+                -60.1,
+                30.8,
+                50.7,
+            ]
+            # De-rotated zernike
+            rot_zerns = [
+                -52.6,
+                42.4,
+                50.7,
+            ]
+            # Hexapod offsets
+            hex_offsets = [-0.255, -0.206, 0.007]
+            # Telescope offsets
+            tel_offsets = [-13.4, -10.4, 0.0]
 
             # Check that Centroid is correct to within 100 pixels
             # the original script used a single centroid for a combination of
@@ -567,12 +602,14 @@ class TestLatissCWFSAlign(
             # get dict of results from the last run and check they're within
             # ~15nm of the expected values
             zern_tol = [15, 15, 15]  # [nm]
-            hex_tol = abs(np.matmul(zern_tol, self.script.sensitivity_matrix))  # [mm]
-            logger.info(
-                f"Hex_tol is {np.matmul(zern_tol, self.script.sensitivity_matrix)}"
-            )
-            results = self.script.calculate_results()
+            # hex_tol is in mm
+            hex_tol = abs(np.matmul(zern_tol, self.script.sensitivity_matrix))
+            logger.debug(f"Hex_tol is {hex_tol}")
 
+            tel_offset_tol = np.matmul(hex_tol, self.script.hexapod_offset_scale)
+            logger.debug(f"tel_offset_tol is {tel_offset_tol}")
+
+            results = self.script.calculate_results()
             for i, z in enumerate(results["zerns"]):
                 with self.subTest(
                     msg="zern comparison", z=z, measured=meas_zerns[i], i=i
@@ -589,13 +626,15 @@ class TestLatissCWFSAlign(
                 ):
                     self.assertTrue(abs(h - hex_offsets[i]) <= hex_tol[i])
 
-            # Note that there is a known issue with the sign of the telescope
-            # offsets, omitting for now.
-            # for i, t in enumerate(results['tel_offset']):
-            #     if t != 0:
-            #         with self.subTest(t=t, i=i):
-            #             self.assertTrue(abs(t - tel_offsets[i])
-            #             / abs(tel_offsets[i]) <= 0.05)
+            for i, t in enumerate(results["tel_offset"]):
+                if t != 0:
+                    with self.subTest(
+                        msg="telescope offset comparison",
+                        t=t,
+                        measured=tel_offsets[i],
+                        i=i,
+                    ):
+                        self.assertTrue(abs(t - tel_offsets[i]) <= tel_offset_tol[i])
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
