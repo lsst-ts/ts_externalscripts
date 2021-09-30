@@ -23,13 +23,16 @@ __all__ = ["LatissAcquireAndTakeSequence"]
 import random
 import unittest
 import asyncio
-import pathlib
+import tempfile
+import os
 
 from lsst.ts import salobj
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
-import lsst.daf.persistence as dafPersist
+import lsst.daf.butler as dafButler
+from lsst.utils import getPackageDir
+
 import logging
 
 # Make matplotlib less chatty
@@ -46,22 +49,46 @@ logger.propagate = True
 # for now just checking if butler is instantiated with
 # the default path used on the summit and on the NTS.
 
-DATAPATH = "/project/shared/auxTel/"
+# DATAPATH set to NTS repo
+DATAPATH = "/readonly/repo/main/"
 try:
-    butler = dafPersist.Butler(DATAPATH)
+    butler = dafButler.Butler(
+        DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
+    )
     DATA_AVAILABLE = True
-    logger.info("Data is available for tests.")
-except RuntimeError:
+except FileNotFoundError:
     logger.warning("Data unavailable, certain tests will be skipped")
     DATA_AVAILABLE = False
-    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
+
+    DATAPATH = (tempfile.TemporaryDirectory(prefix="butler-repo")).name
+    butler_config_path = os.path.join(
+        getPackageDir("ts_externalscripts"),
+        "tests",
+        "data",
+        "auxtel",
+        "butler_seed.yaml",
+    )
+    dafButler.Butler(
+        dafButler.Butler.makeRepo(DATAPATH, config=butler_config_path), writeable=True
+    )
+
 except PermissionError:
     logger.warning(
         "Data unavailable due to permissions (at a minimum),"
         " certain tests will be skipped"
     )
     DATA_AVAILABLE = False
-    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
+    DATAPATH = (tempfile.TemporaryDirectory(prefix="butler-repo")).name
+    butler_config_path = os.path.join(
+        getPackageDir("ts_externalscripts"),
+        "tests",
+        "data",
+        "auxtel",
+        "butler_seed.yaml",
+    )
+    dafButler.Butler(
+        dafButler.Butler.makeRepo(DATAPATH, config=butler_config_path), writeable=True
+    )
 
 
 class TestLatissAcquireAndTakeSequence(
@@ -82,6 +109,12 @@ class TestLatissAcquireAndTakeSequence(
         self.script.latiss.setup_atspec = unittest.mock.AsyncMock(
             wraps=self.cmd_setup_atspec_callback
         )
+
+        # Mock method that returns the BestEffortIsr class if it is
+        # not available for import
+        if not DATA_AVAILABLE:
+            self.script.get_best_effort_isr = unittest.mock.AsyncMock()
+            self.script.get_butler = unittest.mock.AsyncMock()
 
         # Load controllers and required callbacks to simulate
         # telescope/instrument behaviour
@@ -205,7 +238,7 @@ class TestLatissAcquireAndTakeSequence(
                 exposure_time_sequence=exposure_time_sequence,
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
-                dataPath=DATAPATH,
+                datapath=DATAPATH,
             )
 
             self.assertEqual(self.script.object_name, object_name)
@@ -227,7 +260,7 @@ class TestLatissAcquireAndTakeSequence(
                 exposure_time_sequence=exposure_time_sequence,
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
-                dataPath=DATAPATH,
+                datapath=DATAPATH,
             )
 
             self.assertEqual(self.script.object_name, object_name)
@@ -251,7 +284,7 @@ class TestLatissAcquireAndTakeSequence(
                     exposure_time_sequence=exposure_time_sequence,
                     do_acquire=do_acquire,
                     do_take_sequence=do_take_sequence,
-                    dataPath=DATAPATH,
+                    datapath=DATAPATH,
                 )
 
             acq_filter = "acqfilter"
@@ -276,7 +309,7 @@ class TestLatissAcquireAndTakeSequence(
                 filter_sequence=filter_sequence,
                 grating_sequence=grating_sequence,
                 exposure_time_sequence=exposure_time_sequence,
-                dataPath=DATAPATH,
+                datapath=DATAPATH,
             )
             self.assertEqual(self.script.object_name, object_name)
             for i, v in enumerate(self.script.visit_configs):
@@ -312,7 +345,7 @@ class TestLatissAcquireAndTakeSequence(
                 exposure_time_sequence=exposure_time_sequence,
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
-                dataPath=DATAPATH,
+                datapath=DATAPATH,
             )
 
             # publish ataos event saying corrections are enabled
@@ -376,6 +409,7 @@ class TestLatissAcquireAndTakeSequence(
                 target_pointing_tolerance=target_pointing_tolerance,
                 max_acq_iter=max_acq_iter,
                 do_pointing_model=do_pointing_model,
+                datapath=DATAPATH,
             )
 
             # publish ataos event saying corrections are enabled
@@ -435,6 +469,7 @@ class TestLatissAcquireAndTakeSequence(
                 do_pointing_model=do_pointing_model,
                 acq_exposure_time=acq_exposure_time,
                 target_pointing_verification=target_pointing_verification,
+                datapath=DATAPATH,
             )
 
             # publish ataos event saying corrections are enabled
@@ -489,6 +524,7 @@ class TestLatissAcquireAndTakeSequence(
                 target_pointing_tolerance=target_pointing_tolerance,
                 max_acq_iter=max_acq_iter,
                 target_pointing_verification=target_pointing_verification,
+                datapath=DATAPATH,
             )
 
             # publish ataos event saying corrections are enabled
@@ -550,6 +586,7 @@ class TestLatissAcquireAndTakeSequence(
                 target_pointing_tolerance=target_pointing_tolerance,
                 exposure_time_sequence=exposure_time_sequence,
                 target_pointing_verification=target_pointing_verification,
+                datapath=DATAPATH,
             )
 
             # publish ataos event saying corrections are enabled

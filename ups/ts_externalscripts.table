@@ -4,5 +4,10 @@ setupRequired(ts_salobj)
 setupRequired(ts_observatory_control)
 setupRequired(ts_standardscripts)
 
+setupOptional(ts_observing_utilities)
+setupOptional(atmospec)
+setupOptional(cwfs)
+setupOptional(rapid_analysis)
+
 envPrepend(PATH, ${PRODUCT_DIR}/bin)
 envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)

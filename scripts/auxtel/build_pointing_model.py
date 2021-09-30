@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel.functional_tests import LatissRunIsr
+from lsst.ts.externalscripts.auxtel.build_pointing_model import BuildPointingModel
 
-asyncio.run(LatissRunIsr.amain())
+asyncio.run(BuildPointingModel.amain())

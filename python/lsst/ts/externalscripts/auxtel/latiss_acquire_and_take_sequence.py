@@ -24,7 +24,6 @@ import asyncio
 import collections.abc
 import warnings
 
-import lsst.daf.persistence as dafPersist
 import numpy as np
 import yaml
 import concurrent.futures
@@ -34,7 +33,6 @@ from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observatory.control.utils import RotType
-
 from lsst.ts.standardscripts.utils import format_as_list
 
 try:
@@ -43,6 +41,8 @@ try:
         parse_obs_id,
     )
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
+    from lsst.rapid.analysis import BestEffortIsr
+    import lsst.daf.butler as dafButler
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
@@ -150,7 +150,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
               acq_filter:
                 description: Which filter to use when performing acquisition.
                 type: string
-                default: RG610
+                default: FELH0600
 
               acq_grating:
                 description: Which grating to use when performing acquisition. Must use
@@ -168,7 +168,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                              Only used if do_acquire=True.
                 type: number
                 default: 3
-                minimum: 1
+                minimum: 0
 
               target_pointing_tolerance:
                 description: Number of arcsec from source to desired position to consider good enough.
@@ -216,10 +216,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     minimum: 0
                 default: 2.
 
-              dataPath:
-                description: Path to the butler data repository.
+              datapath:
+                description: Path to the gen3 butler data repository. The default is for the summit.
                 type: string
-                default: /project/shared/auxTel/
+                default: /repo/LATISS/
 
               do_pointing_model:
                 description: Adjust star position (sweet spot) to use boresight. Save datapoint
@@ -256,10 +256,11 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         """
 
         # butler data path
-        self.dataPath = config.dataPath
+        self.datapath = config.datapath
 
-        # Instantiate the butler
-        self.butler = dafPersist.Butler(self.dataPath)
+        # Instantiate BestEffortIsr
+        self.butler = self.get_butler(self.datapath)
+        self.best_effort_isr = self.get_best_effort_isr(butler=self.butler)
 
         # Which processes to perform
         self.do_acquire = config.do_acquire
@@ -313,6 +314,18 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
         ]
 
+    def get_butler(self, datapath):
+        # Isolate the butler instantiation so it can be mocked
+        # in unit tests
+        return dafButler.Butler(
+            datapath, instrument="LATISS", collections="LATISS/raw/all"
+        )
+
+    def get_best_effort_isr(self, butler):
+        # Isolate the BestEffortIsr class so it can be mocked
+        # in unit tests
+        return BestEffortIsr(butler=butler, repodirIsGen3=True)
+
     # This bit is required for ScriptQueue
     # Does the calculation below need acquisition times?
     # I'm not quite sure what the metadata.filter bit is used for...
@@ -343,10 +356,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             timeout=timeout, flush=flush
         )
 
-        day_obs, seq_num = parse_obs_id(in_oods.obsid)[-2:]
-        self.log.info(f"seqNum {seq_num} arrived in OODS")
-
-        data_id = dict(dayObs=day_obs, seqNum=seq_num)
+        data_id = parse_obs_id(in_oods.obsid)
+        self.log.info(f"seq_num {data_id['seq_num']} arrived in OODS")
 
         return data_id
 
@@ -413,12 +424,12 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
             self.manual_focus_offset_applied = True
 
-        self.log.info(
+        self.log.debug(
             "Beginning Acquisition Iterative Loop, with a maximum amount of "
             f"iterations set to {self.max_acq_iter}"
         )
         iter_num = 0
-        _success = False
+        _success = False if self.max_acq_iter > 0 else True
         for iter_num in range(self.max_acq_iter):
             # Take image
             self.log.debug(
@@ -437,9 +448,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             exp = await get_image(
                 data_id,
-                datapath=self.dataPath,
+                self.best_effort_isr,
                 timeout=self.acq_exposure_time + STD_TIMEOUT,
-                runBestEffortIsr=True,
             )
 
             # Find brightest star
@@ -478,9 +488,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             dr_arcsec = np.sqrt(dx_arcsec ** 2 + dy_arcsec ** 2)
 
-            self.log.info(
+            self.log.debug(
                 f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f}, {dy_arcsec:0.2f}] arcsec as calculated"
-                f" from sequence number {data_id['seqNum']} on dayObs of {data_id['dayObs']}"
+                f" from sequence number {data_id['seq_num']} on Observation Day of {data_id['day_obs']}"
             )
 
             # Check if star is in place, if so then we're done
@@ -506,7 +516,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.atcs.offset_xy(
                 dx_arcsec, dy_arcsec, relative=True, persistent=False
             )
-            self.log.info(
+            self.log.debug(
                 f"At end of iteration loop, success is {_success}. So moving to next iteration"
             )
 
@@ -537,7 +547,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         if self.target_pointing_verification:
             await self.latiss.take_object(exptime=self.acq_exposure_time, n=1)
         else:
-            self.log.info(
+            self.log.debug(
                 f"Skipping additional image to verify offset was applied correctly as "
                 f"target_pointing_verification is set to {self.target_pointing_verification}"
             )
@@ -613,7 +623,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 self.log.exception("Exception from latiss_take_sequence()")
                 raise e
             finally:
-                self.log.debug("At finally statement in run")
+                self.log.debug("Latiss_acquire_and_take_sequence script completed\n")
 
     async def run(self):
         """"""

@@ -26,6 +26,7 @@ import asyncio
 import numpy as np
 import warnings
 import os
+import pathlib
 
 try:
     # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
@@ -40,7 +41,7 @@ from lsst.ts import salobj
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissCWFSAlign
-import lsst.daf.persistence as dafPersist
+import lsst.daf.butler as dafButler
 import logging
 
 # Make matplotlib less chatty
@@ -56,26 +57,28 @@ logger.propagate = True
 
 random.seed(47)  # for set_random_lsst_dds_domain
 
-# Check to see if the test data is accessible for testing
+# Check to see if the test data is accessible for testing at NCSA
 # Depending upon how we load test data this will change
 # for now just checking if butler is instantiated with
 # the default path used on the summit and on the NTS.
 
-DATAPATH = "/project/shared/auxTel/"
+DATAPATH = "/readonly/repo/main/"
 try:
-    butler = dafPersist.Butler(DATAPATH)
+    butler = dafButler.Butler(
+        DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
+    )
     DATA_AVAILABLE = True
-except RuntimeError:
+except FileNotFoundError:
     logger.warning("Data unavailable, certain tests will be skipped")
     DATA_AVAILABLE = False
-    DATAPATH = "tests/data/auxtel/"
+    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
 except PermissionError:
     logger.warning(
         "Data unavailable due to permissions (at a minimum),"
         " certain tests will be skipped"
     )
     DATA_AVAILABLE = False
-    DATAPATH = "tests/data/auxtel/"
+    DATAPATH = pathlib.Path(__file__).parents[1].joinpath("data", "auxtel").as_posix()
 
 
 class TestLatissCWFSAlign(
@@ -115,6 +118,12 @@ class TestLatissCWFSAlign(
         self.script.atcs.get_bore_sight_angle = unittest.mock.AsyncMock(
             wraps=self.atcs_get_bore_sight_angle
         )
+
+        # Mock method that returns the BestEffortIsr class if it is
+        # not available for import
+        if not DATA_AVAILABLE:
+            self.script.get_best_effort_isr = unittest.mock.AsyncMock()
+            self.script.get_butler = unittest.mock.AsyncMock()
 
         # things to track
         self.nimages = 0
@@ -188,8 +197,69 @@ class TestLatissCWFSAlign(
                 grating=grating,
                 filter=filter,
                 exposure_time=exposure_time,
-                dataPath=DATAPATH,
+                datapath=DATAPATH,
             )
+
+            self.assertEqual(self.script.filter, filter)
+            self.assertEqual(self.script.grating, grating)
+            self.assertEqual(self.script.exposure_time, exposure_time)
+            self.assertEqual(self.script.cwfs_target, None)
+            self.assertEqual(self.script.cwfs_target_ra, None)
+            self.assertEqual(self.script.cwfs_target_dec, None)
+
+            # Test with find_target
+            find_target = dict(az=-180.0, el=60.0, mag_limit=8.0)
+            await self.configure_script(find_target=find_target)
+
+            self.assertNotEqual(self.script.cwfs_target, None)
+            self.assertEqual(self.script.cwfs_target_ra, None)
+            self.assertEqual(self.script.cwfs_target_dec, None)
+
+            # Test with find_target; fail if only az is provided
+            find_target = dict(az=0.0)
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(find_target=find_target)
+
+            # Test with find_target; fail if only el is provided
+            find_target = dict(el=60.0)
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(find_target=find_target)
+
+            # Test with find_target; fail if only az and el is provided
+            find_target = dict(az=0.0, el=60.0)
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(find_target=find_target)
+
+            # Test with track_target; give target name only
+            track_target = dict(target_name="HD 185975")
+            await self.configure_script(track_target=track_target)
+
+            self.assertEqual(self.script.cwfs_target, track_target["target_name"])
+            self.assertEqual(self.script.cwfs_target_ra, None)
+            self.assertEqual(self.script.cwfs_target_dec, None)
+
+            # Test with track_target; give target name and ra/dec
+            track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5, dec=-87.5))
+            await self.configure_script(track_target=track_target)
+
+            self.assertEqual(self.script.cwfs_target, track_target["target_name"])
+            self.assertEqual(self.script.cwfs_target_ra, track_target["icrs"]["ra"])
+            self.assertEqual(self.script.cwfs_target_dec, track_target["icrs"]["dec"])
+
+            # Test with track_target; fail if name is not provided ra/dec
+            track_target = dict(icrs=dict(ra=20.5, dec=-87.5))
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(track_target=track_target)
+
+            # Test with track_target; fail if only ra is provided
+            track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5))
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(track_target=track_target)
+
+            # Test with track_target; fail if only dec is provided
+            track_target = dict(target_name="HD 185975", icrs=dict(dec=-87.5))
+            with self.assertRaises(salobj.ExpectedError):
+                await self.configure_script(track_target=track_target)
 
     async def atcs_get_bore_sight_angle(self):
         """Returns nasmyth rotator value for image"""
@@ -239,7 +309,7 @@ class TestLatissCWFSAlign(
                 grating=grating,
                 filter=filter,
                 exposure_time=exposure_time,
-                dataPath=DATAPATH,
+                datapath=DATAPATH,
             )
 
             # await self.run_script()
@@ -407,6 +477,9 @@ class TestLatissCWFSAlign(
         """This tests only the analysis part"""
         async with self.make_script():
 
+            await self.configure_script(
+                datapath=DATAPATH,
+            )
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2021032300308: [47.907, -118.61]})
             self.visit_id_angles.update({2021032300310: [47.907, -118.61]})
@@ -414,7 +487,11 @@ class TestLatissCWFSAlign(
             self.script.intra_visit_id = 2021032300307
             self.script.extra_visit_id = 2021032300308
             self.script.angle = 90.0 - await self.atcs_get_bore_sight_angle()
-            self.script._binning = 2
+            # Binning must be set to the default (1) when being instantiated
+            # using the configure_script method above, therefore do not
+            # modify the parameter
+            # self.script._binning = 1
+
             logger.debug(f"boresight angle is {self.script.angle}")
             await self.script.run_cwfs()
 
@@ -489,7 +566,7 @@ class TestLatissCWFSAlign(
 
             # get dict of results from the last run and check they're within
             # ~15nm of the expected values
-            zern_tol = [10, 10, 10]  # [nm]
+            zern_tol = [15, 15, 15]  # [nm]
             hex_tol = abs(np.matmul(zern_tol, self.script.sensitivity_matrix))  # [mm]
             logger.info(
                 f"Hex_tol is {np.matmul(zern_tol, self.script.sensitivity_matrix)}"

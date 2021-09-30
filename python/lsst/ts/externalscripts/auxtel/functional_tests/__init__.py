@@ -20,4 +20,3 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .quick_frame_measurement import *
-from .latiss_run_isr import *

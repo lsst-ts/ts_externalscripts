@@ -24,18 +24,18 @@ import logging
 
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
-from lsst.ts.externalscripts.maintel import MakeComCamBias
+from lsst.ts.externalscripts.maintel import MakeComCamCalibrations
 
 logger = logging.getLogger(__name__)
 logger.propagate = True
 
 
-class TestMakeComCamBias(
+class TestMakeComCamCalibrations(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     async def basic_make_script(self, index):
         logger.debug("Starting basic_make_script")
-        self.script = MakeComCamBias(index=index)
+        self.script = MakeComCamCalibrations(index=index)
 
         logger.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
@@ -47,25 +47,34 @@ class TestMakeComCamBias(
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
             n_bias = 2
+            n_dark = 2
+            exp_times_dark = 10
+            n_flat = 4
+            exp_times_flat = [10, 10, 50, 50]
             detectors = "(0, 1, 2, 3, 4, 5, 6, 7, 8)"
-            input_collections = "LSSTComCam/calib"
-            calib_collection = "LSSTComCam/calib/u/plazas/TEST"
+            n_processes = 4
+
             await self.configure_script(
                 n_bias=n_bias,
+                n_dark=n_dark,
+                n_flat=n_flat,
+                exp_times_dark=exp_times_dark,
+                exp_times_flat=exp_times_flat,
                 detectors=detectors,
-                input_collections_bias=input_collections,
-                input_collections_verify=input_collections,
-                calib_collection=calib_collection,
+                n_processes=n_processes,
             )
 
             self.assertEqual(self.script.config.n_bias, n_bias)
+            self.assertEqual(self.script.config.n_dark, n_dark)
+            self.assertEqual(self.script.config.n_flat, n_flat)
+            self.assertEqual(self.script.config.exp_times_dark, exp_times_dark)
+            self.assertEqual(self.script.config.exp_times_flat, exp_times_flat)
+            self.assertEqual(self.script.config.n_processes, n_processes)
             self.assertEqual(self.script.config.detectors, detectors)
-            self.assertEqual(self.script.config.input_collections_bias, input_collections)
-            self.assertEqual(self.script.config.calib_collection, calib_collection)
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
-        script_path = scripts_dir / "maintel" / "make_comcam_bias.py"
+        script_path = scripts_dir / "maintel" / "make_comcam_calibrations.py"
         logger.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
 
