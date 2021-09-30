@@ -376,9 +376,7 @@ Pixel_size (m)			{}
             self.log.info(
                 f"Running cwfs on {self.intra_visit_id} and {self.extra_visit_id}."
             )
-            self.log.debug(
-                f"Using datapath of {self.datapath}."
-            )
+            self.log.debug(f"Using datapath of {self.datapath}.")
             self.log.debug(
                 f"Using a data_id of {parse_visit_id(self.intra_visit_id)} "
                 f"and {parse_visit_id(self.extra_visit_id)}."
@@ -753,7 +751,9 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
     def get_butler(self, datapath):
         # Isolate the butler instantiation so it can be mocked
         # in unit tests
-        return dafButler.Butler(datapath, instrument='LATISS', collections='LATISS/raw/all')
+        return dafButler.Butler(
+            datapath, instrument="LATISS", collections="LATISS/raw/all"
+        )
 
     def get_best_effort_isr(self, butler):
         # Isolate the BestEffortIsr class so it can be mocked

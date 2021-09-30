@@ -29,13 +29,13 @@ from ..base_make_calibrations import BaseMakeCalibrations
 
 class MakeComCamCalibrations(BaseMakeCalibrations):
     """Class for taking images, constructing, verifying, and
-       certifying master calibrations with LSSTComCam.
+    certifying master calibrations with LSSTComCam.
 
-       This class takes bias, darks, and flat exposures with LSSTComCam,
-       constructs a master calibration for each image type by calling
-       the appropiate pipetask via OCPS, and then verifies and certifies
-       each master calibration. It also optionally produces defects and
-       Photon Transfer Curves. "
+    This class takes bias, darks, and flat exposures with LSSTComCam,
+    constructs a master calibration for each image type by calling
+    the appropiate pipetask via OCPS, and then verifies and certifies
+    each master calibration. It also optionally produces defects and
+    Photon Transfer Curves. "
 
     """
 
@@ -43,11 +43,13 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         super().__init__(
             index=index,
             descr="Takes series of bias, darks and flat-field exposures"
-                  "with LSSTComCam, and constructs master "
-                  "calibrations, verify and certify the results."
+            "with LSSTComCam, and constructs master "
+            "calibrations, verify and certify the results.",
         )
         self._comcam = ComCam(domain=self.domain, log=self.log)
-        self._ocps_group = RemoteGroup(domain=self.domain, components=["OCPS:2"], log=self.log)
+        self._ocps_group = RemoteGroup(
+            domain=self.domain, components=["OCPS:2"], log=self.log
+        )
 
     @property
     def camera(self):

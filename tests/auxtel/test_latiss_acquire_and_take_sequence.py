@@ -61,8 +61,13 @@ except FileNotFoundError:
     DATA_AVAILABLE = False
 
     DATAPATH = (tempfile.TemporaryDirectory(prefix="butler-repo")).name
-    butler_config_path = os.path.join(getPackageDir("ts_externalscripts"), "tests", "data", "auxtel",
-                                      "butler_seed.yaml")
+    butler_config_path = os.path.join(
+        getPackageDir("ts_externalscripts"),
+        "tests",
+        "data",
+        "auxtel",
+        "butler_seed.yaml",
+    )
     dafButler.Butler(
         dafButler.Butler.makeRepo(DATAPATH, config=butler_config_path), writeable=True
     )
@@ -74,8 +79,13 @@ except PermissionError:
     )
     DATA_AVAILABLE = False
     DATAPATH = (tempfile.TemporaryDirectory(prefix="butler-repo")).name
-    butler_config_path = os.path.join(getPackageDir("ts_externalscripts"), "tests", "data", "auxtel",
-                                      "butler_seed.yaml")
+    butler_config_path = os.path.join(
+        getPackageDir("ts_externalscripts"),
+        "tests",
+        "data",
+        "auxtel",
+        "butler_seed.yaml",
+    )
     dafButler.Butler(
         dafButler.Butler.makeRepo(DATAPATH, config=butler_config_path), writeable=True
     )
