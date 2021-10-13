@@ -26,7 +26,7 @@ import json
 import asyncio
 import collections
 import os
-
+from lsst.utils import getPackageDir
 from lsst.ts import salobj
 
 
@@ -455,8 +455,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # Use the camera-agnostic yaml file if the camera-specific
         # file does not exist.
-        cp_pipe_dir = os.environ.get("CP_PIPE_DIR")
-        pipeline_yaml_file = f"{cp_pipe_dir}/pipelines/"+f"{pipeline_instrument}/{pipe_yaml}"
+        cp_pipe_dir = getPackageDir("cp_pipe")
+        pipeline_yaml_file = os.path.join(cp_pipe_dir, "pipelines", pipeline_instrument, pipe_yaml)
         file_exists = os.path.exists(pipeline_yaml_file)
         if file_exists:
             pipeline_yaml_file = "${CP_PIPE_DIR}/pipelines/"+f"{pipeline_instrument}/{pipe_yaml}"
