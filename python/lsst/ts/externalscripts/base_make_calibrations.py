@@ -28,6 +28,7 @@ import collections
 import os
 from lsst.utils import getPackageDir
 from lsst.ts import salobj
+import lsst.daf.butler as dB
 
 
 class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
@@ -599,6 +600,47 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return response
 
+    async def check_verification_stats(self, image_type, job_id_calib, job_id_verify):
+        """Check verification statistics.
+
+        Parameters
+        ----------
+        image_type:
+            Image type. Verification currently only implemented for ["BIAS",
+            "DARK", "FLAT"].
+
+        jod_id_calib : `str`
+            Job ID returned by OCPS during previous calibration
+            generation pipetask call.
+
+        job_idverify : `str`
+            Job ID returned by OCPS during previous calibration
+            verification pipetask call.
+
+        Returns
+        -------
+        certify_calib : `bool`
+            Booolean indicating if the calibration should be certified or not.
+        """
+        # Collection name containing the verification outputs.
+        verifyCollection = f'u/ocps/{job_id_verify}'
+        # Collection that the calibration was constructed in.
+        genCollection = f'u/ocps/{job_id_calib}'
+        if image_type == 'BIAS':
+            verify_stats = 'verifyBiasStats'
+        elif image_type == 'DARK':
+            verify_stats = 'verifyDarkStats'
+        elif image_type == 'FLAT':
+            verify_stats = 'verifyFlatStats'
+        else:
+            raise RuntimeError(
+                f"Verification is not currently implemented for {image_type}"
+            )
+        butler = dB.Butler(self.config.repo, collections=[verifyCollection, genCollection])
+        _ = butler.get(verify_stats, instrument=self.instrument_name)
+
+        return
+
     async def certify_calib(self, image_type, job_id_calib):
         """Certify the calibration.
 
@@ -614,7 +656,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Notes
         -----
         The calibration will certified for use with a timespan that indicates
-        its vailidy range.
+        its validity range.
         """
         # Certify the calibration, if the verification job
         # completed successfully
@@ -726,7 +768,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # However, we will have to add a check that looks
             # at the output of cp_verify in step 3) and does not certify the
             # calibration if cp_verify does not pass: DM-31897
-            # 4. Certify the calibration
+            # 4. Certify the calibration if the verification tests passed
             if not response_ocps_verify_pipetask["phase"] == "completed":
                 raise RuntimeError(
                     f"{im_type} {previous_step} not completed successfully: "
@@ -734,7 +776,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     f"{im_type} certification could not be performed."
                 )
             else:
-                await self.certify_calib(im_type, job_id_calib)
+                # Check the verification statistics and decide whether
+                # the master calibration gets certified or not.
+                job_id_verify = response_ocps_verify_pipetask["jobId"]
+                verify_tests_pass = await self.check_verification_stats(im_type, job_id_calib, job_id_verify)
+                if verify_tests_pass:
+                    await self.certify_calib(im_type, job_id_calib)
+                else:
+                    self.log.info("Verification tests did not pass. Could not certify")
 
     async def run(self):
         """"""
