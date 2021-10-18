@@ -456,16 +456,21 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Use the camera-agnostic yaml file if the camera-specific
         # file does not exist.
         cp_pipe_dir = getPackageDir("cp_pipe")
-        pipeline_yaml_file = os.path.join(cp_pipe_dir, "pipelines", pipeline_instrument, pipe_yaml)
+        pipeline_yaml_file = os.path.join(
+            cp_pipe_dir, "pipelines", pipeline_instrument, pipe_yaml
+        )
         file_exists = os.path.exists(pipeline_yaml_file)
         if file_exists:
-            pipeline_yaml_file = "${CP_PIPE_DIR}/pipelines/"+f"{pipeline_instrument}/{pipe_yaml}"
+            pipeline_yaml_file = (
+                "${CP_PIPE_DIR}/pipelines/" + f"{pipeline_instrument}/{pipe_yaml}"
+            )
         else:
-            pipeline_yaml_file = "${CP_PIPE_DIR}/pipelines/"+f"{pipe_yaml}"
+            pipeline_yaml_file = "${CP_PIPE_DIR}/pipelines/" + f"{pipe_yaml}"
 
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
-            pipeline=f"{pipeline_yaml_file}", version="",
+            pipeline=f"{pipeline_yaml_file}",
+            version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
             f" detector IN {self.config.detectors} AND exposure IN {exposure_ids}",
