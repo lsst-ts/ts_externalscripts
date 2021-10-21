@@ -172,6 +172,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: string
                 default: "(0)"
                 descriptor: Detector IDs.
+            generate_calibrations:
+                type: boolean
+                descriptor: Should the master calibrations be generated from the images taken? \
+                    If False, and do_verify = True, calibrations should be provided in the \
+                    input collections for the verification pipetasks.
+                default: True
             do_verify:
                 type: boolean
                 descriptor: Should the master calibrations be verified? (c.f., cp_verify)
@@ -532,7 +538,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             "DARK", "FLAT"].
 
         jod_id_calib : `str`
-            Job ID returned by OCPS during previous pipetask call.
+            Job ID returned by OCPS during calibration generation
+            pipetask call. If `None`, the calibrations will be sought
+            at the input collections.
 
         exposure_ids_dict: `dict` [`str`]
             Dictionary with tuple with exposure IDs for "BIAS",
@@ -544,25 +552,46 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         if image_type == "BIAS":
             pipe_yaml = "VerifyBias.yaml"
+            if job_id_calib is None:
+                input_col_verify_bias_string = "-i {self.config.input_collections_verify_bias}"
+            else:
+                input_col_verify_bias_string = (
+                    "-i u/ocps/{job_id_calib,"
+                    f"{self.config.input_collections_verify_bias}"
+                )
             config_string = (
-                f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
-                f"-i {self.config.input_collections_verify_bias} "
+                f"-j {self.config.n_processes} "
+                f"{input_col_verify_bias_string} "
                 "--register-dataset-types "
             )
             exposure_ids = exposure_ids_dict["BIAS"]
         elif image_type == "DARK":
             pipe_yaml = "VerifyDark.yaml"
+            if job_id_calib is None:
+                input_col_verify_dark_string = "-i {self.config.input_collections_verify_dark}"
+            else:
+                input_col_verify_dark_string = (
+                    "-i u/ocps/{job_id_calib,"
+                    f"{self.config.input_collections_verify_dark}"
+                )
             config_string = (
-                f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
-                f"-i {self.config.input_collections_verify_dark} "
+                f"-j {self.config.n_processes} "
+                f"{input_col_verify_dark_string} "
                 "--register-dataset-types "
             )
             exposure_ids = exposure_ids_dict["DARK"]
         elif image_type == "FLAT":
             pipe_yaml = "VerifyFlat.yaml"
+            if job_id_calib is None:
+                input_col_verify_flat_string = "-i {self.config.input_collections_verify_flat}"
+            else:
+                input_col_verify_flat_string = (
+                    "-i u/ocps/{job_id_calib,"
+                    f"{self.config.input_collections_verify_flat}"
+                )
             config_string = (
-                f"-j {self.config.n_processes} -i u/ocps/{job_id_calib} "
-                f"-i {self.config.input_collections_verify_flat} "
+                f"-j {self.config.n_processes} "
+                f"{input_col_verify_flat_string} "
                 "--register-dataset-types "
             )
             exposure_ids = exposure_ids_dict["FLAT"]
@@ -919,16 +948,24 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         f"Images taken: {exposure_ids}; type: {im_type}"
                     )
 
-            # 2. Call the calibration pipetask via the OCPS to make a master
-            response_ocps_calib_pipetask = await self.call_pipetask(
-                im_type, exposure_ids_dict
-            )
+            # By default, we will generate calibrations from the images taking
+            # in the step above. However, the user can provide input
+            # collections that already contain calibrations that should
+            # be used.
+            if self.config.generate_calibrations:
+                # 2. Call the calibration pipetask via the OCPS
+                # to make a master
+                response_ocps_calib_pipetask = await self.call_pipetask(
+                    im_type, exposure_ids_dict
+                )
+                job_id_calib = response_ocps_calib_pipetask["jobId"]
+            else:
+                job_id_calib = None
 
             # 3. Verify the calibration (implemented so far for bias,
             # dark, and flat).
-            job_id_calib = response_ocps_calib_pipetask["jobId"]
             if self.config.do_verify and im_type in ["BIAS", "DARK", "FLAT"]:
-                if not response_ocps_calib_pipetask["phase"] == "completed":
+                if self.config.generate_calibrations and not response_ocps_calib_pipetask["phase"] == "completed":
                     raise RuntimeError(
                         f"{im_type} generation not completed successfully: "
                         f"Status: {response_ocps_calib_pipetask['phase']}. "
@@ -941,11 +978,15 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     previous_step = "verification"
             else:
                 self.log.info(f"Skipping verification for {im_type}. ")
-                response_ocps_verify_pipetask = response_ocps_calib_pipetask
-                previous_step = "generation"
-
-            # 4. Certify the calibration if the verification tests passed
-            if not response_ocps_verify_pipetask["phase"] == "completed":
+                if self.config.generate_calibrations:
+                    response_ocps_verify_pipetask = response_ocps_calib_pipetask
+                    previous_step = "generation"
+            # TODO: Currently, we are auto-certifying the calibration.
+            # However, we will have to add a check that looks
+            # at the output of cp_verify in step 3) and does not certify the
+            # calibration if cp_verify does not pass: DM-31897
+            # 4. Certify the calibration
+            if self.config.generate_calibrations and not response_ocps_verify_pipetask["phase"] == "completed":
                 raise RuntimeError(
                     f"{im_type} {previous_step} not completed successfully: "
                     f"Status: {response_ocps_verify_pipetask['phase']}. "
