@@ -177,7 +177,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 descriptor: Should the master calibrations be verified? (c.f., cp_verify)
                 default: true
             number_verification_tests_threshold:
-                type: int
+                type: integer
                 descriptor: Minimum number of verification tests per detector per exposure per \
                     test type that should pass to certify the master calibration.
                 default: 8
@@ -676,7 +676,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         Notes
         -----
-        For at leats one type of test, if the majority of tests fail in
+        For at least one type of test, if the majority of tests fail in
         the majority of detectors and the majority of exposures,
         then don't certify the calibration.
         """
@@ -736,11 +736,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     >= failure_threshold_exposure
                 ):
                     failed_exposures_counter += 1
-                    # Just need the condition to be satisfied for
+                    # Exit the inner loop over tests: just need
+                    # the condition to be satisfied for
                     # at least one type of test
                     break
 
-        # For at leats one type of test, if the majority of tests fail in
+        # For at least one type of test, if the majority of tests fail in
         # the majority of detectors and the majority of exposures,
         # then don't certify the calibration
         if failed_exposures_counter >= min_number_failed_exposures:
@@ -888,6 +889,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 )
                 if verify_tests_pass:
                     await self.certify_calib(im_type, job_id_calib)
+                elif verify_tests_pass and verify_report is not None:
+                    await self.certify_calib(im_type, job_id_calib)
+                    self.log.warning(
+                        f"{im_type} calibration passed the overall verification "
+                        " criteria and was certified, but the following tests did not pass: "
+                        " {verify_report}"
+                    )
                 else:
                     raise RuntimeError(
                         f"{im_type} calibration was not certified as "
