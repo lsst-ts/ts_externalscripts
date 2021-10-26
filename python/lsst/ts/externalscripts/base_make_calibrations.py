@@ -28,7 +28,7 @@ import collections
 import os
 from lsst.utils import getPackageDir
 from lsst.ts import salobj
-import lsst.daf.butler as dB
+import lsst.daf.butler as dafButler
 
 
 class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
@@ -645,7 +645,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             raise RuntimeError(
                 f"Verification is not currently implemented for {image_type}"
             )
-        butler = dB.Butler(
+        butler = dafButler.Butler(
             self.config.repo, collections=[verifyCollection, genCollection]
         )
         run_stats = butler.get(verify_stats, instrument=self.instrument_name)
