@@ -629,7 +629,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         numStatErrors : `dict`[`str`][`str`]
             Dictionary with the total number of tests failed per exposure and
-            per cp_verify test type
+            per cp_verify test type.
         """
         # Collection name containing the verification outputs.
         verifyCollection = f"u/ocps/{job_id_verify}"
@@ -671,7 +671,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         total_counter_failed_tests : `dict`[`str`][`str`]
             Dictionary with the total number of tests failed per exposure and
-            per cp_verify test type.
+            per cp_verify test type. If there are not any tests that failed,
+            `None` will be returned.
+
+        Notes
+        -----
+        For at leats one type of test, if the majority of tests fail in
+        the majority of detectors and the majority of exposures,
+        then don't certify the calibration.
         """
         certify_calib = True
 
@@ -684,8 +691,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         min_number_failed_exposures = int(len(verify_stats) / 2) + 1  # majority of exps
 
         first_exp = list(verify_stats.keys())[0]
-        # "stg" is of the form "detector_amp_test". "Detector" is
-        # of the form "raft_det"
+        # "stg" is of the form "detector_amp_test", and "detector" is
+        # of the form "raft_det".
         detectors = set(
             [stg.split(" ")[0] for stg in verify_stats[first_exp]["FAILURES"]]
         )
@@ -717,7 +724,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # If there are not exposures with tests that failed.
         if len(total_counter_failed_tests) == 0:
-            return certify_calib
+            return certify_calib, None
 
         # Count the number of exposures where a given test fails
         # in the majority of detectors.
