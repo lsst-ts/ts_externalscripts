@@ -707,6 +707,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # Count the number of failures per test per exposure.
         total_counter_failed_tests = {}
+        # Pop this key so that we are left with
+        # exposure ID's as keys only.
+        verify_stats.pop("SUCCESS")
         for exposure in verify_stats:
             if "FAILURES" in verify_stats[exposure]:
                 fail_count = [
