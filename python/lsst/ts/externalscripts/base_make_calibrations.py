@@ -630,6 +630,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         numStatErrors : `dict`[`str`][`str`]
             Dictionary with the total number of tests failed per exposure and
             per cp_verify test type.
+
+        thresholds : `dict`[`str`][`int`]
+            Dictionary reporting the different thresholds used to decide
+            whether a calibration shoudl be certified or not (see `Notes`
+            below).
         """
         # Collection name containing the verification outputs.
         verifyCollection = f"u/ocps/{job_id_verify}"
@@ -650,11 +655,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         )
         run_stats = butler.get(verify_stats, instrument=self.instrument_name)
 
-        certify_calib, numStatErrors = await self.count_failed_verification_tests(
-            run_stats
-        )
+        (
+            certify_calib,
+            numStatErrors,
+            failure_thresholds,
+        ) = await self.count_failed_verification_tests(run_stats)
 
-        return certify_calib, numStatErrors
+        return certify_calib, numStatErrors, failure_thresholds
 
     async def count_failed_verification_tests(self, verify_stats):
         """Count number of tests that failed cp_verify.
@@ -673,6 +680,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             Dictionary with the total number of tests failed per exposure and
             per cp_verify test type. If there are not any tests that failed,
             `None` will be returned.
+
+        thresholds : `dict`[`str`][`int`]
+            Dictionary reporting the different thresholds used to decide
+            whether a calibration shoudl be certified or not (see `Notes`
+            below).
 
         Notes
         -----
@@ -750,7 +762,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         if failed_exposures_counter >= min_number_failed_exposures:
             certify_calib = False
 
-        return certify_calib, total_counter_failed_tests
+        # Return a dictionary with the thresholds to report
+        # them if verification fails.
+        thresholds = {
+            "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD": min_number_failures_per_detector_per_test,
+            "MIN_FAILED_DETECTORS_THRESHOLD": min_number_failed_detectors,
+            "MIN_FAILED_TESTS_PER_EXPOSURE_THRESHOLD": failure_threshold_exposure,
+            "MIN_FAILED_EXPOSURES_THRESHOLD": min_number_failed_exposures,
+            "FINAL_NUMBER_OF_FAILED_EXPOSURES": failed_exposures_counter,
+        }
+
+        return certify_calib, total_counter_failed_tests, thresholds
 
     async def certify_calib(self, image_type, job_id_calib):
         """Certify the calibration.
@@ -887,7 +909,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 # Check the verification statistics and decide whether
                 # the master calibration gets certified or not.
                 job_id_verify = response_ocps_verify_pipetask["jobId"]
-                verify_tests_pass, verify_report = await self.check_verification_stats(
+                (
+                    verify_tests_pass,
+                    verify_report,
+                    thresholds_report,
+                ) = await self.check_verification_stats(
                     im_type, job_id_calib, job_id_verify
                 )
                 if verify_tests_pass:
@@ -901,8 +927,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     )
                 else:
                     raise RuntimeError(
-                        f"{im_type} calibration was not certified as "
-                        f"the following verification tests did not pass: {verify_report}"
+                        f"{im_type} calibration was not certified. \n"
+                        "The number of tests that did not pass per test type per exposure is: "
+                        f"{verify_report} \n"
+                        "Thresholds used to decide whether a calibration should be certified or not: "
+                        f"{thresholds_report} \n"
+                        "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by the config parameter: "
+                        "'number_verification_tests_threshold' \n"
+                        "For at least one type of test, if the majority of tests fail in the majority of "
+                        "detectors and the majority of exposures, the calibration will not be certified "
+                        "(if FINAL_NUMBER_OF_FAILED_EXPOSURES  > MIN_FAILED_EXPOSURES_THRESHOLD)."
                     )
 
     async def run(self):
