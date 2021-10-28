@@ -920,38 +920,48 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 # Check the verification statistics and decide whether
                 # the master calibration gets certified or not.
                 job_id_verify = response_ocps_verify_pipetask["jobId"]
-                (
-                    verify_tests_pass,
-                    verify_report,
-                    thresholds_report,
-                    verify_stats,
-                ) = await self.check_verification_stats(
-                    im_type, job_id_calib, job_id_verify
-                )
-                if verify_tests_pass:
-                    await self.certify_calib(im_type, job_id_calib)
-                elif verify_tests_pass and verify_report is not None:
-                    await self.certify_calib(im_type, job_id_calib)
-                    self.log.warning(
-                        f"{im_type} calibration passed the overall verification "
-                        " criteria and was certified, but the following tests did not pass: "
-                        f" {verify_report} \n "
-                        f" {verify_stats}"
+
+                # Check verifycation tests only if bias,
+                # dark, or flat
+                if im_type in ["BIAS", "DARK", "FLAT"]:
+                    (
+                        verify_tests_pass,
+                        verify_report,
+                        thresholds_report,
+                        verify_stats,
+                    ) = await self.check_verification_stats(
+                        im_type, job_id_calib, job_id_verify
                     )
+                    if verify_tests_pass:
+                        await self.certify_calib(im_type, job_id_calib)
+                    elif verify_tests_pass and verify_report is not None:
+                        await self.certify_calib(im_type, job_id_calib)
+                        self.log.warning(
+                            f"{im_type} calibration passed the overall verification "
+                            " criteria and was certified, but the following tests did not pass: "
+                            f" {verify_report} \n "
+                            f" {verify_stats}"
+                        )
+                    else:
+                        raise RuntimeError(
+                            f"{im_type} calibration was not certified. \n"
+                            "The number of tests that did not pass per test type per exposure is: "
+                            f"{verify_report} \n"
+                            "Thresholds used to decide whether a calibration should be certified or not: "
+                            f"{thresholds_report} \n"
+                            "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by the config "
+                            "parameter: 'number_verification_tests_threshold' \n"
+                            "For at least one type of test, if the majority of tests fail in the majority of "
+                            "detectors and the majority of exposures, the calibration will not be certified "
+                            "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD). \n"
+                            f"Statistics returned by `cp_verify`: {verify_stats}"
+                        )
                 else:
-                    raise RuntimeError(
-                        f"{im_type} calibration was not certified. \n"
-                        "The number of tests that did not pass per test type per exposure is: "
-                        f"{verify_report} \n"
-                        "Thresholds used to decide whether a calibration should be certified or not: "
-                        f"{thresholds_report} \n"
-                        "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by the config parameter: "
-                        "'number_verification_tests_threshold' \n"
-                        "For at least one type of test, if the majority of tests fail in the majority of "
-                        "detectors and the majority of exposures, the calibration will not be certified "
-                        "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD). \n"
-                        f"Statistics returned by `cp_verify`: {verify_stats}"
+                    self.log.info(
+                        f"Verification is still not implemented for {im_type} "
+                        f"{im_type} will be automatically certified."
                     )
+                    await self.certify_calib(im_type, job_id_calib)
 
     async def run(self):
         """"""
