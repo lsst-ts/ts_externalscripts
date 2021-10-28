@@ -629,23 +629,28 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         numStatErrors : `dict`[`str`][`str`]
             Dictionary with the total number of tests failed per exposure and
-            per cp_verify test type.
+            per cp_verify test type. If there are not any tests that failed,
+            `None` will be returned.
 
         thresholds : `dict`[`str`][`int`]
             Dictionary reporting the different thresholds used to decide
-            whether a calibration shoudl be certified or not (see `Notes`
-            below).
+            whether a calibration should be certified or not (see `Notes`
+            below). If there are not any tests that failed,
+            `None` will be returned.
+
+        verify_stats : `dict`
+            Statistics from cp_verify.
         """
         # Collection name containing the verification outputs.
         verifyCollection = f"u/ocps/{job_id_verify}"
         # Collection that the calibration was constructed in.
         genCollection = f"u/ocps/{job_id_calib}"
         if image_type == "BIAS":
-            verify_stats = "verifyBiasStats"
+            verify_stats_string = "verifyBiasStats"
         elif image_type == "DARK":
-            verify_stats = "verifyDarkStats"
+            verify_stats_string = "verifyDarkStats"
         elif image_type == "FLAT":
-            verify_stats = "verifyFlatStats"
+            verify_stats_string = "verifyFlatStats"
         else:
             raise RuntimeError(
                 f"Verification is not currently implemented for {image_type}"
@@ -653,15 +658,21 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         butler = dafButler.Butler(
             self.config.repo, collections=[verifyCollection, genCollection]
         )
-        run_stats = butler.get(verify_stats, instrument=self.instrument_name)
+        # verify_stats is a dictionary with the verification
+        # tests that failed, if any. See `cp_verify`.
+        verify_stats = butler.get(verify_stats_string, instrument=self.instrument_name)
 
-        (
-            certify_calib,
-            numStatErrors,
-            failure_thresholds,
-        ) = await self.count_failed_verification_tests(run_stats)
+        if "FAILURES" in verify_stats:
+            (
+                certify_calib,
+                numStatErrors,
+                failure_thresholds,
+            ) = await self.count_failed_verification_tests(verify_stats)
 
-        return certify_calib, numStatErrors, failure_thresholds
+            return certify_calib, numStatErrors, failure_thresholds, verify_stats
+        else:
+            # Nothing failed
+            return True, None, None, verify_stats
 
     async def count_failed_verification_tests(self, verify_stats):
         """Count number of tests that failed cp_verify.
@@ -913,6 +924,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     verify_tests_pass,
                     verify_report,
                     thresholds_report,
+                    verify_stats,
                 ) = await self.check_verification_stats(
                     im_type, job_id_calib, job_id_verify
                 )
@@ -923,7 +935,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     self.log.warning(
                         f"{im_type} calibration passed the overall verification "
                         " criteria and was certified, but the following tests did not pass: "
-                        " {verify_report}"
+                        f" {verify_report} \n "
+                        f" {verify_stats}"
                     )
                 else:
                     raise RuntimeError(
@@ -936,7 +949,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         "'number_verification_tests_threshold' \n"
                         "For at least one type of test, if the majority of tests fail in the majority of "
                         "detectors and the majority of exposures, the calibration will not be certified "
-                        "(if FINAL_NUMBER_OF_FAILED_EXPOSURES  > MIN_FAILED_EXPOSURES_THRESHOLD)."
+                        "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD). \n"
+                        f"Statistics returned by `cp_verify`: {verify_stats}"
                     )
 
     async def run(self):
