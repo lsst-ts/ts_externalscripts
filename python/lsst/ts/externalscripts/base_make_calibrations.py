@@ -732,10 +732,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # Count the number of failures per test per exposure.
         total_counter_failed_tests = {}
-        # Pop this key so that we are left with
-        # exposure ID's as keys only.
-        verify_stats.pop("SUCCESS")
-        for exposure in verify_stats:
+        for exposure in [key for key in verify_stats if key != 'SUCCESS']:
             if "FAILURES" in verify_stats[exposure]:
                 fail_count = [
                     stg.split(" ")[2] for stg in verify_stats[exposure]["FAILURES"]
@@ -923,8 +920,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 # the master calibration gets certified or not.
                 job_id_verify = response_ocps_verify_pipetask["jobId"]
 
-                # Check verifycation tests only if bias,
-                # dark, or flat
+                # Check verification tests only if bias,
+                # dark, or flat. im_type can be an image or
+                # calibration type in ["BIAS", "DARK",
+                # "FLAT", "DEFECTS", "PTC"], but verifcation is not
+                # yet implemented for "DEFECTS and "FLAT".
                 if im_type in ["BIAS", "DARK", "FLAT"]:
                     (
                         verify_tests_pass,
