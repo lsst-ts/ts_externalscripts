@@ -611,14 +611,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Parameters
         ----------
         image_type:
-            Image type. Verification currently only implemented for ["BIAS",
-            "DARK", "FLAT"].
+            Image or calibration type. The general options are ["BIAS",
+            "DARK", "FLAT", "DEFECTS", and "PTC"], but at this moment,
+            verification currently only implemented for ["BIAS", "DARK",
+            "FLAT"].
 
         jod_id_calib : `str`
             Job ID returned by OCPS during previous calibration
             generation pipetask call.
 
-        job_idverify : `str`
+        job_id_verify : `str`
             Job ID returned by OCPS during previous calibration
             verification pipetask call.
 
@@ -632,7 +634,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             per cp_verify test type. If there are not any tests that failed,
             `None` will be returned.
 
-        thresholds : `dict`[`str`][`int`]
+        thresholds : `dict`[`str`][`int`] or `None`
             Dictionary reporting the different thresholds used to decide
             whether a calibration should be certified or not (see `Notes`
             below). If there are not any tests that failed,
@@ -642,9 +644,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             Statistics from cp_verify.
         """
         # Collection name containing the verification outputs.
-        verifyCollection = f"u/ocps/{job_id_verify}"
+        verify_collection = f"u/ocps/{job_id_verify}"
         # Collection that the calibration was constructed in.
-        genCollection = f"u/ocps/{job_id_calib}"
+        gen_collection = f"u/ocps/{job_id_calib}"
         if image_type == "BIAS":
             verify_stats_string = "verifyBiasStats"
         elif image_type == "DARK":
@@ -656,7 +658,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 f"Verification is not currently implemented for {image_type}"
             )
         butler = dafButler.Butler(
-            self.config.repo, collections=[verifyCollection, genCollection]
+            self.config.repo, collections=[verify_collection, gen_collection]
         )
         # verify_stats is a dictionary with the verification
         # tests that failed, if any. See `cp_verify`.
