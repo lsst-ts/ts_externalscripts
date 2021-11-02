@@ -626,15 +626,19 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        certify_calib : `bool`
-            Booolean indicating if the calibration should be certified or not.
+        report_check_verify_stats : `dict`
+            Dictionary with results:
 
-        numStatErrors : `dict`[`str`][`str`]
+        certify_calib : `bool`
+            Booolean indicating if the calibration should be certified
+            or not.
+
+        num_stat_errors : `dict`[`str`][`str`] or `None`
             Dictionary with the total number of tests failed per exposure and
             per cp_verify test type. If there are not any tests that failed,
             `None` will be returned.
 
-        thresholds : `dict`[`str`][`int`] or `None`
+        failure_thresholds : `dict`[`str`][`int`] or `None`
             Dictionary reporting the different thresholds used to decide
             whether a calibration should be certified or not (see `Notes`
             below). If there are not any tests that failed,
@@ -655,7 +659,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             verify_stats_string = "verifyFlatStats"
         else:
             raise RuntimeError(
-                f"Verification is not currently implemented for {image_type}"
+                f"Verification is not currently implemented for {image_type}."
             )
         butler = dafButler.Butler(
             self.config.repo, collections=[verify_collection, gen_collection]
@@ -664,17 +668,29 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # tests that failed, if any. See `cp_verify`.
         verify_stats = butler.get(verify_stats_string, instrument=self.instrument_name)
 
-        if "FAILURES" in verify_stats:
+        if verify_stats["SUCCESS"] is False:
             (
                 certify_calib,
-                numStatErrors,
+                num_stat_errors,
                 failure_thresholds,
             ) = await self.count_failed_verification_tests(verify_stats)
-
-            return certify_calib, numStatErrors, failure_thresholds, verify_stats
         else:
             # Nothing failed
-            return True, None, None, verify_stats
+            certify_calib, num_stat_errors, failure_thresholds, verify_stats = (
+                True,
+                None,
+                None,
+                verify_stats,
+            )
+
+        report_check_verify_stats = {
+            "CERTIFY_CALIB": certify_calib,
+            "NUM_STAT_ERRORS": num_stat_errors,
+            "FAILURE_THRESHOLDS": failure_thresholds,
+            "VERIFY_STATS": verify_stats,
+        }
+
+        return report_check_verify_stats
 
     async def count_failed_verification_tests(self, verify_stats):
         """Count number of tests that failed cp_verify.
@@ -689,15 +705,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         certify_calib : `bool`
             Boolean assessing whether the calibration should be certified.
 
-        total_counter_failed_tests : `dict`[`str`][`str`]
+        total_counter_failed_tests : `dict`[`str`][`str`] or `None`.
             Dictionary with the total number of tests failed per exposure and
             per cp_verify test type. If there are not any tests that failed,
             `None` will be returned.
 
-        thresholds : `dict`[`str`][`int`]
+        thresholds : `dict`[`str`][`int`] or `None`
             Dictionary reporting the different thresholds used to decide
-            whether a calibration shoudl be certified or not (see `Notes`
-            below).
+            whether a calibration should be certified or not (see `Notes`
+            below). If there are not any tests that failed,
+            `None` will be returned.
 
         Notes
         -----
@@ -732,7 +749,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # Count the number of failures per test per exposure.
         total_counter_failed_tests = {}
-        for exposure in [key for key in verify_stats if key != 'SUCCESS']:
+        for exposure in [key for key in verify_stats if key != "SUCCESS"]:
             if "FAILURES" in verify_stats[exposure]:
                 fail_count = [
                     stg.split(" ")[2] for stg in verify_stats[exposure]["FAILURES"]
@@ -749,7 +766,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # If there are not exposures with tests that failed.
         if len(total_counter_failed_tests) == 0:
-            return certify_calib, None
+            return certify_calib, None, None
 
         # Count the number of exposures where a given test fails
         # in the majority of detectors.
@@ -923,18 +940,22 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 # Check verification tests only if bias,
                 # dark, or flat. im_type can be an image or
                 # calibration type in ["BIAS", "DARK",
-                # "FLAT", "DEFECTS", "PTC"], but verifcation is not
-                # yet implemented for "DEFECTS and "FLAT".
+                # "FLAT", "DEFECTS", "PTC"], but verification is not
+                # yet implemented for "DEFECTS and "PTC".
                 if im_type in ["BIAS", "DARK", "FLAT"]:
-                    (
-                        verify_tests_pass,
-                        verify_report,
-                        thresholds_report,
-                        verify_stats,
-                    ) = await self.check_verification_stats(
+                    report_check_verify_stats = await self.check_verification_stats(
                         im_type, job_id_calib, job_id_verify
                     )
+                    verify_tests_pass = report_check_verify_stats["CERTIFY_CALIB"]
+                    verify_report = report_check_verify_stats["NUM_STAT_ERRORS"]
+                    thresholds_report = report_check_verify_stats["FAILURE_THRESHOLDS"]
+                    verify_stats = report_check_verify_stats["VERIFY_STATS"]
+
                     if verify_tests_pass:
+                        self.log.info(
+                            f"{im_type} calibration passed verification criteria "
+                            "and will be certified."
+                        )
                         await self.certify_calib(im_type, job_id_calib)
                     elif verify_tests_pass and verify_report is not None:
                         await self.certify_calib(im_type, job_id_calib)
@@ -953,7 +974,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                             f"{thresholds_report} \n"
                             "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by the config "
                             "parameter: 'number_verification_tests_threshold'= "
-                            f"{self.cconfig.number_verification_tests_threshold} \n"
+                            f"{self.config.number_verification_tests_threshold} \n"
                             "For at least one type of test, if the majority of tests fail in the majority of "
                             "detectors and the majority of exposures, the calibration will not be certified "
                             "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD). \n"
@@ -961,7 +982,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         )
                 else:
                     self.log.info(
-                        f"Verification is still not implemented for {im_type} "
+                        f"Verification is still not implemented for {im_type}. "
                         f"{im_type} will be automatically certified."
                     )
                     await self.certify_calib(im_type, job_id_calib)
