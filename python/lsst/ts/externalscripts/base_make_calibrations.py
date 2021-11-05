@@ -176,10 +176,20 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: boolean
                 descriptor: Should the master calibrations be verified? (c.f., cp_verify)
                 default: true
-            number_verification_tests_threshold:
+            number_verification_tests_threshold_bias:
                 type: integer
                 descriptor: Minimum number of verification tests per detector per exposure per \
-                    test type that should pass to certify the master calibration.
+                    test type that should pass to certify the bias master calibration.
+                default: 8
+            number_verification_tests_threshold_dark:
+                type: integer
+                descriptor: Minimum number of verification tests per detector per exposure per \
+                    test type that should pass to certify the dark master calibration.
+                default: 16
+            number_verification_tests_threshold_flat:
+                type: integer
+                descriptor: Minimum number of verification tests per detector per exposure per \
+                    test type that should pass to certify the flat master calibration.
                 default: 8
             config_options_bias:
                 type: string
@@ -653,10 +663,19 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         gen_collection = f"u/ocps/{job_id_calib}"
         if image_type == "BIAS":
             verify_stats_string = "verifyBiasStats"
+            min_number_failures_per_detector_per_test = (
+                self.config.number_verification_tests_threshold_bias
+            )
         elif image_type == "DARK":
             verify_stats_string = "verifyDarkStats"
+            min_number_failures_per_detector_per_test = (
+                self.config.number_verification_tests_threshold_dark
+            )
         elif image_type == "FLAT":
             verify_stats_string = "verifyFlatStats"
+            min_number_failures_per_detector_per_test = (
+                self.config.number_verification_tests_threshold_flat
+            )
         else:
             raise RuntimeError(
                 f"Verification is not currently implemented for {image_type}."
@@ -673,7 +692,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 certify_calib,
                 num_stat_errors,
                 failure_thresholds,
-            ) = await self.count_failed_verification_tests(verify_stats)
+            ) = await self.count_failed_verification_tests(
+                verify_stats, min_number_failures_per_detector_per_test
+            )
         else:
             # Nothing failed
             certify_calib, num_stat_errors, failure_thresholds, verify_stats = (
@@ -692,13 +713,20 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return report_check_verify_stats
 
-    async def count_failed_verification_tests(self, verify_stats):
+    async def count_failed_verification_tests(
+        self, verify_stats, min_number_failures_per_detector_per_test
+    ):
         """Count number of tests that failed cp_verify.
 
         Parameters
         ----------
         verify_stats : `dict`
             Statistics from cp_verify.
+
+        min_number_failures_per_detector_per_test : `int`
+            Minimum number of verification tests per detector per
+            exposure per test type that should pass to certify the
+            master calibration.
 
         Returns
         -------
@@ -725,10 +753,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         certify_calib = True
 
         # Thresholds
-
-        min_number_failures_per_detector_per_test = (
-            self.config.number_verification_tests_threshold
-        )
         # Main key of verify_stats is exposure IDs
         min_number_failed_exposures = int(len(verify_stats) / 2) + 1  # majority of exps
 
@@ -966,6 +990,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                             f" {verify_stats}"
                         )
                     else:
+                        threshold = thresholds_report[
+                            "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD"
+                        ]
                         raise RuntimeError(
                             f"{im_type} calibration was not certified. \n"
                             "The number of tests that did not pass per test type per exposure is: "
@@ -973,8 +1000,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                             "Thresholds used to decide whether a calibration should be certified or not: "
                             f"{thresholds_report} \n"
                             "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by the config "
-                            "parameter: 'number_verification_tests_threshold'= "
-                            f"{self.config.number_verification_tests_threshold} \n"
+                            "parameter: 'number_verification_tests_threshold_"
+                            + f"{im_type}".lower()
+                            + "'= "
+                            f"{threshold} \n"
                             "For at least one type of test, if the majority of tests fail in the majority of "
                             "detectors and the majority of exposures, the calibration will not be certified "
                             "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD). \n"
