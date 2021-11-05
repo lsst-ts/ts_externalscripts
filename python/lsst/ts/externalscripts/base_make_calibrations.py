@@ -552,11 +552,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         if image_type == "BIAS":
             pipe_yaml = "VerifyBias.yaml"
+            # If the master calibration was not generated with the images
+            # taken at the beginning of the script, the verification
+            # pipetask will use the calibrations provided as input
+            # collections in the configuration file.
             if job_id_calib is None:
-                input_col_verify_bias_string = "-i {self.config.input_collections_verify_bias}"
+                input_col_verify_bias_string = (
+                    "-i {self.config.input_collections_verify_bias}"
+                )
             else:
                 input_col_verify_bias_string = (
-                    "-i u/ocps/{job_id_calib,"
+                    f"-i u/ocps/{job_id_calib},"
                     f"{self.config.input_collections_verify_bias}"
                 )
             config_string = (
@@ -568,10 +574,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         elif image_type == "DARK":
             pipe_yaml = "VerifyDark.yaml"
             if job_id_calib is None:
-                input_col_verify_dark_string = "-i {self.config.input_collections_verify_dark}"
+                input_col_verify_dark_string = (
+                    "-i {self.config.input_collections_verify_dark}"
+                )
             else:
                 input_col_verify_dark_string = (
-                    "-i u/ocps/{job_id_calib,"
+                    f"-i u/ocps/{job_id_calib},"
                     f"{self.config.input_collections_verify_dark}"
                 )
             config_string = (
@@ -583,10 +591,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         elif image_type == "FLAT":
             pipe_yaml = "VerifyFlat.yaml"
             if job_id_calib is None:
-                input_col_verify_flat_string = "-i {self.config.input_collections_verify_flat}"
+                input_col_verify_flat_string = (
+                    "-i {self.config.input_collections_verify_flat}"
+                )
             else:
                 input_col_verify_flat_string = (
-                    "-i u/ocps/{job_id_calib,"
+                    f"-i u/ocps/{job_id_calib},"
                     f"{self.config.input_collections_verify_flat}"
                 )
             config_string = (
@@ -955,17 +965,30 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             if self.config.generate_calibrations:
                 # 2. Call the calibration pipetask via the OCPS
                 # to make a master
+                self.log.info(
+                    "Generating calibration from the images taken "
+                    "as part of this script."
+                )
                 response_ocps_calib_pipetask = await self.call_pipetask(
                     im_type, exposure_ids_dict
                 )
                 job_id_calib = response_ocps_calib_pipetask["jobId"]
             else:
+                self.log.info(
+                    "Calibrations will not be generated from the images "
+                    "taken as part of this script. Any needed input "
+                    "calibrations by the verification pipetasks will be "
+                    "sought in the input calibrations to the pipetask."
+                )
                 job_id_calib = None
 
             # 3. Verify the calibration (implemented so far for bias,
             # dark, and flat).
             if self.config.do_verify and im_type in ["BIAS", "DARK", "FLAT"]:
-                if self.config.generate_calibrations and not response_ocps_calib_pipetask["phase"] == "completed":
+                if (
+                    self.config.generate_calibrations
+                    and not response_ocps_calib_pipetask["phase"] == "completed"
+                ):
                     raise RuntimeError(
                         f"{im_type} generation not completed successfully: "
                         f"Status: {response_ocps_calib_pipetask['phase']}. "
@@ -986,7 +1009,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # at the output of cp_verify in step 3) and does not certify the
             # calibration if cp_verify does not pass: DM-31897
             # 4. Certify the calibration
-            if self.config.generate_calibrations and not response_ocps_verify_pipetask["phase"] == "completed":
+            if (
+                self.config.generate_calibrations
+                and not response_ocps_verify_pipetask["phase"] == "completed"
+            ):
                 raise RuntimeError(
                     f"{im_type} {previous_step} not completed successfully: "
                     f"Status: {response_ocps_verify_pipetask['phase']}. "
