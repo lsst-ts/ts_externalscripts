@@ -28,6 +28,7 @@ import collections
 import os
 from lsst.utils import getPackageDir
 from lsst.ts import salobj
+import lsst.daf.butler as dafButler
 
 
 class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
@@ -175,6 +176,21 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: boolean
                 descriptor: Should the master calibrations be verified? (c.f., cp_verify)
                 default: true
+            number_verification_tests_threshold_bias:
+                type: integer
+                descriptor: Minimum number of verification tests per detector per exposure per \
+                    test type that should pass to certify the bias master calibration.
+                default: 8
+            number_verification_tests_threshold_dark:
+                type: integer
+                descriptor: Minimum number of verification tests per detector per exposure per \
+                    test type that should pass to certify the dark master calibration.
+                default: 16
+            number_verification_tests_threshold_flat:
+                type: integer
+                descriptor: Minimum number of verification tests per detector per exposure per \
+                    test type that should pass to certify the flat master calibration.
+                default: 8
             config_options_bias:
                 type: string
                 descriptor: Options to be passed to the command-line bias pipetask. They will overwrite \
@@ -599,6 +615,216 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return response
 
+    async def check_verification_stats(self, image_type, job_id_calib, job_id_verify):
+        """Check verification statistics.
+
+        Parameters
+        ----------
+        image_type:
+            Image or calibration type. The general options are ["BIAS",
+            "DARK", "FLAT", "DEFECTS", and "PTC"], but at this moment,
+            verification currently only implemented for ["BIAS", "DARK",
+            "FLAT"].
+
+        jod_id_calib : `str`
+            Job ID returned by OCPS during previous calibration
+            generation pipetask call.
+
+        job_id_verify : `str`
+            Job ID returned by OCPS during previous calibration
+            verification pipetask call.
+
+        Returns
+        -------
+        report_check_verify_stats : `dict`
+            Dictionary with results:
+
+        certify_calib : `bool`
+            Booolean indicating if the calibration should be certified
+            or not.
+
+        num_stat_errors : `dict`[`str`][`str`] or `None`
+            Dictionary with the total number of tests failed per exposure and
+            per cp_verify test type. If there are not any tests that failed,
+            `None` will be returned.
+
+        failure_thresholds : `dict`[`str`][`int`] or `None`
+            Dictionary reporting the different thresholds used to decide
+            whether a calibration should be certified or not (see `Notes`
+            below). If there are not any tests that failed,
+            `None` will be returned.
+
+        verify_stats : `dict`
+            Statistics from cp_verify.
+        """
+        # Collection name containing the verification outputs.
+        verify_collection = f"u/ocps/{job_id_verify}"
+        # Collection that the calibration was constructed in.
+        gen_collection = f"u/ocps/{job_id_calib}"
+        if image_type == "BIAS":
+            verify_stats_string = "verifyBiasStats"
+            min_number_failures_per_detector_per_test = (
+                self.config.number_verification_tests_threshold_bias
+            )
+        elif image_type == "DARK":
+            verify_stats_string = "verifyDarkStats"
+            min_number_failures_per_detector_per_test = (
+                self.config.number_verification_tests_threshold_dark
+            )
+        elif image_type == "FLAT":
+            verify_stats_string = "verifyFlatStats"
+            min_number_failures_per_detector_per_test = (
+                self.config.number_verification_tests_threshold_flat
+            )
+        else:
+            raise RuntimeError(
+                f"Verification is not currently implemented for {image_type}."
+            )
+        butler = dafButler.Butler(
+            self.config.repo, collections=[verify_collection, gen_collection]
+        )
+        # verify_stats is a dictionary with the verification
+        # tests that failed, if any. See `cp_verify`.
+        verify_stats = butler.get(verify_stats_string, instrument=self.instrument_name)
+
+        if verify_stats["SUCCESS"] is False:
+            (
+                certify_calib,
+                num_stat_errors,
+                failure_thresholds,
+            ) = await self.count_failed_verification_tests(
+                verify_stats, min_number_failures_per_detector_per_test
+            )
+        else:
+            # Nothing failed
+            certify_calib, num_stat_errors, failure_thresholds, verify_stats = (
+                True,
+                None,
+                None,
+                verify_stats,
+            )
+
+        report_check_verify_stats = {
+            "CERTIFY_CALIB": certify_calib,
+            "NUM_STAT_ERRORS": num_stat_errors,
+            "FAILURE_THRESHOLDS": failure_thresholds,
+            "VERIFY_STATS": verify_stats,
+        }
+
+        return report_check_verify_stats
+
+    async def count_failed_verification_tests(
+        self, verify_stats, min_number_failures_per_detector_per_test
+    ):
+        """Count number of tests that failed cp_verify.
+
+        Parameters
+        ----------
+        verify_stats : `dict`
+            Statistics from cp_verify.
+
+        min_number_failures_per_detector_per_test : `int`
+            Minimum number of verification tests per detector per
+            exposure per test type that should pass to certify the
+            master calibration.
+
+        Returns
+        -------
+        certify_calib : `bool`
+            Boolean assessing whether the calibration should be certified.
+
+        total_counter_failed_tests : `dict`[`str`][`str`] or `None`.
+            Dictionary with the total number of tests failed per exposure and
+            per cp_verify test type. If there are not any tests that failed,
+            `None` will be returned.
+
+        thresholds : `dict`[`str`][`int`] or `None`
+            Dictionary reporting the different thresholds used to decide
+            whether a calibration should be certified or not (see `Notes`
+            below). If there are not any tests that failed,
+            `None` will be returned.
+
+        Notes
+        -----
+        For at least one type of test, if the majority of tests fail in
+        the majority of detectors and the majority of exposures,
+        then don't certify the calibration.
+        """
+        certify_calib = True
+
+        # Thresholds
+        # Main key of verify_stats is exposure IDs
+        min_number_failed_exposures = int(len(verify_stats) / 2) + 1  # majority of exps
+
+        first_exp = list(verify_stats.keys())[0]
+        # "stg" is of the form "detector_amp_test", and "detector" is
+        # of the form "raft_det".
+        detectors = set(
+            [stg.split(" ")[0] for stg in verify_stats[first_exp]["FAILURES"]]
+        )
+        min_number_failed_detectors = (
+            int(len(detectors) / 2) + 1
+        )  # majority of detectors
+
+        # Define failure threshold per exposure
+        failure_threshold_exposure = (
+            min_number_failures_per_detector_per_test * min_number_failed_detectors
+        )
+
+        # Count the number of failures per test per exposure.
+        total_counter_failed_tests = {}
+        for exposure in [key for key in verify_stats if key != "SUCCESS"]:
+            if "FAILURES" in verify_stats[exposure]:
+                fail_count = [
+                    stg.split(" ")[2] for stg in verify_stats[exposure]["FAILURES"]
+                ]
+                counter = {}
+                for test in fail_count:
+                    if test in counter:
+                        counter[test] += 1
+                    else:
+                        counter[test] = 1
+                total_counter_failed_tests[exposure] = counter
+            else:
+                continue
+
+        # If there are not exposures with tests that failed.
+        if len(total_counter_failed_tests) == 0:
+            return certify_calib, None, None
+
+        # Count the number of exposures where a given test fails
+        # in the majority of detectors.
+        failed_exposures_counter = 0
+        for exposure in total_counter_failed_tests:
+            for test in total_counter_failed_tests[exposure]:
+                if (
+                    total_counter_failed_tests[exposure][test]
+                    >= failure_threshold_exposure
+                ):
+                    failed_exposures_counter += 1
+                    # Exit the inner loop over tests: just need
+                    # the condition to be satisfied for
+                    # at least one type of test
+                    break
+
+        # For at least one type of test, if the majority of tests fail in
+        # the majority of detectors and the majority of exposures,
+        # then don't certify the calibration
+        if failed_exposures_counter >= min_number_failed_exposures:
+            certify_calib = False
+
+        # Return a dictionary with the thresholds to report
+        # them if verification fails.
+        thresholds = {
+            "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD": min_number_failures_per_detector_per_test,
+            "MIN_FAILED_DETECTORS_THRESHOLD": min_number_failed_detectors,
+            "MIN_FAILED_TESTS_PER_EXPOSURE_THRESHOLD": failure_threshold_exposure,
+            "MIN_FAILED_EXPOSURES_THRESHOLD": min_number_failed_exposures,
+            "FINAL_NUMBER_OF_FAILED_EXPOSURES": failed_exposures_counter,
+        }
+
+        return certify_calib, total_counter_failed_tests, thresholds
+
     async def certify_calib(self, image_type, job_id_calib):
         """Certify the calibration.
 
@@ -614,7 +840,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Notes
         -----
         The calibration will certified for use with a timespan that indicates
-        its vailidy range.
+        its validity range.
         """
         # Certify the calibration, if the verification job
         # completed successfully
@@ -722,11 +948,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 self.log.info(f"Skipping verification for {im_type}. ")
                 response_ocps_verify_pipetask = response_ocps_calib_pipetask
                 previous_step = "generation"
-            # TODO: Currently, we are auto-certifying the calibration.
-            # However, we will have to add a check that looks
-            # at the output of cp_verify in step 3) and does not certify the
-            # calibration if cp_verify does not pass: DM-31897
-            # 4. Certify the calibration
+
+            # 4. Certify the calibration if the verification tests passed
             if not response_ocps_verify_pipetask["phase"] == "completed":
                 raise RuntimeError(
                     f"{im_type} {previous_step} not completed successfully: "
@@ -734,7 +957,64 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     f"{im_type} certification could not be performed."
                 )
             else:
-                await self.certify_calib(im_type, job_id_calib)
+                # Check the verification statistics and decide whether
+                # the master calibration gets certified or not.
+                job_id_verify = response_ocps_verify_pipetask["jobId"]
+
+                # Check verification tests only if bias,
+                # dark, or flat. im_type can be an image or
+                # calibration type in ["BIAS", "DARK",
+                # "FLAT", "DEFECTS", "PTC"], but verification is not
+                # yet implemented for "DEFECTS and "PTC".
+                if im_type in ["BIAS", "DARK", "FLAT"]:
+                    report_check_verify_stats = await self.check_verification_stats(
+                        im_type, job_id_calib, job_id_verify
+                    )
+                    verify_tests_pass = report_check_verify_stats["CERTIFY_CALIB"]
+                    verify_report = report_check_verify_stats["NUM_STAT_ERRORS"]
+                    thresholds_report = report_check_verify_stats["FAILURE_THRESHOLDS"]
+                    verify_stats = report_check_verify_stats["VERIFY_STATS"]
+
+                    if verify_tests_pass:
+                        self.log.info(
+                            f"{im_type} calibration passed verification criteria "
+                            "and will be certified."
+                        )
+                        await self.certify_calib(im_type, job_id_calib)
+                    elif verify_tests_pass and verify_report is not None:
+                        await self.certify_calib(im_type, job_id_calib)
+                        self.log.warning(
+                            f"{im_type} calibration passed the overall verification "
+                            " criteria and was certified, but the following tests did not pass: "
+                            f" {verify_report} \n "
+                            f" {verify_stats}"
+                        )
+                    else:
+                        threshold = thresholds_report[
+                            "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD"
+                        ]
+                        raise RuntimeError(
+                            f"{im_type} calibration was not certified. \n"
+                            "The number of tests that did not pass per test type per exposure is: "
+                            f"{verify_report} \n"
+                            "Thresholds used to decide whether a calibration should be certified or not: "
+                            f"{thresholds_report} \n"
+                            "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by the config "
+                            "parameter: 'number_verification_tests_threshold_"
+                            + f"{im_type}".lower()
+                            + "'= "
+                            f"{threshold} \n"
+                            "For at least one type of test, if the majority of tests fail in the majority of "
+                            "detectors and the majority of exposures, the calibration will not be certified "
+                            "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD). \n"
+                            f"Statistics returned by `cp_verify`: {verify_stats}"
+                        )
+                else:
+                    self.log.info(
+                        f"Verification is still not implemented for {im_type}. "
+                        f"{im_type} will be automatically certified."
+                    )
+                    await self.certify_calib(im_type, job_id_calib)
 
     async def run(self):
         """"""
