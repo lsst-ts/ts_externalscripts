@@ -1004,11 +1004,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 if self.config.generate_calibrations:
                     response_ocps_verify_pipetask = response_ocps_calib_pipetask
                     previous_step = "generation"
-            # TODO: Currently, we are auto-certifying the calibration.
-            # However, we will have to add a check that looks
-            # at the output of cp_verify in step 3) and does not certify the
-            # calibration if cp_verify does not pass: DM-31897
-            # 4. Certify the calibration
+
+            # 4. Certify the calibration if the verification tests passed
             if (
                 self.config.generate_calibrations
                 and not response_ocps_verify_pipetask["phase"] == "completed"
