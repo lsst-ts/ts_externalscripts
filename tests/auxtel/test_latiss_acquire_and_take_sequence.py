@@ -26,6 +26,8 @@ import asyncio
 import tempfile
 import os
 
+import pytest
+
 from lsst.ts import salobj
 from lsst.ts.utils import make_done_future
 from lsst.ts import standardscripts
@@ -241,14 +243,15 @@ class TestLatissAcquireAndTakeSequence(
                 datapath=DATAPATH,
             )
 
-            self.assertEqual(self.script.object_name, object_name)
+            assert self.script.object_name == object_name
             for i, v in enumerate(self.script.visit_configs):
-                self.assertEqual(
-                    self.script.visit_configs[i],
-                    (filter_sequence, exposure_time_sequence, grating_sequence),
+                assert self.script.visit_configs[i] == (
+                    filter_sequence,
+                    exposure_time_sequence,
+                    grating_sequence,
                 )
-            self.assertEqual(self.script.do_take_sequence, True)
-            self.assertEqual(self.script.do_acquire, do_acquire)
+            assert self.script.do_take_sequence is True
+            assert self.script.do_acquire == do_acquire
 
             # Try configure with minimum set and multiple exposures
             exposure_time_sequence = [1.0, 2.0]
@@ -263,21 +266,22 @@ class TestLatissAcquireAndTakeSequence(
                 datapath=DATAPATH,
             )
 
-            self.assertEqual(self.script.object_name, object_name)
+            assert self.script.object_name == object_name
             for i, v in enumerate(self.script.visit_configs):
-                self.assertEqual(
-                    self.script.visit_configs[i],
-                    (filter_sequence, exposure_time_sequence[i], grating_sequence),
+                assert self.script.visit_configs[i] == (
+                    filter_sequence,
+                    exposure_time_sequence[i],
+                    grating_sequence,
                 )
             # Verify defaults
-            self.assertEqual(self.script.do_take_sequence, True)
-            self.assertEqual(self.script.do_acquire, False)
+            assert self.script.do_take_sequence is True
+            assert self.script.do_acquire is False
 
             # Try configure mis-matched array sizes. This should fail
             object_name = "HR8799"
             grating_sequence = ["test_disp1", "test_disp2"]
             exposure_time_sequence = [1.0, 2.0, 3.0]
-            with self.assertRaises(salobj.ExpectedError):
+            with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(
                     object_name=object_name,
                     grating_sequence=grating_sequence,
@@ -311,15 +315,16 @@ class TestLatissAcquireAndTakeSequence(
                 exposure_time_sequence=exposure_time_sequence,
                 datapath=DATAPATH,
             )
-            self.assertEqual(self.script.object_name, object_name)
+            assert self.script.object_name == object_name
             for i, v in enumerate(self.script.visit_configs):
-                self.assertEqual(
-                    self.script.visit_configs[i],
-                    (filter_sequence[i], exposure_time_sequence[i], grating_sequence),
+                assert self.script.visit_configs[i] == (
+                    filter_sequence[i],
+                    exposure_time_sequence[i],
+                    grating_sequence,
                 )
             # Verify inputs
-            self.assertEqual(self.script.do_take_sequence, True)
-            self.assertEqual(self.script.do_acquire, True)
+            assert self.script.do_take_sequence is True
+            assert self.script.do_acquire is True
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
@@ -359,9 +364,8 @@ class TestLatissAcquireAndTakeSequence(
 
             await self.run_script()
 
-            self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count,
-                len(exposure_time_sequence),
+            assert self.atcamera.cmd_takeImages.callback.await_count == len(
+                exposure_time_sequence
             )
             # Check that appropriate filters/gratings were used
             for i, e in enumerate(exposure_time_sequence):
@@ -373,8 +377,8 @@ class TestLatissAcquireAndTakeSequence(
                 called_grating = self.script.latiss.setup_atspec.call_args_list[i][1][
                     "grating"
                 ]
-                self.assertEqual(filter_sequence[i], called_filter)
-                self.assertEqual(grating_sequence[i], called_grating)
+                assert filter_sequence[i] == called_filter
+                assert grating_sequence[i] == called_grating
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
@@ -429,12 +433,9 @@ class TestLatissAcquireAndTakeSequence(
             # img 191 and 192 centroid at 2040, 1995
 
             # Should take two iterations? FIXME
-            self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count,
-                3,
-            )
+            assert self.atcamera.cmd_takeImages.callback.await_count == 3
             # should offset only once
-            self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
+            assert self.script.atcs.offset_xy.call_count == 1
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
@@ -487,12 +488,9 @@ class TestLatissAcquireAndTakeSequence(
             # img 291 centroid at 972,1671 (good)
 
             # Should take two iterations and 3 images
-            self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count,
-                3,
-            )
+            assert self.atcamera.cmd_takeImages.callback.await_count == 3
             # should offset only once
-            self.assertEqual(self.script.atcs.offset_xy.call_count, 2)
+            assert self.script.atcs.offset_xy.call_count == 2
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
@@ -544,12 +542,9 @@ class TestLatissAcquireAndTakeSequence(
             # img 191 and 192 centroid at 2040, 1995
 
             # Should take two iterations
-            self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count,
-                2,
-            )
+            assert self.atcamera.cmd_takeImages.callback.await_count == 2
             # should offset only once
-            self.assertEqual(self.script.atcs.offset_xy.call_count, 1)
+            assert self.script.atcs.offset_xy.call_count == 1
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
@@ -601,10 +596,7 @@ class TestLatissAcquireAndTakeSequence(
             await self.run_script()
 
             # Should take two images for acquisition then two images
-            self.assertEqual(
-                self.atcamera.cmd_takeImages.callback.await_count,
-                2 + 2,
-            )
+            assert self.atcamera.cmd_takeImages.callback.await_count == 2 + 2
             # Make sure offset was applied to telescope
             self.script.atcs.offset_xy.assert_called()
 
@@ -613,7 +605,3 @@ class TestLatissAcquireAndTakeSequence(
         script_path = scripts_dir / "auxtel" / "latiss_acquire_and_take_sequence.py"
         logger.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
-
-
-if __name__ == "__main__":
-    unittest.main()

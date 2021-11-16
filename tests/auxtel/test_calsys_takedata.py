@@ -58,7 +58,3 @@ class TestCalSysTakeData(unittest.IsolatedAsyncioTestCase):
                 if kwargs:
                     config_data.config = yaml.safe_dump(kwargs)
                 await script.do_configure(config_data)
-
-
-if __name__ == "__main__":
-    unittest.main()

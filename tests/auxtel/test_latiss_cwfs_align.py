@@ -27,6 +27,8 @@ import numpy as np
 import warnings
 import os
 
+import pytest
+
 try:
     # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
     from lsst.rapid.analysis import BestEffortIsr
@@ -215,7 +217,7 @@ class TestLatissCWFSAlign(
     async def test_configure(self):
         async with self.make_script():
             # First make sure the cwfs package is present
-            self.assertTrue(os.path.exists(cwfs.__file__))
+            assert os.path.exists(cwfs.__file__)
             # Try configure with minimum set of parameters declared
             grating = "test_disp1"
             filter = "test_filt1"
@@ -227,12 +229,12 @@ class TestLatissCWFSAlign(
                 datapath=DATAPATH,
             )
 
-            self.assertEqual(self.script.filter, filter)
-            self.assertEqual(self.script.grating, grating)
-            self.assertEqual(self.script.exposure_time, exposure_time)
-            self.assertEqual(self.script.cwfs_target, None)
-            self.assertEqual(self.script.cwfs_target_ra, None)
-            self.assertEqual(self.script.cwfs_target_dec, None)
+            assert self.script.filter == filter
+            assert self.script.grating == grating
+            assert self.script.exposure_time == exposure_time
+            assert self.script.cwfs_target is None
+            assert self.script.cwfs_target_ra is None
+            assert self.script.cwfs_target_dec is None
 
             # Test with find_target
             # this can fail occasionally if you're unlucky and
@@ -241,54 +243,54 @@ class TestLatissCWFSAlign(
             find_target = dict(az=-180.0, el=60.0, mag_limit=6.0, mag_range=14)
             await self.configure_script(find_target=find_target)
 
-            self.assertNotEqual(self.script.cwfs_target, None)
-            self.assertEqual(self.script.cwfs_target_ra, None)
-            self.assertEqual(self.script.cwfs_target_dec, None)
+            assert self.script.cwfs_target is not None
+            assert self.script.cwfs_target_ra is None
+            assert self.script.cwfs_target_dec is None
 
             # Test with find_target; fail if only az is provided
             find_target = dict(az=0.0)
-            with self.assertRaises(salobj.ExpectedError):
+            with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
             # Test with find_target; fail if only el is provided
             find_target = dict(el=60.0)
-            with self.assertRaises(salobj.ExpectedError):
+            with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
             # Test with find_target; fail if only az and el is provided
             find_target = dict(az=0.0, el=60.0)
-            with self.assertRaises(salobj.ExpectedError):
+            with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
             # Test with track_target; give target name only
             track_target = dict(target_name="HD 185975")
             await self.configure_script(track_target=track_target)
 
-            self.assertEqual(self.script.cwfs_target, track_target["target_name"])
-            self.assertEqual(self.script.cwfs_target_ra, None)
-            self.assertEqual(self.script.cwfs_target_dec, None)
+            assert self.script.cwfs_target == track_target["target_name"]
+            assert self.script.cwfs_target_ra is None
+            assert self.script.cwfs_target_dec is None
 
             # Test with track_target; give target name and ra/dec
             track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5, dec=-87.5))
             await self.configure_script(track_target=track_target)
 
-            self.assertEqual(self.script.cwfs_target, track_target["target_name"])
-            self.assertEqual(self.script.cwfs_target_ra, track_target["icrs"]["ra"])
-            self.assertEqual(self.script.cwfs_target_dec, track_target["icrs"]["dec"])
+            assert self.script.cwfs_target == track_target["target_name"]
+            assert self.script.cwfs_target_ra == track_target["icrs"]["ra"]
+            assert self.script.cwfs_target_dec == track_target["icrs"]["dec"]
 
             # Test with track_target; fail if name is not provided ra/dec
             track_target = dict(icrs=dict(ra=20.5, dec=-87.5))
-            with self.assertRaises(salobj.ExpectedError):
+            with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
 
             # Test with track_target; fail if only ra is provided
             track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5))
-            with self.assertRaises(salobj.ExpectedError):
+            with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
 
             # Test with track_target; fail if only dec is provided
             track_target = dict(target_name="HD 185975", icrs=dict(dec=-87.5))
-            with self.assertRaises(salobj.ExpectedError):
+            with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
 
     async def atcs_get_bore_sight_angle(self):
@@ -406,7 +408,7 @@ class TestLatissCWFSAlign(
                 measured=self.script.extra_result.brightestObjCentroidCofM[0],
                 actual=centroid[0],
             ):
-                self.assertTrue(
+                assert (
                     abs(
                         self.script.extra_result.brightestObjCentroidCofM[0]
                         - centroid[0]
@@ -419,7 +421,7 @@ class TestLatissCWFSAlign(
                 measured=self.script.extra_result.brightestObjCentroidCofM[1],
                 actual=centroid[1],
             ):
-                self.assertTrue(
+                assert (
                     abs(
                         self.script.extra_result.brightestObjCentroidCofM[1]
                         - centroid[1]
@@ -443,17 +445,17 @@ class TestLatissCWFSAlign(
                 with self.subTest(
                     msg="zern comparison", z=z, measured=meas_zerns[i], i=i
                 ):
-                    self.assertTrue(abs(z - meas_zerns[i]) <= zern_tol[i])
+                    assert abs(z - meas_zerns[i]) <= zern_tol[i]
             for i, rz in enumerate(results["rot_zerns"]):
                 with self.subTest(
                     msg="rot-zern comparison", rz=rz, measured=rot_zerns[i], i=i
                 ):
-                    self.assertTrue(abs(rz - rot_zerns[i]) <= zern_tol[i])
+                    assert abs(rz - rot_zerns[i]) <= zern_tol[i]
             for i, h in enumerate(results["hex_offset"]):
                 with self.subTest(
                     msg="hexapod comparison", h=h, measured=hex_offsets[i], i=i
                 ):
-                    self.assertTrue(abs(h - hex_offsets[i]) <= hex_tol[i])
+                    assert abs(h - hex_offsets[i]) <= hex_tol[i]
 
             for i, t in enumerate(results["tel_offset"]):
                 if t != 0:
@@ -463,35 +465,33 @@ class TestLatissCWFSAlign(
                         measured=tel_offsets[i],
                         i=i,
                     ):
-                        self.assertTrue(abs(t - tel_offsets[i]) <= tel_offset_tol[i])
+                        assert abs(t - tel_offsets[i]) <= tel_offset_tol[i]
 
             # Check that hexapod offsets were applied -  too hard to keep
             # track of how many calls should happen since
             # it also calls this to take the intra/extra focal images
-            self.assertTrue(self.ataos.cmd_offset.callback.called)
+            assert self.ataos.cmd_offset.callback.called
             # check that telescope offsets were applied twice
-            self.assertEqual(self.script.atcs.offset_xy.call_count, 3)
-            # check that total offsets are correct within the tolerance
+            assert self.script.atcs.offset_xy.call_count == 2
+            # check that total offsets are correct within the tolerance or 5%
             #
-            self.assertTrue(
-                abs(self.script.total_coma_x_offset - total_xcoma) < hex_tol[0],
-                msg=f"Total xComa is {self.script.total_coma_x_offset:0.5f}"
-                f"compared to the expected results of {total_xcoma:0.5f},"
-                f"which exceeds the tolerance of {hex_tol[0]:0.5f}",
+            assert (
+                abs(self.script.total_coma_x_offset - total_xcoma) / abs(total_xcoma)
+                <= 0.05
+            ) or (abs(self.script.total_coma_x_offset - total_xcoma) < hex_tol[0])
+            assert (
+                abs(self.script.total_coma_y_offset - total_ycoma) / abs(total_ycoma)
+                <= 0.05
+            ) or (abs(self.script.total_coma_x_offset - total_xcoma) < hex_tol[1])
+            logger.debug(
+                f"Measured total focus offset is {self.script.total_focus_offset:0.5f}"
             )
-            self.assertTrue(
-                abs(self.script.total_coma_y_offset - total_ycoma) < hex_tol[1],
-                msg=f"Total yComa is {self.script.total_coma_y_offset:0.5f} "
-                f"compared to the expected results of {total_ycoma:0.5f}, "
-                f"which exceeds the tolerance of {hex_tol[1]:0.5f}",
-            )
-
-            self.assertTrue(
-                abs(self.script.total_focus_offset - total_focus) < hex_tol[2],
-                msg=f"Total focus offset is {self.script.total_focus_offset:0.5f} "
-                f"compared to the expected results of {total_focus:0.5f}, "
-                f"which exceeds the tolerance of {hex_tol[2]:0.5f}",
-            )
+            logger.debug(f"Reference total focus offset value is {total_focus:0.5f}")
+            logger.debug(f"Tolerance is {max((0.05*total_focus, hex_tol[2])):0.5f}")
+            assert (
+                abs(self.script.total_focus_offset - total_focus) / abs(total_focus)
+                <= 0.05
+            ) or (abs(self.script.total_focus_offset - total_focus) < hex_tol[2])
 
     @unittest.skipIf(
         CWFS_AVAILABLE is False or DATA_AVAILABLE is False,
@@ -579,7 +579,7 @@ class TestLatissCWFSAlign(
                 measured=self.script.extra_result.brightestObjCentroidCofM[0],
                 actual=centroid[0],
             ):
-                self.assertTrue(
+                assert (
                     abs(
                         self.script.extra_result.brightestObjCentroidCofM[0]
                         - centroid[0]
@@ -592,7 +592,7 @@ class TestLatissCWFSAlign(
                 measured=self.script.extra_result.brightestObjCentroidCofM[1],
                 actual=centroid[1],
             ):
-                self.assertTrue(
+                assert (
                     abs(
                         self.script.extra_result.brightestObjCentroidCofM[1]
                         - centroid[1]
@@ -615,17 +615,17 @@ class TestLatissCWFSAlign(
                 with self.subTest(
                     msg="zern comparison", z=z, measured=meas_zerns[i], i=i
                 ):
-                    self.assertTrue(abs(z - meas_zerns[i]) <= zern_tol[i])
+                    assert abs(z - meas_zerns[i]) <= zern_tol[i]
             for i, rz in enumerate(results["rot_zerns"]):
                 with self.subTest(
                     msg="rot-zern comparison", rz=rz, measured=rot_zerns[i], i=i
                 ):
-                    self.assertTrue(abs(rz - rot_zerns[i]) <= zern_tol[i])
+                    assert abs(rz - rot_zerns[i]) <= zern_tol[i]
             for i, h in enumerate(results["hex_offset"]):
                 with self.subTest(
                     msg="hexapod comparison", h=h, measured=hex_offsets[i], i=i
                 ):
-                    self.assertTrue(abs(h - hex_offsets[i]) <= hex_tol[i])
+                    assert abs(h - hex_offsets[i]) <= hex_tol[i]
 
             for i, t in enumerate(results["tel_offset"]):
                 if t != 0:
@@ -635,14 +635,10 @@ class TestLatissCWFSAlign(
                         measured=tel_offsets[i],
                         i=i,
                     ):
-                        self.assertTrue(abs(t - tel_offsets[i]) <= tel_offset_tol[i])
+                        assert abs(t - tel_offsets[i]) <= tel_offset_tol[i]
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "auxtel" / "latiss_cwfs_align.py"
         logger.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
-
-
-if __name__ == "__main__":
-    unittest.main()
