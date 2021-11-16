@@ -57,7 +57,7 @@ logging.getLogger("flake8.style_guide").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.propagate = True
 
-random.seed(47)  # for set_random_dds_partition_prefix
+random.seed(47)  # for set_random_lsst_dds_partition_prefix
 
 # Check to see if the test data is accessible for testing at NCSA
 # Depending upon how we load test data this will change
