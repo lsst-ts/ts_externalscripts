@@ -38,6 +38,7 @@ except ImportError:
     warnings.warn("Could not import cwfs package. Most tests will be skipped.")
 
 from lsst.ts import salobj
+from lsst.ts.utils import make_done_future
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissCWFSAlign
@@ -117,7 +118,7 @@ class TestLatissCWFSAlign(
         self.atcamera.cmd_takeImages.callback = unittest.mock.AsyncMock(
             wraps=self.cmd_take_images_callback
         )
-        self.script.latiss.ready_to_take_data = salobj.make_done_future
+        self.script.latiss.ready_to_take_data = make_done_future()
         # mock latiss instrument setup
         self.script.latiss.setup_atspec = unittest.mock.AsyncMock()
 

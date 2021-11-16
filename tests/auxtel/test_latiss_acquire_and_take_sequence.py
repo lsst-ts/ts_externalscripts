@@ -27,6 +27,7 @@ import tempfile
 import os
 
 from lsst.ts import salobj
+from lsst.ts.utils import make_done_future
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
@@ -103,7 +104,7 @@ class TestLatissAcquireAndTakeSequence(
         self.script.atcs.slew_icrs = unittest.mock.AsyncMock()
         self.script.atcs.offset_xy = unittest.mock.AsyncMock()
         self.script.atcs.add_point_data = unittest.mock.AsyncMock()
-        self.script.latiss.ready_to_take_data = salobj.make_done_future
+        self.script.latiss.ready_to_take_data = make_done_future()
 
         # Mock the latiss instrument setups
         self.script.latiss.setup_atspec = unittest.mock.AsyncMock(
