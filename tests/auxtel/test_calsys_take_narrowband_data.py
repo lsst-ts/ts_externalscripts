@@ -45,7 +45,7 @@ class Harness:
 
 class TestCalSysTakeNarrowbandData(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        salobj.set_random_lsst_dds_domain()
+        salobj.set_random_dds_partition_prefix()
 
     async def test_configure(self):
         index = next(index_gen)

@@ -38,7 +38,7 @@ import logging
 # Make matplotlib less chatty
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
-random.seed(47)  # for set_random_lsst_dds_domain
+random.seed(47)  # for set_random_dds_partition_prefix
 
 
 logger = logging.getLogger(__name__)
