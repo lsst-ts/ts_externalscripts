@@ -63,8 +63,6 @@ class QuickFrameMeasurement(salobj.BaseScript):
 
     """
 
-    __test__ = False  # stop pytest from warning that this is not a test
-
     def __init__(self, index, silent=False):
 
         super().__init__(
