@@ -77,21 +77,20 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
 
         for key in configuration:
             with self.subTest(key=key, value=configuration[key]):
-                self.assertEqual(getattr(self.script.config, key), configuration[key])
+                assert getattr(self.script.config, key) == configuration[key]
 
     def check_azel_grid(self):
 
-        self.assertEqual(len(self.script.elevation_grid), len(self.script.azimuth_grid))
+        assert len(self.script.elevation_grid) == len(self.script.azimuth_grid)
 
-        self.assertGreater(len(self.script.elevation_grid), 0)
+        assert len(self.script.elevation_grid) > 0
 
-        self.assertGreaterEqual(
-            np.min(self.script.elevation_grid), self.script.config.elevation_minimum
+        assert (
+            np.min(self.script.elevation_grid) >= self.script.config.elevation_minimum
         )
 
-        self.assertLessEqual(
-            np.max(self.script.elevation_grid),
-            self.script.config.elevation_maximum,
+        assert (
+            np.max(self.script.elevation_grid) <= self.script.config.elevation_maximum
         )
 
     async def test_metadata(self):
@@ -110,15 +109,11 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
 
     def assert_metadata(self, metadata):
 
-        self.assertEqual(metadata.nimages, len(self.script.elevation_grid) * 2)
-        self.assertEqual(
-            metadata.duration,
-            metadata.nimages
-            * (
-                self.script.config.exposure_time
-                + self.script.camera_readout_time
-                + self.script.estimated_average_slew_time
-            ),
+        assert metadata.nimages == len(self.script.elevation_grid) * 2
+        assert metadata.duration == metadata.nimages * (
+            self.script.config.exposure_time
+            + self.script.camera_readout_time
+            + self.script.estimated_average_slew_time
         )
 
     async def test_executable(self):
@@ -139,7 +134,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
 
     def assert_arun(self):
 
-        self.assertEqual(self.script.execute_grid.await_count, self.script.grid_size)
+        assert self.script.execute_grid.await_count == self.script.grid_size
         calls = [
             unittest.mock.call(azimuth, elevation)
             for azimuth, elevation in zip(
@@ -184,8 +179,8 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             rot_type=RotType.PhysicalSky,
         )
         self.script.center_on_brightest_source.assert_awaited()
-        self.assertEqual(self.script.iterations["failed"], 0)
-        self.assertEqual(self.script.iterations["successful"], 1)
+        assert self.script.iterations["failed"] == 0
+        assert self.script.iterations["successful"] == 1
 
     async def test_execute_grid_fail_to_find_target(self):
 
@@ -216,8 +211,8 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         )
         self.script.atcs.slew_object.assert_not_awaited()
         self.script.center_on_brightest_source.assert_not_awaited()
-        self.assertEqual(self.script.iterations["failed"], 1)
-        self.assertEqual(self.script.iterations["successful"], 0)
+        assert self.script.iterations["failed"] == 1
+        assert self.script.iterations["successful"] == 0
 
     async def test_center_on_brightest_source(self):
 
@@ -303,7 +298,3 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             test_configuration = await self.set_test_configuration()
 
             yield test_configuration
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -45,7 +45,7 @@ class Harness:
 
 class TestCalSysTakeData(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        salobj.set_random_lsst_dds_domain()
+        salobj.set_random_lsst_dds_partition_prefix()
 
     async def test_configure(self):
         index = next(index_gen)
@@ -58,7 +58,3 @@ class TestCalSysTakeData(unittest.IsolatedAsyncioTestCase):
                 if kwargs:
                     config_data.config = yaml.safe_dump(kwargs)
                 await script.do_configure(config_data)
-
-
-if __name__ == "__main__":
-    unittest.main()

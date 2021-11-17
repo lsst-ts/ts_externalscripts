@@ -269,12 +269,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             if n_images is not None:
                 if len(exp_times) != n_images:
                     raise ValueError(
-                        "n_images_"
-                        + f"{image_type}".lower()
-                        + f"={n_images} specified and "
-                        "exp_times_"
-                        + f"{image_type}".lower()
-                        + f"={exp_times} is an array, "
+                        f"n_images_{image_type.lower()}={n_images} specified and "
+                        f"exp_times_{image_type.lower()}={exp_times} is an array, "
                         f"but the length does not match the number of images."
                     )
         else:
@@ -478,10 +474,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         file_exists = os.path.exists(pipeline_yaml_file)
         if file_exists:
             pipeline_yaml_file = (
-                "${CP_PIPE_DIR}/pipelines/" + f"{pipeline_instrument}/{pipe_yaml}"
+                f"${{CP_PIPE_DIR}}/pipelines/{pipeline_instrument}/{pipe_yaml}"
             )
         else:
-            pipeline_yaml_file = "${CP_PIPE_DIR}/pipelines/" + f"{pipe_yaml}"
+            pipeline_yaml_file = f"${{CP_PIPE_DIR}}/pipelines/{pipe_yaml}"
 
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
@@ -578,7 +574,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Verify the master calibration
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
-            pipeline="${CP_VERIFY_DIR}/pipelines/" + f"{pipe_yaml}",
+            pipeline=f"${{CP_VERIFY_DIR}}/pipelines/{pipe_yaml}",
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
@@ -852,8 +848,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         cmd = (
             f"butler certify-calibrations {REPO} {CALIB_PRODUCT_COL} {CALIB_COL} "
             f"--begin-date {self.config.certify_calib_begin_date} "
-            f"--end-date {self.config.certify_calib_end_date}"
-            + f" {image_type}".lower()
+            f"--end-date {self.config.certify_calib_end_date} {image_type.lower()}"
         )
         self.log.info(cmd)
 
@@ -986,27 +981,24 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         self.log.warning(
                             f"{im_type} calibration passed the overall verification "
                             " criteria and was certified, but the following tests did not pass: "
-                            f" {verify_report} \n "
-                            f" {verify_stats}"
+                            f"{verify_report}\n"
+                            f"{verify_stats}"
                         )
                     else:
                         threshold = thresholds_report[
                             "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD"
                         ]
                         raise RuntimeError(
-                            f"{im_type} calibration was not certified. \n"
+                            f"{im_type} calibration was not certified.\n"
                             "The number of tests that did not pass per test type per exposure is: "
-                            f"{verify_report} \n"
+                            f"{verify_report}\n"
                             "Thresholds used to decide whether a calibration should be certified or not: "
-                            f"{thresholds_report} \n"
-                            "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by the config "
-                            "parameter: 'number_verification_tests_threshold_"
-                            + f"{im_type}".lower()
-                            + "'= "
-                            f"{threshold} \n"
+                            f"{thresholds_report}\n"
+                            "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by config parameter "
+                            f"number_verification_tests_threshold_{im_type.lower()} = {threshold}\n"
                             "For at least one type of test, if the majority of tests fail in the majority of "
                             "detectors and the majority of exposures, the calibration will not be certified "
-                            "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD). \n"
+                            "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD).\n"
                             f"Statistics returned by `cp_verify`: {verify_stats}"
                         )
                 else:
