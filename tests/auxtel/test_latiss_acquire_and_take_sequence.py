@@ -50,7 +50,7 @@ logger.propagate = True
 # the default path used on the summit and on the NTS.
 
 # DATAPATH set to NTS repo
-DATAPATH = "/readonly/repo/main/"
+DATAPATH = "/readonly/repo/main"
 try:
     butler = dafButler.Butler(
         DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
@@ -114,7 +114,6 @@ class TestLatissAcquireAndTakeSequence(
         # not available for import
         if not DATA_AVAILABLE:
             self.script.get_best_effort_isr = unittest.mock.AsyncMock()
-            self.script.get_butler = unittest.mock.AsyncMock()
 
         # Load controllers and required callbacks to simulate
         # telescope/instrument behaviour

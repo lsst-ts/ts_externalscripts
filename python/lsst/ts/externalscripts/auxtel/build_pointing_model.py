@@ -31,7 +31,7 @@ from lsst.geom import PointD
 try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.rapid.analysis import BestEffortIsr
-    import lsst.daf.butler as dafButler
+
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
     from lsst.ts.observing.utilities.auxtel.latiss.utils import (
         parse_visit_id,
@@ -102,7 +102,7 @@ properties:
         minimum: 1
         description: >-
             Healpix nside parameter. The script uses healpix to construct an uniformly spaced grid around
-            the vizible sky. This parameter defines the density of the pointing grid.
+            the visible sky. This parameter defines the density of the pointing grid.
     azimuth_origin:
         type: number
         default: 0.
@@ -132,7 +132,7 @@ properties:
             magnitude_limit+magnitude_range.
     datapath:
         type: string
-        default: /repo/LATISS/
+        default: /repo/LATISS
         description: >-
             Path to the gen3 butler data repository where the images are located.
             The default is for the summit.
@@ -166,22 +166,14 @@ additionalProperties: false
         self.config = config
 
         # Instantiate BestEffortIsr
-        self.butler = self.get_butler(self.config.datapath)
-        self.best_effort_isr = self.get_best_effort_isr(butler=self.butler)
+        self.best_effort_isr = self.get_best_effort_isr()
 
         self.configure_grid()
 
-    def get_butler(self, datapath):
-        # Isolate the butler instantiation so it can be mocked
-        # in unit tests
-        return dafButler.Butler(
-            datapath, instrument="LATISS", collections="LATISS/raw/all"
-        )
-
-    def get_best_effort_isr(self, butler):
+    def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
-        return BestEffortIsr(butler=butler, repodirIsGen3=True)
+        return BestEffortIsr(self.config.datapath)
 
     def configure_grid(self):
         """Configure the observation grid."""
