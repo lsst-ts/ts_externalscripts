@@ -558,7 +558,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # collections in the configuration file.
             if job_id_calib is None:
                 input_col_verify_bias_string = (
-                    "-i {self.config.input_collections_verify_bias}"
+                    f"-i {self.config.input_collections_verify_bias}"
                 )
             else:
                 input_col_verify_bias_string = (
@@ -575,7 +575,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             pipe_yaml = "VerifyDark.yaml"
             if job_id_calib is None:
                 input_col_verify_dark_string = (
-                    "-i {self.config.input_collections_verify_dark}"
+                    f"-i {self.config.input_collections_verify_dark}"
                 )
             else:
                 input_col_verify_dark_string = (
@@ -592,7 +592,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             pipe_yaml = "VerifyFlat.yaml"
             if job_id_calib is None:
                 input_col_verify_flat_string = (
-                    "-i {self.config.input_collections_verify_flat}"
+                    f"-i {self.config.input_collections_verify_flat}"
                 )
             else:
                 input_col_verify_flat_string = (
@@ -791,15 +791,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Main key of verify_stats is exposure IDs
         min_number_failed_exposures = int(len(verify_stats) / 2) + 1  # majority of exps
 
-        first_exp = list(verify_stats.keys())[0]
-        # "stg" is of the form "detector_amp_test", and "detector" is
-        # of the form "raft_det".
-        detectors = set(
-            [stg.split(" ")[0] for stg in verify_stats[first_exp]["FAILURES"]]
-        )
-        min_number_failed_detectors = (
-            int(len(detectors) / 2) + 1
-        )  # majority of detectors
+        n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(","))))
+        min_number_failed_detectors = int(n_detectors / 2) + 1  # majority of detectors
 
         # Define failure threshold per exposure
         failure_threshold_exposure = (
