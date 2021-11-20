@@ -191,7 +191,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: integer
                 descriptor: Minimum number of verification tests per detector per exposure per \
                     test type that should pass to certify the dark master calibration.
-                default: 16
+                default: 8
             number_verification_tests_threshold_flat:
                 type: integer
                 descriptor: Minimum number of verification tests per detector per exposure per \
