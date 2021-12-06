@@ -64,20 +64,16 @@ class TestMakeComCamCalibrations(
                 n_processes=n_processes,
             )
 
-            self.assertEqual(self.script.config.n_bias, n_bias)
-            self.assertEqual(self.script.config.n_dark, n_dark)
-            self.assertEqual(self.script.config.n_flat, n_flat)
-            self.assertEqual(self.script.config.exp_times_dark, exp_times_dark)
-            self.assertEqual(self.script.config.exp_times_flat, exp_times_flat)
-            self.assertEqual(self.script.config.n_processes, n_processes)
-            self.assertEqual(self.script.config.detectors, detectors)
+            assert self.script.config.n_bias == n_bias
+            assert self.script.config.n_dark == n_dark
+            assert self.script.config.n_flat == n_flat
+            assert self.script.config.exp_times_dark == exp_times_dark
+            assert self.script.config.exp_times_flat == exp_times_flat
+            assert self.script.config.n_processes == n_processes
+            assert self.script.config.detectors == detectors
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "maintel" / "make_comcam_calibrations.py"
         logger.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
-
-
-if __name__ == "__main__":
-    unittest.main()

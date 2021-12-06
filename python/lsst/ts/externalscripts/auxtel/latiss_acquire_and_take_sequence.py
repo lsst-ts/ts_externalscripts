@@ -42,7 +42,7 @@ try:
     )
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.rapid.analysis import BestEffortIsr
-    import lsst.daf.butler as dafButler
+
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
@@ -73,8 +73,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
     pixel.
 
     """
-
-    __test__ = False  # stop pytest from warning that this is not a test
 
     def __init__(self, index, silent=False):
 
@@ -219,7 +217,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
               datapath:
                 description: Path to the gen3 butler data repository. The default is for the summit.
                 type: string
-                default: /repo/LATISS/
+                default: /repo/LATISS
 
               do_pointing_model:
                 description: Adjust star position (sweet spot) to use boresight. Save datapoint
@@ -259,8 +257,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.datapath = config.datapath
 
         # Instantiate BestEffortIsr
-        self.butler = self.get_butler(self.datapath)
-        self.best_effort_isr = self.get_best_effort_isr(butler=self.butler)
+        self.best_effort_isr = self.get_best_effort_isr()
 
         # Which processes to perform
         self.do_acquire = config.do_acquire
@@ -314,17 +311,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
         ]
 
-    def get_butler(self, datapath):
-        # Isolate the butler instantiation so it can be mocked
-        # in unit tests
-        return dafButler.Butler(
-            datapath, instrument="LATISS", collections="LATISS/raw/all"
-        )
-
-    def get_best_effort_isr(self, butler):
+    def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
-        return BestEffortIsr(butler=butler, repodirIsGen3=True)
+        return BestEffortIsr(self.datapath)
 
     # This bit is required for ScriptQueue
     # Does the calculation below need acquisition times?

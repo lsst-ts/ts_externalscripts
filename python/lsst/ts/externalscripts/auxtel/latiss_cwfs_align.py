@@ -40,7 +40,6 @@ try:
         parse_visit_id,
     )
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
-    import lsst.daf.butler as dafButler
     from lsst.rapid.analysis import BestEffortIsr
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
 except ImportError:
@@ -87,8 +86,6 @@ class LatissCWFSAlign(salobj.BaseScript):
 
     """
 
-    __test__ = False  # stop pytest from warning that this is not a test
-
     def __init__(self, index=1, remotes=True):
 
         super().__init__(
@@ -129,8 +126,8 @@ class LatissCWFSAlign(salobj.BaseScript):
         #         ]
         self.sensitivity_matrix = [
             [1.0 / 206.0, 0.0, 0.0],
-            [0.0, -1.0 / 206.0, (109.0 / 206.0) / 4200],
-            [0.0, 0.0, -1.0 / 4200.0],
+            [0.0, -1.0 / 206.0, -(109.0 / 206.0) / 4200],
+            [0.0, 0.0, 1.0 / 4200.0],
         ]
 
         # Rotation matrix to take into account angle between camera and
@@ -261,7 +258,11 @@ Pixel_size (m)			{}
 
     async def take_intra_extra(self):
         """Take pair of Intra/Extra focal images to be used to determine
-        the measured wavefront error.
+        the measured wavefront error. Because m2 is being moved, the intra
+        focal image occurs when the hexapod receives a positive offset and
+        is pushed towards the primary mirror. The extra-focal image occurs
+        when the hexapod is pulled back (negative offset) from the
+        sbest-focus position.
 
         Returns
         -------
@@ -272,7 +273,7 @@ Pixel_size (m)			{}
 
         self.log.debug("Moving to intra-focal position")
 
-        await self.hexapod_offset(-self.dz)
+        await self.hexapod_offset(self.dz)
 
         # Set groupID to have the same timestamp as this
         # is used to show the images are a pair and meant
@@ -291,7 +292,8 @@ Pixel_size (m)			{}
 
         # Hexapod offsets are relative, so need to move 2x the offset
         # to get from the intra- to the extra-focal position.
-        await self.hexapod_offset(self.dz * 2.0)
+        # then add the offset to compensate for un-equal magnification
+        await self.hexapod_offset(-(self.dz * 2.0 + self.extra_focal_offset))
 
         self.log.debug("Taking extra-focal image")
 
@@ -317,7 +319,7 @@ Pixel_size (m)			{}
         self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the
         # same position it was before running the script
-        await self.hexapod_offset(-self.dz)
+        await self.hexapod_offset(self.dz)
 
     async def hexapod_offset(self, offset, x=0.0, y=0.0):
         """Applies z-offset to the hexapod to move between
@@ -342,7 +344,7 @@ Pixel_size (m)			{}
 
         self.atcs.rem.athexapod.evt_positionUpdate.flush()
         await self.atcs.rem.ataos.cmd_offset.set_start(
-            **offset, timeout=self.short_timeout
+            **offset, timeout=self.long_timeout
         )
         await self.atcs.rem.athexapod.evt_positionUpdate.next(
             flush=False, timeout=self.long_timeout
@@ -653,14 +655,21 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 description: De-focus to apply when acquiring the intra/extra focal images (mm).
                 type: number
                 default: 0.8
+              extra_focal_offset:
+                description: >-
+                    The additional m2 defocus (mm) to apply for the extra-focal image to be the
+                    same size as the intra. This value is always positive to compensate for
+                    the change in magnification from moving the secondary mirror.
+                type: number
+                default: 0.0011
               datapath:
                 description: Path to the gen3 butler data repository. The default is for the summit.
                 type: string
-                default: /repo/LATISS/
+                default: /repo/LATISS
               large_defocus:
                 description: >-
-                    Defines a large defocus. If Defocus is larger than this value, apply only
-                    half of correction.
+                    Defines a large defocus. If the measured defocus is larger than this value,
+                    apply only half of correction.
                 type: number
                 default: 0.08
               threshold:
@@ -730,13 +739,14 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         # offset for the intra/extra images
         self.dz = config.dz
+        # delta offset for extra focal image
+        self.extra_focal_offset = config.extra_focal_offset
 
         # butler data path.
         self.datapath = config.datapath
 
         # Instantiate BestEffortIsr
-        self.butler = self.get_butler(self.datapath)
-        self.best_effort_isr = self.get_best_effort_isr(butler=self.butler)
+        self.best_effort_isr = self.get_best_effort_isr()
 
         self.large_defocus = config.large_defocus
 
@@ -748,17 +758,10 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         self.max_iter = config.max_iter
 
-    def get_butler(self, datapath):
-        # Isolate the butler instantiation so it can be mocked
-        # in unit tests
-        return dafButler.Butler(
-            datapath, instrument="LATISS", collections="LATISS/raw/all"
-        )
-
-    def get_best_effort_isr(self, butler):
+    def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
-        return BestEffortIsr(butler=butler, repodirIsGen3=True)
+        return BestEffortIsr(self.datapath)
 
     def set_metadata(self, metadata):
         # It takes about 300s to run the cwfs code, plus the two exposures
@@ -773,7 +776,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         if self.cwfs_target is not None and self.cwfs_target_dec is None:
             if checkpoint:
                 await self.checkpoint(f"Slewing to object: {self.cwfs_target}")
-            await self.slew_object(
+            await self.atcs.slew_object(
                 name=self.cwfs_target, rot=0.0, rot_type=RotType.PhysicalSky
             )
 
@@ -788,7 +791,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     f"ra/dec = {self.cwfs_target_ra}/{self.cwfs_target_dec}."
                 )
 
-            await self.slew_icrs(
+            await self.atcs.slew_icrs(
                 ra=self.cwfs_target_ra,
                 dec=self.cwfs_target_dec,
                 target_name=self.cwfs_target,
@@ -846,7 +849,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 if self.offset_telescope:
                     tel_el_offset, tel_az_offset = (
                         results["tel_offset"][0],
-                        -results["tel_offset"][1],
+                        results["tel_offset"][1],
                     )
                     self.log.info(
                         f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
@@ -901,7 +904,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 if self.offset_telescope:
                     tel_el_offset, tel_az_offset = (
                         results["tel_offset"][0],
-                        -results["tel_offset"][1],
+                        results["tel_offset"][1],
                     )
                     self.log.info(
                         f"Applying telescope offset az/el: {tel_az_offset}/{tel_el_offset}."

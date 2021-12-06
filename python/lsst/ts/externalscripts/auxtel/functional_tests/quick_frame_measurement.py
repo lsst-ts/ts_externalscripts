@@ -32,7 +32,7 @@ try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_obs_id
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
-    import lsst.daf.butler as dafButler
+
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
@@ -63,8 +63,6 @@ class QuickFrameMeasurement(salobj.BaseScript):
 
     """
 
-    __test__ = False  # stop pytest from warning that this is not a test
-
     def __init__(self, index, silent=False):
 
         super().__init__(
@@ -90,7 +88,7 @@ class QuickFrameMeasurement(salobj.BaseScript):
                 type: string
                 default: /repo/LATISS/
               visit_id:
-                description: Visit id of the image to process. Format is AT_O_YYYSYMMDD_NNNNNN.
+                description: Visit id of the image to process. Format is AT_O_YYYYMMDD_NNNNNN.
                 type: string
             required:
               - visit_id
@@ -111,20 +109,12 @@ class QuickFrameMeasurement(salobj.BaseScript):
         self.config = config
 
         # Instantiate BestEffortIsr
-        self.butler = self.get_butler(self.config.datapath)
-        self.best_effort_isr = self.get_best_effort_isr(butler=self.butler)
+        self.best_effort_isr = self.get_best_effort_isr()
 
-    def get_butler(self, datapath):
-        # Isolate the butler instantiation so it can be mocked
-        # in unit tests
-        return dafButler.Butler(
-            datapath, instrument="LATISS", collections="LATISS/raw/all"
-        )
-
-    def get_best_effort_isr(self, butler):
+    def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
-        return BestEffortIsr(butler=butler, repodirIsGen3=True)
+        return BestEffortIsr(self.config.datapath)
 
     def set_metadata(self, metadata):
         metadata.duration = 60.0
