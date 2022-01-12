@@ -853,6 +853,102 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return certify_calib, total_counter_failed_tests, thresholds
 
+    async def build_verification_report_summary(self, report_check_verify_stats):
+        """Helper function to print verification results.
+
+        Parameters
+        ----------
+        report_check_verify_stats : `dict`
+            Dictionary with verification results:
+
+        certify_calib : `bool`
+            Booolean indicating if the calibration should be certified
+            or not.
+
+        num_stat_errors : `dict`[`str`][`str`] or `None`
+            Dictionary with the total number of tests failed per exposure and
+            per cp_verify test type. If there are not any tests that failed,
+            `None` will be returned.
+
+        failure_thresholds : `dict`[`str`][`int`] or `None`
+            Dictionary reporting the different thresholds used to decide
+            whether a calibration should be certified or not (see `Notes`
+            below). If there are not any tests that failed,
+            `None` will be returned.
+
+        verify_stats : `dict`
+            Statistics from cp_verify.
+        """
+
+        verify_report = report_check_verify_stats["NUM_STAT_ERRORS"]
+        thresholds_report = report_check_verify_stats["FAILURE_THRESHOLDS"]
+        verify_stats = report_check_verify_stats["VERIFY_STATS"]
+
+        # verify_report
+        self.log.info("Number of tests that failed per test type:")
+        for exp in verify_report:
+            self.log.info(f"Exposure ID: {exp}")
+            for test_type in verify_report[exp]:
+                self.log.info(f"    {test_type}: ", verify_report[exp][test_type])
+            self.log.info(" ")
+
+        # verify_stats
+        self.log.info(
+            "Test types that failed verification per exposure, "
+            "detector, and amplifier:"
+        )
+        for exp in verify_stats:
+            self.log.info(f"    Exposure ID: {exp}")
+            # det name | amp | test type
+            for info in verify_stats[exp]["FAILURES"]:
+                self.log.info(f"        {info}")
+            self.log.info(" ")
+
+        # thresholds_report
+        self.log.info("Threshold values: ")
+        self.log.ingo(
+            "    Acceptable minimum number of failures per detector per test type: ",
+            thresholds_report["MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD"],
+        )
+        self.log.info(
+            "This value is controlled by the configuration parameter "
+            "'number_verification_tests_threshold_IMGTYPE'"
+        )
+        self.log.info(" ")
+        self.log.info(
+            "    Acceptable minimum number of failed detectors: ",
+            thresholds_report["MIN_FAILED_DETECTORS_THRESHOLD"],
+        )
+        self.log.info(" ")
+        self.log.info(
+            "    Acceptable minimum number of failed tests per exposure: ",
+            thresholds_report["MIN_FAILED_TESTS_PER_EXPOSURE_THRESHOLD"],
+        )
+        self.log.info(" ")
+        self.log.info(
+            "    Acceptable minimum number of failed exposures: ",
+            thresholds_report["MIN_FAILED_EXPOSURES_THRESHOLD"],
+        )
+        self.log.info(" ")
+        self.log.info(
+            "    Final number of exposures that failed verification: ",
+            thresholds_report["FINAL_NUMBER_OF_FAILED_EXPOSURES"],
+        )
+
+        self.log.info(
+            "Verification failure criterium: if, for at least une type of test, "
+            "the majority of tests fail in the majority of detectors and the "
+            "the majority of exposures, verification will fail and the calibration "
+            " will not be certified. "
+        )
+
+        self.log.info(" ")
+        self.log.info(
+            "In terms of the threshold values, this amounts for the contidition that "
+            "the final number of exposures that failed verification is greater than or equal "
+            "than the acceptable minimum number of failed exposures"
+        )
+
     async def certify_calib(self, image_type, job_id_calib):
         """Certify the calibration.
 
@@ -1009,7 +1105,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         f"{im_type} will be automatically certified."
                     )
                     await self.certify_calib(im_type, job_id_calib)
-
                 else:
                     if not response_ocps_verify_pipetask["phase"] == "completed":
                         raise RuntimeError(
@@ -1028,19 +1123,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         # "FLAT", "DEFECTS", "PTC"], but verification is not
                         # yet implemented for "DEFECTS and "PTC".
                         if im_type in ["BIAS", "DARK", "FLAT"]:
-                            report_check_verify_stats = (
-                                await self.check_verification_stats(
-                                    im_type, job_id_calib, job_id_verify
-                                )
+                            report_check_verify_stats = await self.check_verification_stats(
+                                im_type, job_id_calib, job_id_verify
                             )
-                            verify_tests_pass = report_check_verify_stats[
-                                "CERTIFY_CALIB"
-                            ]
-                            verify_report = report_check_verify_stats["NUM_STAT_ERRORS"]
-                            thresholds_report = report_check_verify_stats[
-                                "FAILURE_THRESHOLDS"
-                            ]
-                            verify_stats = report_check_verify_stats["VERIFY_STATS"]
+                            verify_tests_pass = report_check_verify_stats["CERTIFY_CALIB"]
 
                             if verify_tests_pass:
                                 self.log.info(
@@ -1048,34 +1134,26 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                     "and will be certified."
                                 )
                                 await self.certify_calib(im_type, job_id_calib)
-                            elif verify_tests_pass and verify_report is not None:
+                            elif (
+                                verify_tests_pass
+                                and report_check_verify_stats["NUM_STAT_ERRORS"] is not None
+                            ):
                                 await self.certify_calib(im_type, job_id_calib)
                                 self.log.warning(
                                     f"{im_type} calibration passed the overall verification "
-                                    " criteria and was certified, but the following tests did not pass: "
-                                    f"{verify_report}\n"
-                                    f"{verify_stats}"
+                                    " criteria and was certified, but the are tests that did not pass: "
                                 )
+                                await self.build_verification_report_summary(
+                                    report_check_verify_stats
+                                )
+
                             else:
-                                threshold = thresholds_report[
-                                    "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD"
-                                ]
-                                raise RuntimeError(
-                                    f"{im_type} calibration was not certified.\n"
-                                    "The number of tests that did not pass per test type per exposure is: "
-                                    f"{verify_report}\n"
-                                    "Thresholds used to decide whether a calibration should be certified "
-                                    f"or not {thresholds_report}\n"
-                                    "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by config "
-                                    " parameter "
-                                    f"number_verification_tests_threshold_{im_type.lower()} = {threshold}\n"
-                                    "For at least one type of test, if the majority of tests fail in the "
-                                    " majority of "
-                                    "detectors and the majority of exposures, the calibration will not be "
-                                    "certified "
-                                    "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD)."
-                                    f"Statistics returned by `cp_verify`: {verify_stats}"
+                                await self.build_verification_report_summary(
+                                    report_check_verify_stats
                                 )
+                                raise RuntimeError(
+                                    f"{im_type} calibration failed verification and will not be certified."
+                                ) 
                         else:
                             self.log.info(
                                 f"Verification is still not implemented for {im_type}. "
