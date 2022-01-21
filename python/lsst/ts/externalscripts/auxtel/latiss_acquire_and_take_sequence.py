@@ -21,13 +21,13 @@
 __all__ = ["LatissAcquireAndTakeSequence"]
 
 import asyncio
-import collections.abc
+import collections
 import warnings
 
 import numpy as np
 import yaml
 import concurrent.futures
-from astropy import time as astropytime
+
 from lsst.geom import PointD
 from lsst.ts import salobj
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
@@ -231,6 +231,21 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 type: boolean
                 default: True
 
+              reason:
+                description: Optional reason for taking the data.
+                anyOf:
+                  - type: string
+                  - type: "null"
+                default: null
+
+              program:
+                description: >-
+                  Optional name of the program this dataset belongs to.
+                anyOf:
+                  - type: string
+                  - type: "null"
+                default: null
+
             additionalProperties: false
             if:
               properties:
@@ -310,6 +325,26 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 format_as_list(config.grating_sequence, _recurrences),
             )
         ]
+
+        self.reason = config.reason
+
+        if self.reason is None:
+            warnings.warn(
+                "Reason not specified! Consider specifying the 'reason' for "
+                "this observation. it helps reducing the data aftwards. Running "
+                "without specifying a 'reason' will stop working in the future!",
+                DeprecationWarning,
+            )
+
+        self.program = config.program
+
+        if self.program is None:
+            warnings.warn(
+                "Program not specified! Consider specifying the 'program' for "
+                "this observation, it helps reducing the data aftwards. Running "
+                "without specifying a 'program' will stop working in the future!",
+                DeprecationWarning,
+            )
 
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
@@ -429,7 +464,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             # Was not catching event from OODS in time without timing out
             self.latiss.rem.atarchiver.evt_imageInOODS.flush()
-            tmp = await self.latiss.take_object(exptime=self.acq_exposure_time, n=1)
+            tmp = await self.latiss.take_object(
+                exptime=self.acq_exposure_time,
+                n=1,
+                group_id=self.group_id,
+                reason=self.reason,
+                program=self.program,
+            )
             data_id = await self.get_next_image_data_id(
                 timeout=self.acq_exposure_time + STD_TIMEOUT, flush=False
             )
@@ -535,7 +576,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         # Verify with another image that we're on target?
         if self.target_pointing_verification:
-            await self.latiss.take_object(exptime=self.acq_exposure_time, n=1)
+            await self.latiss.take_object(
+                exptime=self.acq_exposure_time,
+                n=1,
+                group_id=self.group_id,
+                reason=self.reason,
+                program=self.program,
+            )
         else:
             self.log.debug(
                 f"Skipping additional image to verify offset was applied correctly as "
@@ -560,7 +607,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         """Take the sequence of images as defined in visit_configs."""
 
         nexp = len(self.visit_configs)
-        group_id = astropytime.Time.now().tai.isot
+
         for i, (filt, expTime, grating) in enumerate(self.visit_configs):
 
             # Check if a manual focus offset is required
@@ -579,7 +626,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             # Take an image
             await self.latiss.take_object(
-                exptime=expTime, n=1, group_id=group_id, filter=filt, grating=grating
+                exptime=expTime,
+                n=1,
+                filter=filt,
+                grating=grating,
+                group_id=self.group_id,
+                reason=self.reason,
+                program=self.program,
             )
 
             self.log.info(
