@@ -116,7 +116,7 @@ class TestLatissAcquireAndTakeSequence(
         # Mock method that returns the BestEffortIsr class if it is
         # not available for import
         if not DATA_AVAILABLE:
-            self.script.get_best_effort_isr = unittest.mock.AsyncMock()
+            self.script.get_best_effort_isr = unittest.mock.Mock()
 
         # Load controllers and required callbacks to simulate
         # telescope/instrument behaviour
