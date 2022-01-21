@@ -60,7 +60,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
 
         # Mock the method that returns the BestEffortIsr class if it is
         # not available for import
-        self.script.get_best_effort_isr = unittest.mock.AsyncMock()
+        self.script.get_best_effort_isr = unittest.mock.Mock()
 
         return (self.script,)
 
@@ -248,8 +248,20 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         self.script.latiss.rem.atarchiver.evt_imageInOODS.flush.assert_called_once()
 
         take_engtest_calls = [
-            unittest.mock.call(exptime=self.script.config.exposure_time, n=1),
-            unittest.mock.call(exptime=self.script.config.exposure_time, n=1),
+            unittest.mock.call(
+                exptime=self.script.config.exposure_time,
+                n=1,
+                group_id=self.script.group_id,
+                reason="Acquisition",
+                program="ATPTMODEL",
+            ),
+            unittest.mock.call(
+                exptime=self.script.config.exposure_time,
+                n=1,
+                group_id=self.script.group_id,
+                reason="Centered",
+                program="ATPTMODEL",
+            ),
         ]
 
         self.script.latiss.rem.atarchiver.evt_imageInOODS.next.assert_awaited_once_with(

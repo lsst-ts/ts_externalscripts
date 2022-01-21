@@ -140,6 +140,16 @@ properties:
         type: number
         default: 1.
         description: Exposure time for the acquisition images used to center the target in the FoV.
+    reason:
+        description: Optional reason for taking the data.
+        anyOf:
+        - type: string
+        - type: "null"
+        default: null
+    program:
+        description: Optional name of the program this dataset belongs to. By default it is 'ATPTMODEL'.
+        type: string
+        default: ATPTMODEL
 required: []
 additionalProperties: false
             """
@@ -288,7 +298,12 @@ additionalProperties: false
         self.latiss.rem.atarchiver.evt_imageInOODS.flush()
 
         acquisition_image_ids = await self.latiss.take_engtest(
-            exptime=self.config.exposure_time, n=1
+            exptime=self.config.exposure_time,
+            n=1,
+            group_id=self.group_id,
+            reason="Acquisition"
+            + ("" if self.config.reason is None else f" {self.config.reason}"),
+            program=self.config.program,
         )
 
         await self.latiss.rem.atarchiver.evt_imageInOODS.next(
@@ -299,7 +314,14 @@ additionalProperties: false
 
         await self.atcs.offset_xy(x=offset_x, y=offset_y)
 
-        await self.latiss.take_engtest(exptime=self.config.exposure_time, n=1)
+        await self.latiss.take_engtest(
+            exptime=self.config.exposure_time,
+            n=1,
+            group_id=self.group_id,
+            reason="Centered"
+            + ("" if self.config.reason is None else f" {self.config.reason}"),
+            program=self.config.program,
+        )
 
         await self.atcs.add_point_data()
 
