@@ -886,10 +886,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # verify_report
         self.log.info("Number of tests that failed per test type:")
-        for exp in verify_report:
-            self.log.info(f"Exposure ID: {exp}")
-            for test_type in verify_report[exp]:
-                self.log.info(f"    {test_type}: ", verify_report[exp][test_type])
+        for exposure in verify_report:
+            self.log.info(f"Exposure ID: {exposure}")
+            for test_type in verify_report[exposure]:
+                self.log.info(f"    {test_type}: {verify_report[exposure][test_type]}")
             self.log.info(" ")
 
         # verify_stats
@@ -897,18 +897,21 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             "Test types that failed verification per exposure, "
             "detector, and amplifier:"
         )
-        for exp in verify_stats:
-            self.log.info(f"    Exposure ID: {exp}")
-            # det name | amp | test type
-            for info in verify_stats[exp]["FAILURES"]:
-                self.log.info(f"        {info}")
-            self.log.info(" ")
+        for exposure in [key for key in verify_stats if key != "SUCCESS"]:
+            self.log.info(f"    Exposure ID: {exposure}")
+            if "FAILURES" in verify_stats[exposure]:
+                # det name | amp | test type
+                for info in verify_stats[exposure]["FAILURES"]:
+                    self.log.info(f"        {info}")
+                self.log.info(" ")
+            else:
+                self.log.info("No failures in 'verify_stats' for this exposure.")
 
         # thresholds_report
         self.log.info("Threshold values: ")
-        self.log.ingo(
-            "    Acceptable minimum number of failures per detector per test type: ",
-            thresholds_report["MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD"],
+        self.log.info(
+            "    Acceptable minimum number of failures per detector per test type: "
+            f"{thresholds_report['MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD']}"
         )
         self.log.info(
             "This value is controlled by the configuration parameter "
@@ -916,23 +919,23 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         )
         self.log.info(" ")
         self.log.info(
-            "    Acceptable minimum number of failed detectors: ",
-            thresholds_report["MIN_FAILED_DETECTORS_THRESHOLD"],
+            "    Acceptable minimum number of failed detectors: "
+            f"{thresholds_report['MIN_FAILED_DETECTORS_THRESHOLD']}"
         )
         self.log.info(" ")
         self.log.info(
-            "    Acceptable minimum number of failed tests per exposure: ",
-            thresholds_report["MIN_FAILED_TESTS_PER_EXPOSURE_THRESHOLD"],
+            "    Acceptable minimum number of failed tests per exposure: "
+            f"{thresholds_report['MIN_FAILED_TESTS_PER_EXPOSURE_THRESHOLD']}"
         )
         self.log.info(" ")
         self.log.info(
-            "    Acceptable minimum number of failed exposures: ",
-            thresholds_report["MIN_FAILED_EXPOSURES_THRESHOLD"],
+            "    Acceptable minimum number of failed exposures: "
+            f"{thresholds_report['MIN_FAILED_EXPOSURES_THRESHOLD']}"
         )
         self.log.info(" ")
         self.log.info(
-            "    Final number of exposures that failed verification: ",
-            thresholds_report["FINAL_NUMBER_OF_FAILED_EXPOSURES"],
+            "    Final number of exposures that failed verification: "
+            f"{thresholds_report['FINAL_NUMBER_OF_FAILED_EXPOSURES']}"
         )
 
         self.log.info(
