@@ -998,86 +998,90 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     response_ocps_verify_pipetask = response_ocps_calib_pipetask
                     previous_step = "generation"
 
-            # 4. Certify the calibration if the verification tests passed
+            # 4. Certify the calibration if the verification tests passed,
+            # and if not using pre-existing calibrations
 
-            if not self.config.do_verify:
-                self.log.info(
-                    f"'do_verify' is set to 'False'. "
-                    f"{im_type} will be automatically certified."
-                )
-                await self.certify_calib(im_type, job_id_calib)
-
-            else:
-                if (
-                    self.config.generate_calibrations
-                    and not response_ocps_verify_pipetask["phase"] == "completed"
-                ):
-                    raise RuntimeError(
-                        f"{im_type} {previous_step} not completed successfully: "
-                        f"Status: {response_ocps_verify_pipetask['phase']}. "
-                        f"{im_type} certification could not be performed."
+            # Nothing to certify if we are not generating new calibrations
+            if self.config.generate_calibrations:
+                if not self.config.do_verify:
+                    self.log.info(
+                        f"'do_verify' is set to 'False'. "
+                        f"{im_type} will be automatically certified."
                     )
+                    await self.certify_calib(im_type, job_id_calib)
+
                 else:
-                    # Check the verification statistics and decide whether
-                    # the master calibration gets certified or not.
-                    job_id_verify = response_ocps_verify_pipetask["jobId"]
-
-                    # Check verification tests only if bias,
-                    # dark, or flat. im_type can be an image or
-                    # calibration type in ["BIAS", "DARK",
-                    # "FLAT", "DEFECTS", "PTC"], but verification is not
-                    # yet implemented for "DEFECTS and "PTC".
-                    if im_type in ["BIAS", "DARK", "FLAT"]:
-                        report_check_verify_stats = await self.check_verification_stats(
-                            im_type, job_id_calib, job_id_verify
+                    if not response_ocps_verify_pipetask["phase"] == "completed":
+                        raise RuntimeError(
+                            f"{im_type} {previous_step} not completed successfully: "
+                            f"Status: {response_ocps_verify_pipetask['phase']}. "
+                            f"{im_type} certification could not be performed."
                         )
-                        verify_tests_pass = report_check_verify_stats["CERTIFY_CALIB"]
-                        verify_report = report_check_verify_stats["NUM_STAT_ERRORS"]
-                        thresholds_report = report_check_verify_stats[
-                            "FAILURE_THRESHOLDS"
-                        ]
-                        verify_stats = report_check_verify_stats["VERIFY_STATS"]
-
-                        if verify_tests_pass:
-                            self.log.info(
-                                f"{im_type} calibration passed verification criteria "
-                                "and will be certified."
-                            )
-                            await self.certify_calib(im_type, job_id_calib)
-                        elif verify_tests_pass and verify_report is not None:
-                            await self.certify_calib(im_type, job_id_calib)
-                            self.log.warning(
-                                f"{im_type} calibration passed the overall verification "
-                                " criteria and was certified, but the following tests did not pass: "
-                                f"{verify_report}\n"
-                                f"{verify_stats}"
-                            )
-                        else:
-                            threshold = thresholds_report[
-                                "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD"
-                            ]
-                            raise RuntimeError(
-                                f"{im_type} calibration was not certified.\n"
-                                "The number of tests that did not pass per test type per exposure is: "
-                                f"{verify_report}\n"
-                                "Thresholds used to decide whether a calibration should be certified or not: "
-                                f"{thresholds_report}\n"
-                                "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by config "
-                                " parameter "
-                                f"number_verification_tests_threshold_{im_type.lower()} = {threshold}\n"
-                                "For at least one type of test, if the majority of tests fail in the "
-                                " majority of "
-                                "detectors and the majority of exposures, the calibration will not be "
-                                "certified "
-                                "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD).\n"
-                                f"Statistics returned by `cp_verify`: {verify_stats}"
-                            )
                     else:
-                        self.log.info(
-                            f"Verification is still not implemented for {im_type}. "
-                            f"{im_type} will be automatically certified."
-                        )
-                        await self.certify_calib(im_type, job_id_calib)
+                        # Check the verification statistics and decide whether
+                        # the master calibration gets certified or not.
+                        job_id_verify = response_ocps_verify_pipetask["jobId"]
+
+                        # Check verification tests only if bias,
+                        # dark, or flat. im_type can be an image or
+                        # calibration type in ["BIAS", "DARK",
+                        # "FLAT", "DEFECTS", "PTC"], but verification is not
+                        # yet implemented for "DEFECTS and "PTC".
+                        if im_type in ["BIAS", "DARK", "FLAT"]:
+                            report_check_verify_stats = (
+                                await self.check_verification_stats(
+                                    im_type, job_id_calib, job_id_verify
+                                )
+                            )
+                            verify_tests_pass = report_check_verify_stats[
+                                "CERTIFY_CALIB"
+                            ]
+                            verify_report = report_check_verify_stats["NUM_STAT_ERRORS"]
+                            thresholds_report = report_check_verify_stats[
+                                "FAILURE_THRESHOLDS"
+                            ]
+                            verify_stats = report_check_verify_stats["VERIFY_STATS"]
+
+                            if verify_tests_pass:
+                                self.log.info(
+                                    f"{im_type} calibration passed verification criteria "
+                                    "and will be certified."
+                                )
+                                await self.certify_calib(im_type, job_id_calib)
+                            elif verify_tests_pass and verify_report is not None:
+                                await self.certify_calib(im_type, job_id_calib)
+                                self.log.warning(
+                                    f"{im_type} calibration passed the overall verification "
+                                    " criteria and was certified, but the following tests did not pass: "
+                                    f"{verify_report}\n"
+                                    f"{verify_stats}"
+                                )
+                            else:
+                                threshold = thresholds_report[
+                                    "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD"
+                                ]
+                                raise RuntimeError(
+                                    f"{im_type} calibration was not certified.\n"
+                                    "The number of tests that did not pass per test type per exposure is: "
+                                    f"{verify_report}\n"
+                                    "Thresholds used to decide whether a calibration should be certified "
+                                    f"or not {thresholds_report}\n"
+                                    "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD is given by config "
+                                    " parameter "
+                                    f"number_verification_tests_threshold_{im_type.lower()} = {threshold}\n"
+                                    "For at least one type of test, if the majority of tests fail in the "
+                                    " majority of "
+                                    "detectors and the majority of exposures, the calibration will not be "
+                                    "certified "
+                                    "(if FINAL_NUMBER_OF_FAILED_EXPOSURES >= MIN_FAILED_EXPOSURES_THRESHOLD)."
+                                    f"Statistics returned by `cp_verify`: {verify_stats}"
+                                )
+                        else:
+                            self.log.info(
+                                f"Verification is still not implemented for {im_type}. "
+                                f"{im_type} will be automatically certified."
+                            )
+                            await self.certify_calib(im_type, job_id_calib)
 
     async def run(self):
         """"""
