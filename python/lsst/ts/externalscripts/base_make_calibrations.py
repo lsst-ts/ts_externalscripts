@@ -878,79 +878,97 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         verify_stats : `dict`
             Statistics from cp_verify.
+
+        Returns
+        final_report_string : `str`
+            String with full report.
         """
 
         verify_report = report_check_verify_stats["NUM_STAT_ERRORS"]
         thresholds_report = report_check_verify_stats["FAILURE_THRESHOLDS"]
         verify_stats = report_check_verify_stats["VERIFY_STATS"]
 
+        final_report_string = ""
+
         # verify_report
-        self.log.info("Number of tests that failed per test type:")
+        final_report_string += "Number of tests that failed per test type:\n"
         for exposure in verify_report:
-            self.log.info(f"Exposure ID: {exposure}")
+            final_report_string += "\tExposure ID: {exposure}\n"
             for test_type in verify_report[exposure]:
-                self.log.info(f"    {test_type}: {verify_report[exposure][test_type]}")
-            self.log.info(" ")
+                final_report_string += (
+                    f"\t{test_type}: {verify_report[exposure][test_type]}\n"
+                )
 
         # verify_stats
-        self.log.info(
-            "Test types that failed verification per exposure, "
-            "detector, and amplifier:"
-        )
+        final_report_string += "Test types that failed verification per exposure,\n"
+        final_report_string += "detector, and amplifier:\n"
+
         for exposure in [key for key in verify_stats if key != "SUCCESS"]:
-            self.log.info(f"    Exposure ID: {exposure}")
+            final_report_string += f"\tExposure ID: {exposure}\n"
             if "FAILURES" in verify_stats[exposure]:
                 # det name | amp | test type
                 for info in verify_stats[exposure]["FAILURES"]:
-                    self.log.info(f"        {info}")
-                self.log.info(" ")
+                    final_report_string += f"\t \t {info}\n"
             else:
-                self.log.info("No failures in 'verify_stats' for this exposure.")
+                final_report_string += (
+                    "No failures in 'verify_stats' for this exposure."
+                )
 
         # thresholds_report
-        self.log.info("Threshold values: ")
-        self.log.info(
-            "    Acceptable minimum number of failures per detector per test type: "
-            f"{thresholds_report['MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD']}"
+        final_report_string += "Threshold values:\n"
+        final_report_string += (
+            "\tAcceptable minimum number of failures per detector per test type:\n"
         )
-        self.log.info(
-            "This value is controlled by the configuration parameter "
-            "'number_verification_tests_threshold_IMGTYPE'"
+        final_report_string += f"{thresholds_report['MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD']}\n"
+
+        final_report_string += (
+            "This value is controlled by the configuration parameter\n"
         )
-        self.log.info(" ")
-        self.log.info(
-            "    Acceptable minimum number of failed detectors: "
-            f"{thresholds_report['MIN_FAILED_DETECTORS_THRESHOLD']}"
-        )
-        self.log.info(" ")
-        self.log.info(
-            "    Acceptable minimum number of failed tests per exposure: "
-            f"{thresholds_report['MIN_FAILED_TESTS_PER_EXPOSURE_THRESHOLD']}"
-        )
-        self.log.info(" ")
-        self.log.info(
-            "    Acceptable minimum number of failed exposures: "
-            f"{thresholds_report['MIN_FAILED_EXPOSURES_THRESHOLD']}"
-        )
-        self.log.info(" ")
-        self.log.info(
-            "    Final number of exposures that failed verification: "
-            f"{thresholds_report['FINAL_NUMBER_OF_FAILED_EXPOSURES']}"
+        final_report_string += "'number_verification_tests_threshold_IMGTYPE'\n"
+
+        final_report_string += "\tAcceptable minimum number of failed detectors:]\n"
+        final_report_string += (
+            f"{thresholds_report['MIN_FAILED_DETECTORS_THRESHOLD']}\n"
         )
 
-        self.log.info(
-            "Verification failure criterium: if, for at least une type of test, "
-            "the majority of tests fail in the majority of detectors and the "
-            "the majority of exposures, verification will fail and the calibration "
-            " will not be certified. "
+        final_report_string += (
+            "\tAcceptable minimum number of failed tests per exposure:\n"
+        )
+        final_report_string += (
+            f"{thresholds_report['MIN_FAILED_TESTS_PER_EXPOSURE_THRESHOLD']}\n"
         )
 
-        self.log.info(" ")
-        self.log.info(
-            "In terms of the threshold values, this amounts for the contidition that "
-            "the final number of exposures that failed verification is greater than or equal "
-            "than the acceptable minimum number of failed exposures"
+        final_report_string += "\tAcceptable minimum number of failed exposures:\n"
+        final_report_string += (
+            f"{thresholds_report['MIN_FAILED_EXPOSURES_THRESHOLD']}\n"
         )
+        final_report_string += "\tFinal number of exposures that failed verification:\n"
+        final_report_string += (
+            f"{thresholds_report['FINAL_NUMBER_OF_FAILED_EXPOSURES']}\n"
+        )
+
+        final_report_string += (
+            "Verification failure criterium: if, for at least une type of test,\n"
+        )
+        final_report_string += (
+            "the majority of tests fail in the majority of detectors and the\n"
+        )
+        final_report_string += (
+            "the majority of exposures, verification will fail and the calibration\n"
+        )
+        final_report_string += " will not be certified. "
+
+        final_report_string += (
+            "In terms of the threshold values, this amounts for the contidition that\n"
+        )
+        final_report_string += (
+            "the final number of exposures that failed verification is greater than\n"
+        )
+        final_report_string += (
+            "or equal than the acceptable minimum number of failed exposures"
+        )
+
+        return final_report_string
 
     async def certify_calib(self, image_type, job_id_calib):
         """Certify the calibration.
@@ -1146,17 +1164,22 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                     f"{im_type} calibration passed the overall verification "
                                     " criteria and was certified, but the are tests that did not pass: "
                                 )
-                                await self.build_verification_report_summary(
-                                    report_check_verify_stats
+                                final_report_string = (
+                                    await self.build_verification_report_summary(
+                                        report_check_verify_stats
+                                    )
                                 )
-
+                                self.log.error(final_report_string)
                             else:
-                                await self.build_verification_report_summary(
-                                    report_check_verify_stats
+                                final_report_string = (
+                                    await self.build_verification_report_summary(
+                                        report_check_verify_stats
+                                    )
                                 )
+                                self.log.error(final_report_string)
                                 raise RuntimeError(
                                     f"{im_type} calibration failed verification and will not be certified."
-                                ) 
+                                )
                         else:
                             self.log.info(
                                 f"Verification is still not implemented for {im_type}. "
