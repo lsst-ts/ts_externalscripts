@@ -29,7 +29,7 @@ import functools
 import numpy as np
 
 from pathlib import Path
-from astropy import time as astropytime
+
 from lsst.ts import salobj
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
@@ -275,17 +275,15 @@ Pixel_size (m)			{}
 
         await self.hexapod_offset(self.dz)
 
-        # Set groupID to have the same timestamp as this
-        # is used to show the images are a pair and meant
-        # to be analyzed as a group
-        group_id = astropytime.Time.now().tai.isot
-
         intra_image = await self.latiss.take_engtest(
             exptime=self.exposure_time,
             n=1,
-            group_id=group_id,
+            group_id=self.group_id,
             filter=self.filter,
             grating=self.grating,
+            reason="INTRA"
+            + ("" if self.config.reason is None else f" {self.config.reason}"),
+            program=self.program,
         )
 
         self.log.debug("Moving to extra-focal position")
@@ -300,9 +298,12 @@ Pixel_size (m)			{}
         extra_image = await self.latiss.take_engtest(
             exptime=self.exposure_time,
             n=1,
-            group_id=group_id,
+            group_id=self.group_id,
             filter=self.filter,
             grating=self.grating,
+            reason="EXTRA"
+            + ("" if self.config.reason is None else f" {self.config.reason}"),
+            program=self.program,
         )
 
         self.intra_visit_id = int(intra_image[0])
@@ -692,6 +693,17 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                   description: Maximum number of iterations.
                   type: integer
                   default: 5
+              reason:
+                description: Optional reason for taking the data.
+                anyOf:
+                  - type: string
+                  - type: "null"
+                default: null
+              program:
+                description: >-
+                  Optional name of the program this dataset belongs to.
+                type: string
+                default: CWFS
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -757,6 +769,10 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.offset_telescope = config.offset_telescope
 
         self.max_iter = config.max_iter
+
+        self.reason = config.reason
+
+        self.program = config.program
 
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
@@ -873,7 +889,13 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     f"reported hexapod position is, {hexapod_position.reportedPosition}."
                 )
                 self.log.debug("Taking in focus image after applying final results.")
-                await self.latiss.take_object(self.acq_exposure_time)
+                await self.latiss.take_object(
+                    self.acq_exposure_time,
+                    group_id=self.group_id,
+                    reason="FINAL INFOCUS"
+                    + ("" if self.config.reason is None else f" {self.config.reason}"),
+                    program=self.program,
+                )
                 await self.atcs.add_point_data()
 
                 self.log.info("latiss_cwfs_align script completed successfully!\n")
