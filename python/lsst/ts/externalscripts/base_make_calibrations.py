@@ -890,9 +890,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         verify_stats = report_check_verify_stats["VERIFY_STATS"]
 
         final_report_string = ""
+        # List exposure IDs that have tests that failed
+        final_report_string += "|Exposures with verification tests that failed:\n"
+        for exposure in verify_report:
+            final_report_string += "|{exposure}  "
 
         # verify_report
-        final_report_string += "Number of tests that failed per test type:\n"
+        final_report_string += "|Number of tests that failed per test type:\n"
         for exposure in verify_report:
             final_report_string += f"|\tExposure ID: {exposure}\n"
             for test_type in verify_report[exposure]:
