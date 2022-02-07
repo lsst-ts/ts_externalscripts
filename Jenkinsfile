@@ -20,16 +20,16 @@ pipeline {
                     checkout scm
                 }
                 dir(env.WORKSPACE + '/ci/Spectractor') {
-                    git branch: 'master', url: 'https://github.com/lsst-dm/Spectractor.git'
+                    git branch: 'master', url: 'https://github.com/lsst/Spectractor.git'
                 }
                 dir(env.WORKSPACE + '/ci/atmospec') {
-                    git branch: 'master', url: 'https://github.com/lsst-dm/atmospec.git'
+                    git branch: 'main', url: 'https://github.com/lsst-dm/atmospec.git'
                 }
                 dir(env.WORKSPACE + '/ci/rapid_analysis') {
-                    git branch: 'master', url: 'https://github.com/lsst-sitcom/rapid_analysis.git'
+                    git branch: 'main', url: 'https://github.com/lsst-sitcom/rapid_analysis.git'
                 }
                 dir(env.WORKSPACE + '/ci/cwfs') {
-                    git branch: 'master', url: 'https://github.com/bxin/cwfs.git'
+                    git branch: 'master', url: 'https://github.com/lsst-ts/cwfs.git'
                 }
                 dir(env.WORKSPACE + '/ci/ts_observing_utilities') {
                     git branch: 'develop', url: 'https://github.com/lsst-ts/ts_observing_utilities.git'
