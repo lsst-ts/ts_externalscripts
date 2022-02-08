@@ -1151,20 +1151,33 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         # "FLAT", "DEFECTS", "PTC"], but verification is not
                         # yet implemented for "DEFECTS and "PTC".
                         if im_type in ["BIAS", "DARK", "FLAT"]:
-                            report_check_verify_stats = await self.check_verification_stats(
-                                im_type, job_id_calib, job_id_verify
+                            report_check_verify_stats = (
+                                await self.check_verification_stats(
+                                    im_type, job_id_calib, job_id_verify
+                                )
                             )
-                            verify_tests_pass = report_check_verify_stats["CERTIFY_CALIB"]
-
+                            verify_tests_pass = report_check_verify_stats[
+                                "CERTIFY_CALIB"
+                            ]
+                            gen_collection = f"u/ocps/{job_id_calib}"
+                            verify_collection = f"u/ocps/{job_id_verify}"
                             if verify_tests_pass:
                                 self.log.info(
                                     f"{im_type} calibration passed verification criteria "
                                     "and will be certified."
                                 )
+                                self.log.info(
+                                    f"Generation collection: {gen_collection}"
+                                )
+                                self.log.info(
+                                    f"Verification collection: {verify_collection}"
+                                )
+
                                 await self.certify_calib(im_type, job_id_calib)
                             elif (
                                 verify_tests_pass
-                                and report_check_verify_stats["NUM_STAT_ERRORS"] is not None
+                                and report_check_verify_stats["NUM_STAT_ERRORS"]
+                                is not None
                             ):
                                 await self.certify_calib(im_type, job_id_calib)
                                 self.log.warning(
@@ -1177,6 +1190,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                     )
                                 )
                                 self.log.error(final_report_string)
+                                self.log.error(
+                                    f"Generation collection: {gen_collection}"
+                                )
+                                self.log.error(
+                                    f"Verification collection: {verify_collection}"
+                                )
                             else:
                                 final_report_string = (
                                     await self.build_verification_report_summary(
@@ -1184,6 +1203,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                     )
                                 )
                                 self.log.error(final_report_string)
+                                self.log.error(
+                                    f"Generation collection: {gen_collection}"
+                                )
+                                self.log.error(
+                                    f"Verification collection: {verify_collection}"
+                                )
+
                                 raise RuntimeError(
                                     f"{im_type} calibration failed verification and will not be certified."
                                 )
