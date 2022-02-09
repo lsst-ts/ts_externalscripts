@@ -281,8 +281,7 @@ Pixel_size (m)			{}
             group_id=self.group_id,
             filter=self.filter,
             grating=self.grating,
-            reason="INTRA"
-            + ("" if self.config.reason is None else f" {self.config.reason}"),
+            reason="INTRA" + ("" if self.reason is None else f" {self.reason}"),
             program=self.program,
         )
 
@@ -301,8 +300,7 @@ Pixel_size (m)			{}
             group_id=self.group_id,
             filter=self.filter,
             grating=self.grating,
-            reason="EXTRA"
-            + ("" if self.config.reason is None else f" {self.config.reason}"),
+            reason="EXTRA" + ("" if self.reason is None else f" {self.reason}"),
             program=self.program,
         )
 
@@ -893,7 +891,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     self.acq_exposure_time,
                     group_id=self.group_id,
                     reason="FINAL INFOCUS"
-                    + ("" if self.config.reason is None else f" {self.config.reason}"),
+                    + ("" if self.reason is None else f" {self.reason}"),
                     program=self.program,
                 )
                 await self.atcs.add_point_data()
