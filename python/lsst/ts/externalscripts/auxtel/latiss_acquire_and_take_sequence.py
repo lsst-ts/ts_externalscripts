@@ -47,7 +47,7 @@ try:
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
-STD_TIMEOUT = 10  # seconds
+STD_TIMEOUT = 20  # seconds
 
 
 class LatissAcquireAndTakeSequence(salobj.BaseScript):

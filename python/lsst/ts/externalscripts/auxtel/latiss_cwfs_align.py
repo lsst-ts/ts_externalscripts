@@ -383,9 +383,11 @@ Pixel_size (m)			{}
                 f"and {parse_visit_id(self.extra_visit_id)}."
             )
 
+        # Have discovered that the occasional image will take 12+ seconds to ingest
+
         self.intra_exposure, self.extra_exposure = await asyncio.gather(
-            get_image(parse_visit_id(self.intra_visit_id), self.best_effort_isr),
-            get_image(parse_visit_id(self.extra_visit_id), self.best_effort_isr),
+            get_image(parse_visit_id(self.intra_visit_id), self.best_effort_isr, timeout=20),
+            get_image(parse_visit_id(self.extra_visit_id), self.best_effort_isr, timeout=20),
         )
 
         self.log.debug("Running source detection")
