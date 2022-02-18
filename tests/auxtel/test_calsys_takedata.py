@@ -25,11 +25,12 @@ import numpy as np
 import yaml
 
 from lsst.ts import salobj
+from lsst.ts import utils
 from lsst.ts.externalscripts.auxtel import CalSysTakeData
 
 np.random.seed(71)
 
-index_gen = salobj.index_generator()
+index_gen = utils.index_generator()
 
 logging.basicConfig()
 
