@@ -115,6 +115,9 @@ class LatissCWFSAlign(salobj.BaseScript):
         # Timeouts used for telescope commands
         self.short_timeout = 5.0  # used with hexapod offset command
         self.long_timeout = 30.0  # used to wait for in-position event from hexapod
+        # Have discovered that the occasional image will take 12+ seconds
+        # to ingest
+        self.timeout_get_image = 20.0
 
         # Sensitivity matrix: mm of hexapod motion for nm of wfs. To figure out
         # the hexapod correction multiply the calculcated zernikes by this.
@@ -281,7 +284,7 @@ Pixel_size (m)			{}
             group_id=self.group_id,
             filter=self.filter,
             grating=self.grating,
-            reason="INTRA" + ("" if self.reason is None else f" {self.reason}"),
+            reason="INTRA" + ("" if self.reason is None else f"_{self.reason}"),
             program=self.program,
         )
 
@@ -300,7 +303,7 @@ Pixel_size (m)			{}
             group_id=self.group_id,
             filter=self.filter,
             grating=self.grating,
-            reason="EXTRA" + ("" if self.reason is None else f" {self.reason}"),
+            reason="EXTRA" + ("" if self.reason is None else f"_{self.reason}"),
             program=self.program,
         )
 
@@ -383,11 +386,17 @@ Pixel_size (m)			{}
                 f"and {parse_visit_id(self.extra_visit_id)}."
             )
 
-        # Have discovered that the occasional image will take 12+ seconds to ingest
-
         self.intra_exposure, self.extra_exposure = await asyncio.gather(
-            get_image(parse_visit_id(self.intra_visit_id), self.best_effort_isr, timeout=20),
-            get_image(parse_visit_id(self.extra_visit_id), self.best_effort_isr, timeout=20),
+            get_image(
+                parse_visit_id(self.intra_visit_id),
+                self.best_effort_isr,
+                timeout=self.timeout_get_image,
+            ),
+            get_image(
+                parse_visit_id(self.extra_visit_id),
+                self.best_effort_isr,
+                timeout=self.timeout_get_image,
+            ),
         )
 
         self.log.debug("Running source detection")
@@ -652,6 +661,12 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 description: The exposure time to use when taking an in focus acquisition image(sec).
                 type: number
                 default: 5.
+              take_detection_image:
+                description: >-
+                    Take an in-focus image before the cwfs loop to use for source
+                    detection?
+                type: boolean
+                default: false
               dz:
                 description: De-focus to apply when acquiring the intra/extra focal images (mm).
                 type: number
@@ -774,6 +789,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         self.program = config.program
 
+        self.take_detection_image = config.take_detection_image
+
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
@@ -821,6 +838,17 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 "Invalid configuration. Only one of ra/dec pair was specified. "
                 "Either define both or neither. "
                 f"Got ra={self.cwfs_target_ra} and dec={self.cwfs_target_dec}."
+            )
+
+        if self.take_detection_image:
+            if checkpoint:
+                await self.checkpoint("Detection image.")
+            await self.latiss.take_engtest(
+                self.acq_exposure_time,
+                group_id=self.group_id,
+                reason="DETECTION_INFOCUS"
+                + ("" if self.reason is None else f"_{self.reason}"),
+                program=self.program,
             )
 
         self.total_focus_offset = 0.0
@@ -892,8 +920,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 await self.latiss.take_object(
                     self.acq_exposure_time,
                     group_id=self.group_id,
-                    reason="FINAL INFOCUS"
-                    + ("" if self.reason is None else f" {self.reason}"),
+                    reason="FINAL_INFOCUS"
+                    + ("" if self.reason is None else f"_{self.reason}"),
                     program=self.program,
                 )
                 await self.atcs.add_point_data()
