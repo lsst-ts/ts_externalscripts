@@ -698,17 +698,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         gen_collection = f"u/ocps/{job_id_calib}"
         if image_type == "BIAS":
             verify_stats_string = "verifyBiasStats"
-            min_number_failures_per_detector_per_test = (
+            max_number_failures_per_detector_per_test = (
                 self.config.number_verification_tests_threshold_bias
             )
         elif image_type == "DARK":
             verify_stats_string = "verifyDarkStats"
-            min_number_failures_per_detector_per_test = (
+            max_number_failures_per_detector_per_test = (
                 self.config.number_verification_tests_threshold_dark
             )
         elif image_type == "FLAT":
             verify_stats_string = "verifyFlatStats"
-            min_number_failures_per_detector_per_test = (
+            max_number_failures_per_detector_per_test = (
                 self.config.number_verification_tests_threshold_flat
             )
         else:
@@ -728,7 +728,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 num_stat_errors,
                 failure_thresholds,
             ) = await self.count_failed_verification_tests(
-                verify_stats, min_number_failures_per_detector_per_test
+                verify_stats, max_number_failures_per_detector_per_test
             )
         else:
             # Nothing failed
@@ -749,7 +749,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         return report_check_verify_stats
 
     async def count_failed_verification_tests(
-        self, verify_stats, min_number_failures_per_detector_per_test
+        self, verify_stats, max_number_failures_per_detector_per_test
     ):
         """Count number of tests that failed cp_verify.
 
@@ -758,7 +758,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         verify_stats : `dict`
             Statistics from cp_verify.
 
-        min_number_failures_per_detector_per_test : `int`
+        max_number_failures_per_detector_per_test : `int`
             Minimum number of verification tests per detector per
             exposure per test type that should pass to certify the
             master calibration.
@@ -789,14 +789,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # Thresholds
         # Main key of verify_stats is exposure IDs
-        min_number_failed_exposures = int(len(verify_stats) / 2) + 1  # majority of exps
+        max_number_failed_exposures = int(len(verify_stats) / 2) + 1  # majority of exps
 
         n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(","))))
-        min_number_failed_detectors = int(n_detectors / 2) + 1  # majority of detectors
+        max_number_failed_detectors = int(n_detectors / 2) + 1  # majority of detectors
 
         # Define failure threshold per exposure
         failure_threshold_exposure = (
-            min_number_failures_per_detector_per_test * min_number_failed_detectors
+            max_number_failures_per_detector_per_test * max_number_failed_detectors
         )
 
         # Count the number of failures per test per exposure.
@@ -838,16 +838,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # For at least one type of test, if the majority of tests fail in
         # the majority of detectors and the majority of exposures,
         # then don't certify the calibration
-        if failed_exposures_counter >= min_number_failed_exposures:
+        if failed_exposures_counter >= max_number_failed_exposures:
             certify_calib = False
 
         # Return a dictionary with the thresholds to report
         # them if verification fails.
         thresholds = {
-            "MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD": min_number_failures_per_detector_per_test,
-            "MIN_FAILED_DETECTORS_THRESHOLD": min_number_failed_detectors,
-            "MIN_FAILED_TESTS_PER_EXPOSURE_THRESHOLD": failure_threshold_exposure,
-            "MIN_FAILED_EXPOSURES_THRESHOLD": min_number_failed_exposures,
+            "MAX_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD": max_number_failures_per_detector_per_test,
+            "MAX_FAILED_DETECTORS_THRESHOLD": max_number_failed_detectors,
+            "MAX_FAILED_TESTS_PER_EXPOSURE_THRESHOLD": failure_threshold_exposure,
+            "MAX_FAILED_EXPOSURES_THRESHOLD": max_number_failed_exposures,
             "FINAL_NUMBER_OF_FAILED_EXPOSURES": failed_exposures_counter,
         }
 
@@ -893,7 +893,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # List exposure IDs that have tests that failed
         final_report_string += "|Exposures with verification tests that failed:\n"
         for exposure in verify_report:
-            final_report_string += "|{exposure}  "
+            final_report_string += f"|{exposure}  "
 
         # verify_report
         final_report_string += "|Number of tests that failed per test type:\n"
@@ -922,30 +922,30 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # thresholds_report
         final_report_string += "|Threshold values:\n"
         final_report_string += (
-            "|\tAcceptable minimum number of failures per detector per test type:\n"
+            "|\tAcceptable maximum number of failures per detector per test type:\n"
         )
-        final_report_string += f"|{thresholds_report['MIN_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD']}\n"
+        final_report_string += f"|{thresholds_report['MAX_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD']}\n"
 
         final_report_string += (
             "|This value is controlled by the configuration parameter\n"
         )
         final_report_string += "|'number_verification_tests_threshold_IMGTYPE'\n"
 
-        final_report_string += "|\tAcceptable minimum number of failed detectors:]\n"
+        final_report_string += "|\tAcceptable maximum number of failed detectors:]\n"
         final_report_string += (
-            f"|{thresholds_report['MIN_FAILED_DETECTORS_THRESHOLD']}\n"
+            f"|{thresholds_report['MAX_FAILED_DETECTORS_THRESHOLD']}\n"
         )
 
         final_report_string += (
-            "|\tAcceptable minimum number of failed tests per exposure:\n"
+            "|\tAcceptable maximum number of failed tests per exposure:\n"
         )
         final_report_string += (
-            f"|{thresholds_report['MIN_FAILED_TESTS_PER_EXPOSURE_THRESHOLD']}\n"
+            f"|{thresholds_report['MAX_FAILED_TESTS_PER_EXPOSURE_THRESHOLD']}\n"
         )
 
-        final_report_string += "|\tAcceptable minimum number of failed exposures:\n"
+        final_report_string += "|\tAcceptable maximum number of failed exposures:\n"
         final_report_string += (
-            f"|{thresholds_report['MIN_FAILED_EXPOSURES_THRESHOLD']}\n"
+            f"|{thresholds_report['MAX_FAILED_EXPOSURES_THRESHOLD']}\n"
         )
         final_report_string += (
             "|\tFinal number of exposures that failed verification:\n"
@@ -972,7 +972,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             "|the final number of exposures that failed verification is greater than\n"
         )
         final_report_string += (
-            "|or equal to the acceptable minimum number of failed exposures"
+            "|or equal to the acceptable maximum number of failed exposures"
         )
 
         return final_report_string
