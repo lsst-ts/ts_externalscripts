@@ -891,88 +891,88 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         final_report_string = ""
         # List exposure IDs that have tests that failed
-        final_report_string += "|Exposures with verification tests that failed:\n"
+        final_report_string += "Exposures with verification tests that failed:\n|"
         for exposure in verify_report:
-            final_report_string += f"|{exposure}  "
+            final_report_string += f"{exposure}  "
 
         # verify_report
-        final_report_string += "|Number of tests that failed per test type:\n"
+        final_report_string += "Number of tests that failed per test type:\n|"
         for exposure in verify_report:
-            final_report_string += f"|\tExposure ID: {exposure}\n"
+            final_report_string += f"\t| Exposure ID: {exposure}\n|"
             for test_type in verify_report[exposure]:
                 final_report_string += (
-                    f"|\t{test_type}: {verify_report[exposure][test_type]}\n"
+                    f"\t|{test_type}: {verify_report[exposure][test_type]}\n|"
                 )
 
         # verify_stats
-        final_report_string += "|Test types that failed verification per exposure,\n"
-        final_report_string += "|detector, and amplifier:\n"
+        final_report_string += "Test types that failed verification per exposure,\n|"
+        final_report_string += "detector, and amplifier:\n|"
 
         for exposure in [key for key in verify_stats if key != "SUCCESS"]:
-            final_report_string += f"|\tExposure ID: {exposure}\n"
+            final_report_string += f"\t|Exposure ID: {exposure}\n|"
             if "FAILURES" in verify_stats[exposure]:
                 # det name | amp | test type
                 for info in verify_stats[exposure]["FAILURES"]:
-                    final_report_string += f"|\t \t {info}\n"
+                    final_report_string += f"\t| \t| {info}\n|"
             else:
                 final_report_string += (
-                    "|No failures in 'verify_stats' for this exposure."
+                    "No failures in 'verify_stats' for this exposure."
                 )
 
         # thresholds_report
-        final_report_string += "|Threshold values:\n"
+        final_report_string += "Threshold values:\n|"
         final_report_string += (
-            "|\tAcceptable maximum number of failures per detector per test type:\n"
+            "\t| Acceptable maximum number of failures per detector per test type:\n|"
         )
-        final_report_string += f"|{thresholds_report['MAX_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD']}\n"
+        final_report_string += f"{thresholds_report['MAX_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD']}\n|"
 
         final_report_string += (
-            "|This value is controlled by the configuration parameter\n"
+            "This value is controlled by the configuration parameter\n|"
         )
-        final_report_string += "|'number_verification_tests_threshold_IMGTYPE'\n"
+        final_report_string += "'number_verification_tests_threshold_IMGTYPE'\n|"
 
-        final_report_string += "|\tAcceptable maximum number of failed detectors:]\n"
+        final_report_string += "\t|Acceptable maximum number of failed detectors:]\n|"
         final_report_string += (
-            f"|{thresholds_report['MAX_FAILED_DETECTORS_THRESHOLD']}\n"
-        )
-
-        final_report_string += (
-            "|\tAcceptable maximum number of failed tests per exposure:\n"
-        )
-        final_report_string += (
-            f"|{thresholds_report['MAX_FAILED_TESTS_PER_EXPOSURE_THRESHOLD']}\n"
-        )
-
-        final_report_string += "|\tAcceptable maximum number of failed exposures:\n"
-        final_report_string += (
-            f"|{thresholds_report['MAX_FAILED_EXPOSURES_THRESHOLD']}\n"
-        )
-        final_report_string += (
-            "|\tFinal number of exposures that failed verification:\n"
-        )
-        final_report_string += (
-            f"|{thresholds_report['FINAL_NUMBER_OF_FAILED_EXPOSURES']}\n"
+            f"{thresholds_report['MAX_FAILED_DETECTORS_THRESHOLD']}\n|"
         )
 
         final_report_string += (
-            "|Verification failure criterium: if, for at least une type of test,\n"
+            "\t|Acceptable maximum number of failed tests per exposure:\n|"
         )
         final_report_string += (
-            "|the majority of tests fail in the majority of detectors and the\n"
+            f"{thresholds_report['MAX_FAILED_TESTS_PER_EXPOSURE_THRESHOLD']}\n|"
+        )
+
+        final_report_string += "\t|Acceptable maximum number of failed exposures:\n|"
+        final_report_string += (
+            f"{thresholds_report['MAX_FAILED_EXPOSURES_THRESHOLD']}\n|"
         )
         final_report_string += (
-            "|the majority of exposures, verification will fail and the calibration\n"
+            "\t|Final number of exposures that failed verification:\n|"
         )
-        final_report_string += "|will not be certified. "
+        final_report_string += (
+            f"{thresholds_report['FINAL_NUMBER_OF_FAILED_EXPOSURES']}\n|"
+        )
 
         final_report_string += (
-            "|In terms of the threshold values, this amounts for the condition that\n"
+            "Verification failure criterium: if, for at least une type of test,\n|"
         )
         final_report_string += (
-            "|the final number of exposures that failed verification is greater than\n"
+            "the majority of tests fail in the majority of detectors and the\n|"
         )
         final_report_string += (
-            "|or equal to the acceptable maximum number of failed exposures"
+            "the majority of exposures, verification will fail and the calibration\n|"
+        )
+        final_report_string += "will not be certified. "
+
+        final_report_string += (
+            "In terms of the threshold values, this amounts for the condition that\n|"
+        )
+        final_report_string += (
+            "the final number of exposures that failed verification is greater than\n|"
+        )
+        final_report_string += (
+            "or equal to the acceptable maximum number of failed exposures"
         )
 
         return final_report_string
