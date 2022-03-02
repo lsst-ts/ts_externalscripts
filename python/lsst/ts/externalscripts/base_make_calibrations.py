@@ -1164,15 +1164,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                             if verify_tests_pass:
                                 self.log.info(
                                     f"{im_type} calibration passed verification criteria "
-                                    "and will be certified."
-                                )
-                                self.log.info(
-                                    f"Generation collection: {gen_collection}"
-                                )
-                                self.log.info(
+                                    f"and will be certified. \n Generation collection: {gen_collection} \n"
                                     f"Verification collection: {verify_collection}"
                                 )
-
                                 await self.certify_calib(im_type, job_id_calib)
                             elif (
                                 verify_tests_pass
@@ -1189,12 +1183,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                         report_check_verify_stats
                                     )
                                 )
-                                self.log.error(final_report_string)
                                 self.log.error(
-                                    f"Generation collection: {gen_collection}"
-                                )
-                                self.log.error(
-                                    f"Verification collection: {verify_collection}"
+                                    final_report_string + f"\n Generation collection: "
+                                    f"{gen_collection} \n Verification collection: "
+                                    f"{verify_collection}"
                                 )
                             else:
                                 final_report_string = (
@@ -1202,14 +1194,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                         report_check_verify_stats
                                     )
                                 )
-                                self.log.error(final_report_string)
                                 self.log.error(
-                                    f"Generation collection: {gen_collection}"
+                                    final_report_string + f"\n Generation collection:"
+                                    f"{gen_collection} \n Verification "
+                                    f"collection: {verify_collection}"
                                 )
-                                self.log.error(
-                                    f"Verification collection: {verify_collection}"
-                                )
-
                                 raise RuntimeError(
                                     f"{im_type} calibration failed verification and will not be certified."
                                 )
