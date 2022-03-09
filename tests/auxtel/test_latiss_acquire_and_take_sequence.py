@@ -151,28 +151,30 @@ class TestLatissAcquireAndTakeSequence(
         list_to_be_returned = []
         if filter:
             list_to_be_returned.append(filter)
-            self.atspectrograph.evt_reportedFilterPosition.set_put(name=filter)
+            await self.atspectrograph.evt_reportedFilterPosition.set_write(name=filter)
             self.atspectrograph.evt_filterInPosition.set()
-            self.ataos.evt_atspectrographCorrectionStarted.put()
+            await self.ataos.evt_atspectrographCorrectionStarted.write()
             await asyncio.sleep(0.2)
-            self.ataos.evt_atspectrographCorrectionCompleted.put()
+            await self.ataos.evt_atspectrographCorrectionCompleted.write()
             # Publish AOS correction events
-            self.ataos.evt_atspectrographCorrectionStarted.put()
+            await self.ataos.evt_atspectrographCorrectionStarted.write()
             await asyncio.sleep(0.2)
-            self.ataos.evt_atspectrographCorrectionCompleted.put()
+            await self.ataos.evt_atspectrographCorrectionCompleted.write()
             await asyncio.sleep(0.2)
 
         if grating:
             list_to_be_returned.append(filter)
-            self.atspectrograph.evt_reportedDisperserPosition.set_put(name=grating)
+            await self.atspectrograph.evt_reportedDisperserPosition.set_write(
+                name=grating
+            )
             self.atspectrograph.evt_disperserInPosition.set()
-            self.ataos.evt_atspectrographCorrectionStarted.put()
+            await self.ataos.evt_atspectrographCorrectionStarted.write()
             await asyncio.sleep(0.5)
-            self.ataos.evt_atspectrographCorrectionCompleted.put()
+            await self.ataos.evt_atspectrographCorrectionCompleted.write()
             # Publish AOS correction events
-            self.ataos.evt_atspectrographCorrectionStarted.put()
+            await self.ataos.evt_atspectrographCorrectionStarted.write()
             await asyncio.sleep(0.2)
-            self.ataos.evt_atspectrographCorrectionCompleted.put()
+            await self.ataos.evt_atspectrographCorrectionCompleted.write()
             await asyncio.sleep(0.2)
 
         # need to return a list with how many parameters were provided
@@ -215,11 +217,11 @@ class TestLatissAcquireAndTakeSequence(
         await asyncio.sleep(0.5)
         imgNum = self.atcamera.cmd_takeImages.callback.await_count - 1
         image_name = f"AT_O_{self.date}_{(imgNum + self.seq_num_start):06d}"
-        self.atcamera.evt_endReadout.set_put(imageName=image_name)
+        await self.atcamera.evt_endReadout.set_write(imageName=image_name)
         await asyncio.sleep(0.5)
-        self.atheaderservice.evt_largeFileObjectAvailable.put()
+        await self.atheaderservice.evt_largeFileObjectAvailable.write()
         await asyncio.sleep(1.0)
-        self.atarchiver.evt_imageInOODS.set_put(obsid=image_name)
+        await self.atarchiver.evt_imageInOODS.set_write(obsid=image_name)
 
     async def test_configure(self):
         async with self.make_script():
@@ -354,13 +356,21 @@ class TestLatissAcquireAndTakeSequence(
             )
 
             # publish ataos event saying corrections are enabled
-            self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
+            await self.ataos.evt_correctionEnabled.set_write(
+                atspectrograph=True, hexapod=True
+            )
 
             # Send spectrograph events
             logger.debug("Sending atspectrograph position events")
-            self.atspectrograph.evt_reportedFilterPosition.set_put(name="filter0")
-            self.atspectrograph.evt_reportedDisperserPosition.set_put(name="disp0")
-            self.atspectrograph.evt_reportedLinearStagePosition.set_put(position=65)
+            await self.atspectrograph.evt_reportedFilterPosition.set_write(
+                name="filter0"
+            )
+            await self.atspectrograph.evt_reportedDisperserPosition.set_write(
+                name="disp0"
+            )
+            await self.atspectrograph.evt_reportedLinearStagePosition.set_write(
+                position=65
+            )
 
             await self.run_script()
 
@@ -417,13 +427,21 @@ class TestLatissAcquireAndTakeSequence(
             )
 
             # publish ataos event saying corrections are enabled
-            self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
+            await self.ataos.evt_correctionEnabled.set_write(
+                atspectrograph=True, hexapod=True
+            )
 
             # Send spectrograph events
             logger.debug("Sending atspectrograph position events")
-            self.atspectrograph.evt_reportedFilterPosition.set_put(name="filter0")
-            self.atspectrograph.evt_reportedDisperserPosition.set_put(name="disp0")
-            self.atspectrograph.evt_reportedLinearStagePosition.set_put(position=65)
+            await self.atspectrograph.evt_reportedFilterPosition.set_write(
+                name="filter0"
+            )
+            await self.atspectrograph.evt_reportedDisperserPosition.set_write(
+                name="disp0"
+            )
+            await self.atspectrograph.evt_reportedLinearStagePosition.set_write(
+                position=65
+            )
 
             await self.run_script()
 
@@ -474,13 +492,21 @@ class TestLatissAcquireAndTakeSequence(
             )
 
             # publish ataos event saying corrections are enabled
-            self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
+            await self.ataos.evt_correctionEnabled.set_write(
+                atspectrograph=True, hexapod=True
+            )
 
             # Send spectrograph events
             logger.debug("Sending atspectrograph position events")
-            self.atspectrograph.evt_reportedFilterPosition.set_put(name="filter0")
-            self.atspectrograph.evt_reportedDisperserPosition.set_put(name="disp0")
-            self.atspectrograph.evt_reportedLinearStagePosition.set_put(position=65)
+            await self.atspectrograph.evt_reportedFilterPosition.set_write(
+                name="filter0"
+            )
+            await self.atspectrograph.evt_reportedDisperserPosition.set_write(
+                name="disp0"
+            )
+            await self.atspectrograph.evt_reportedLinearStagePosition.set_write(
+                position=65
+            )
 
             await self.run_script()
 
@@ -526,13 +552,21 @@ class TestLatissAcquireAndTakeSequence(
             )
 
             # publish ataos event saying corrections are enabled
-            self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
+            await self.ataos.evt_correctionEnabled.set_write(
+                atspectrograph=True, hexapod=True
+            )
 
             # Send spectrograph events
             logger.debug("Sending atspectrograph position events")
-            self.atspectrograph.evt_reportedFilterPosition.set_put(name="filter0")
-            self.atspectrograph.evt_reportedDisperserPosition.set_put(name="disp0")
-            self.atspectrograph.evt_reportedLinearStagePosition.set_put(position=65)
+            await self.atspectrograph.evt_reportedFilterPosition.set_write(
+                name="filter0"
+            )
+            await self.atspectrograph.evt_reportedDisperserPosition.set_write(
+                name="disp0"
+            )
+            await self.atspectrograph.evt_reportedLinearStagePosition.set_write(
+                position=65
+            )
 
             await self.run_script()
 
@@ -585,13 +619,21 @@ class TestLatissAcquireAndTakeSequence(
             )
 
             # publish ataos event saying corrections are enabled
-            self.ataos.evt_correctionEnabled.set_put(atspectrograph=True, hexapod=True)
+            await self.ataos.evt_correctionEnabled.set_write(
+                atspectrograph=True, hexapod=True
+            )
 
             # Send spectrograph events
             logger.debug("Sending atspectrograph position events")
-            self.atspectrograph.evt_reportedFilterPosition.set_put(name="filter0")
-            self.atspectrograph.evt_reportedDisperserPosition.set_put(name="disp0")
-            self.atspectrograph.evt_reportedLinearStagePosition.set_put(position=65)
+            await self.atspectrograph.evt_reportedFilterPosition.set_write(
+                name="filter0"
+            )
+            await self.atspectrograph.evt_reportedDisperserPosition.set_write(
+                name="disp0"
+            )
+            await self.atspectrograph.evt_reportedLinearStagePosition.set_write(
+                position=65
+            )
 
             await self.run_script()
 

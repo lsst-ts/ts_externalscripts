@@ -155,8 +155,8 @@ class TestLatissCWFSAlign(
         """Publishes event from hexapod saying movement completed"""
         logger.debug("Sending hexapod event ")
 
-        self.athexapod.evt_positionUpdate.put()
-        self.athexapod.tel_positionStatus.put()
+        await self.athexapod.evt_positionUpdate.write()
+        await self.athexapod.tel_positionStatus.write()
         return
 
     async def close(self):
@@ -204,11 +204,11 @@ class TestLatissCWFSAlign(
             image_name = f"AT_O_{self.date}_{(imgNum):06d}"
 
         logger.debug(f"Mock camera returning imageName={image_name}")
-        self.atcamera.evt_endReadout.set_put(imageName=image_name)
+        await self.atcamera.evt_endReadout.set_write(imageName=image_name)
         await asyncio.sleep(0.5)
-        self.atheaderservice.evt_largeFileObjectAvailable.put()
+        await self.atheaderservice.evt_largeFileObjectAvailable.write()
         await asyncio.sleep(1.0)
-        self.atarchiver.evt_imageInOODS.set_put(obsid=image_name)
+        await self.atarchiver.evt_imageInOODS.set_write(obsid=image_name)
 
     @unittest.skipIf(
         CWFS_AVAILABLE is False,
@@ -370,7 +370,7 @@ class TestLatissCWFSAlign(
             # Note that 960 is the in-focus image, but needs to be declared
             self.img_cnt_override_list = [950, 951, 954, 955, 958, 959, 960]
             # publish required events
-            self.atptg.evt_currentTarget.set_put(targetName=target_name)
+            await self.atptg.evt_currentTarget.set_write(targetName=target_name)
 
             # exposures are 20s but putting short time here for speed
             exposure_time = 0.5

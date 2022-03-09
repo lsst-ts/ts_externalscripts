@@ -21,7 +21,7 @@
 __all__ = ["LatissAcquireAndTakeSequence"]
 
 import asyncio
-import collections
+import collections.abc
 import warnings
 
 import numpy as np
@@ -313,7 +313,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # make a list of tuples from the filter, exptime and grating lists
         _recurrences = (
             len(config.exposure_time_sequence)
-            if isinstance(config.exposure_time_sequence, collections.Iterable)
+            if isinstance(config.exposure_time_sequence, collections.abc.Iterable)
             else 1
         )
 
