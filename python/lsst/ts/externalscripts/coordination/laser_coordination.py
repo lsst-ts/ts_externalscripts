@@ -24,6 +24,7 @@ from lsst.ts import salobj
 import os
 import asyncio
 import datetime
+import logging
 import yaml
 
 
@@ -77,8 +78,7 @@ class LaserCoordination(salobj.BaseScript):
         self.stablization = False
         self.number_of_scans = None
 
-        self.log.setLevel(10)
-        self.put_log_level()
+        self.log.setLevel(logging.DEBUG)
         self.log.debug("END INIT")
 
     @classmethod

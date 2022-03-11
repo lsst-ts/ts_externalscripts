@@ -54,7 +54,7 @@ class TestLaserCoordination(unittest.IsolatedAsyncioTestCase):
         async with LaserCoordination(index=index) as script:
 
             async def run_configure(**kwargs):
-                script.set_state(salobj.Script.ScriptState.UNCONFIGURED)
+                await script.set_state(salobj.Script.ScriptState.UNCONFIGURED)
                 config_data = script.cmd_configure.DataType()
                 if kwargs:
                     config_data.config = yaml.safe_dump(kwargs)
