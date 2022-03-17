@@ -436,9 +436,11 @@ Pixel_size (m)			{}
         )
         dr = np.sqrt(dy ** 2 + dx ** 2)
         if dr > 100.0:
-            raise RuntimeError(
-                "Intra and Extra source finding algorithm " "found different sources."
-            )
+            self.log.warning("Source finding algorithm found different sources for intra/extra. "
+                             "Forcing them to use the intra-location.")
+            self.force_extra_focal_box_location = True
+        else:
+            self.force_extra_focal_box_location = False
 
         # Create stamps for CWFS algorithm. Bin (if desired).
         self.create_donut_stamps_for_cwfs()
@@ -487,9 +489,12 @@ Pixel_size (m)			{}
             f"length of {2 * self.side} pixels"
         )
 
-        extra_square = self.extra_exposure.image.array[
-            ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
-        ]
+        if self.force_extra_focal_box_location:
+            extra_square = intra_square
+        else:
+            extra_square = self.extra_exposure.image.array[
+                ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
+            ]
 
         # Bin the images
         if self.binning != 1:
