@@ -434,11 +434,23 @@ Pixel_size (m)			{}
             self.extra_result.brightestObjCentroidCofM[1]
             - self.intra_result.brightestObjCentroidCofM[1]
         )
-        dr = np.sqrt(dy ** 2 + dx ** 2)
+        dr = np.sqrt(dy**2 + dx**2)
         if dr > 100.0:
+<<<<<<< Updated upstream
             raise RuntimeError(
                 "Intra and Extra source finding algorithm " "found different sources."
             )
+=======
+            self.log.warning(
+                "Source finding algorithm found different sources for intra/extra. \n"
+                f"intra found [y,x] = [{self.intra_result.brightestObjCentroidCofM[1]},{self.intra_result.brightestObjCentroidCofM[0]}]\n"
+                f"extra found [y,x] = [{self.extra_result.brightestObjCentroidCofM[1]},{self.extra_result.brightestObjCentroidCofM[0]}]\n"
+                "Forcing them to use the intra-location."
+            )
+            self.force_extra_focal_box_location = True
+        else:
+            self.force_extra_focal_box_location = False
+>>>>>>> Stashed changes
 
         # Create stamps for CWFS algorithm. Bin (if desired).
         self.create_donut_stamps_for_cwfs()
@@ -479,17 +491,23 @@ Pixel_size (m)			{}
             ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
         ]
 
-        ceny, cenx = int(self.extra_result.brightestObjCentroidCofM[1]), int(
-            self.extra_result.brightestObjCentroidCofM[0]
-        )
+        if self.force_extra_focal_box_location:
+            extra_square = self.extra_exposure.image.array[
+                ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
+            ]
+        else:
+            ceny, cenx = int(self.extra_result.brightestObjCentroidCofM[1]), int(
+                self.extra_result.brightestObjCentroidCofM[0]
+            )
+
+            extra_square = self.extra_exposure.image.array[
+                ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
+            ]
+
         self.log.debug(
-            f"Creating stamp for intra_image donut on centroid [y,x] = [{ceny},{cenx}] with a side "
+            f"Created stamp for extra_image donut on centroid [y,x] = [{ceny},{cenx}] with a side "
             f"length of {2 * self.side} pixels"
         )
-
-        extra_square = self.extra_exposure.image.array[
-            ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
-        ]
 
         # Bin the images
         if self.binning != 1:
@@ -871,7 +889,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             coma_y = results["hex_offset"][1]
             focus_offset = results["hex_offset"][2]
 
-            total_coma_offset = np.sqrt(coma_x ** 2.0 + coma_y ** 2.0)
+            total_coma_offset = np.sqrt(coma_x**2.0 + coma_y**2.0)
             if (
                 abs(focus_offset) < self.threshold
                 and total_coma_offset < self.coma_threshold

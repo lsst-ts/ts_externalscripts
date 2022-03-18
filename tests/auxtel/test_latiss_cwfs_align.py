@@ -40,7 +40,8 @@ except ImportError:
     warnings.warn("Could not import cwfs package. Most tests will be skipped.")
 
 from lsst.ts import salobj
-from lsst.ts.utils import make_done_future
+
+# from lsst.ts.utils import make_done_future
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissCWFSAlign
@@ -66,10 +67,15 @@ random.seed(47)  # for set_random_lsst_dds_partition_prefix
 # for now just checking if butler is instantiated with
 # the default path used on the summit and on the NTS.
 
-DATAPATH = "/readonly/repo/main"
+# DATAPATH = "/readonly/repo/main" # NTS - obsolete
+DATAPATH = "/repo/LATISS"  # SUMMIT (warning!)
+# DATAPATH = "" # TTS (TBR)
+
 try:
     butler = dafButler.Butler(
-        DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
+        DATAPATH,
+        instrument="LATISS",
+        collections=["LATISS/raw/all", "LATISS_test_data"],
     )
     DATA_AVAILABLE = True
 except FileNotFoundError:
@@ -120,7 +126,9 @@ class TestLatissCWFSAlign(
         self.atcamera.cmd_takeImages.callback = unittest.mock.AsyncMock(
             wraps=self.cmd_take_images_callback
         )
-        self.script.latiss.ready_to_take_data = make_done_future()
+        # The following used to use make_done_future()
+        self.script.latiss.ready_to_take_data = None
+
         # mock latiss instrument setup
         self.script.latiss.setup_atspec = unittest.mock.AsyncMock()
 
@@ -175,6 +183,7 @@ class TestLatissCWFSAlign(
         logger.debug("Remotes Closed")
 
     async def cmd_take_images_callback(self, data):
+
         logger.debug(f"cmd_take_images callback came with data of {data}")
         one_exp_time = (
             data.expTime
@@ -322,20 +331,10 @@ class TestLatissCWFSAlign(
     )
     async def test_take_sequence(self):
         """This tests the taking of an entire sequence.
-        Data was taken on 2021-11-04, images 954-955. This is a middle
-        iteration of a the set used in test_full_sequence.
+        Data was taken on 2021-11-04.
         Prior to the set, telescope was focused, then hexapod was
         offset by x=1, y=1, z=0.05 mm.
-        This test looks at only the analysis of images 954-955, where
-        the output was:
 
-        intraImage expId for target: 2021110400954
-        extraImage expId for target: 2021110400955
-        angle used in cwfs algorithm is 11.77
-        Creating stamp for intra_image donut on centroid
-        [y,x] = [3084,2697] with a side length of 228 pixels
-        Creating stamp for intra_image donut on centroid
-        [y,x] = [3084,2700] with a side length of 228 pixels
         ==============================
         Measured [coma-X, coma-Y, focus] zernike coefficients [nm]:
         [-11.1, 14.5, -9.5, ]
@@ -471,8 +470,9 @@ class TestLatissCWFSAlign(
             # track of how many calls should happen since
             # it also calls this to take the intra/extra focal images
             assert self.ataos.cmd_offset.callback.called
-            # check that telescope offsets were applied twice
-            assert self.script.atcs.offset_xy.call_count == 2
+            # check that telescope offsets were applied three times
+            # once after each iteration
+            assert self.script.atcs.offset_xy.call_count == 3
             # check that total offsets are correct within the tolerance or 5%
             #
             assert (
@@ -636,6 +636,39 @@ class TestLatissCWFSAlign(
                         i=i,
                     ):
                         assert abs(t - tel_offsets[i]) <= tel_offset_tol[i]
+
+    async def test_source_finding(self):
+        """This tests the source finding where there was a mis-match
+        in sources found that caused an error in the script.
+        Occurred at 17:44:04 Tucson time, on 2022-03-16.
+        This test verifies a new functionality where the intra
+        box is used as the extra box.
+        Previously this would have raised an exception.
+        As this has not been used on-sky we cannot verify the results.
+        """
+        async with self.make_script():
+
+            await self.configure_script(
+                datapath=DATAPATH,
+            )
+            # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
+            self.visit_id_angles.update({2022031600232: [51.07, 0.58]})
+            self.visit_id_angles.update({2022031600233: [51.07, 0.58]})
+
+            # intra and extra were reversed prior to this branch, so trying
+            # to test this therefore I'll invert the image order
+            #
+            self.script.intra_visit_id = 2022031600232
+            self.script.extra_visit_id = 2022031600233
+
+            self.script.angle = 90.0 - await self.atcs_get_bore_sight_angle()
+            # Binning must be set to the default (1) when being instantiated
+            # using the configure_script method above, therefore do not
+            # modify the parameter
+            # self.script._binning = 1
+
+            logger.debug(f"boresight angle is {self.script.angle}")
+            await self.script.run_cwfs()
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
