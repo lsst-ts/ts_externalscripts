@@ -438,8 +438,10 @@ Pixel_size (m)			{}
         if dr > 100.0:
             self.log.warning(
                 "Source finding algorithm found different sources for intra/extra. \n"
-                f"intra found [y,x] = [{self.intra_result.brightestObjCentroidCofM[1]},{self.intra_result.brightestObjCentroidCofM[0]}]\n"
-                f"extra found [y,x] = [{self.extra_result.brightestObjCentroidCofM[1]},{self.extra_result.brightestObjCentroidCofM[0]}]\n"
+                f"intra found [y,x] = [{self.intra_result.brightestObjCentroidCofM[1]},"
+                "{self.intra_result.brightestObjCentroidCofM[0]}]\n"
+                f"extra found [y,x] = [{self.extra_result.brightestObjCentroidCofM[1]},"
+                "{self.extra_result.brightestObjCentroidCofM[0]}]\n"
                 "Forcing them to use the intra-location."
             )
             self.force_extra_focal_box_location = True
