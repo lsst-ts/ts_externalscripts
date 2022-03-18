@@ -29,7 +29,8 @@ import os
 import pytest
 
 from lsst.ts import salobj
-from lsst.ts.utils import make_done_future
+
+# from lsst.ts.utils import make_done_future
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
@@ -53,7 +54,9 @@ logger.propagate = True
 # the default path used on the summit and on the NTS.
 
 # DATAPATH set to NTS repo
-DATAPATH = "/readonly/repo/main"
+# DATAPATH = "/readonly/repo/main" # obselete
+DATAPATH = "/repo/LATISS"  # summit (careful!)
+
 try:
     butler = dafButler.Butler(
         DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
@@ -106,7 +109,7 @@ class TestLatissAcquireAndTakeSequence(
         self.script.atcs.slew_icrs = unittest.mock.AsyncMock()
         self.script.atcs.offset_xy = unittest.mock.AsyncMock()
         self.script.atcs.add_point_data = unittest.mock.AsyncMock()
-        self.script.latiss.ready_to_take_data = make_done_future()
+        self.script.latiss.ready_to_take_data = None  # make_done_future()
 
         # Mock the latiss instrument setups
         self.script.latiss.setup_atspec = unittest.mock.AsyncMock(
