@@ -436,11 +436,6 @@ Pixel_size (m)			{}
         )
         dr = np.sqrt(dy**2 + dx**2)
         if dr > 100.0:
-<<<<<<< Updated upstream
-            raise RuntimeError(
-                "Intra and Extra source finding algorithm " "found different sources."
-            )
-=======
             self.log.warning(
                 "Source finding algorithm found different sources for intra/extra. \n"
                 f"intra found [y,x] = [{self.intra_result.brightestObjCentroidCofM[1]},{self.intra_result.brightestObjCentroidCofM[0]}]\n"
@@ -450,7 +445,6 @@ Pixel_size (m)			{}
             self.force_extra_focal_box_location = True
         else:
             self.force_extra_focal_box_location = False
->>>>>>> Stashed changes
 
         # Create stamps for CWFS algorithm. Bin (if desired).
         self.create_donut_stamps_for_cwfs()
