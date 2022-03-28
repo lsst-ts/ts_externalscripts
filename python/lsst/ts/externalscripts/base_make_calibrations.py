@@ -26,6 +26,7 @@ import json
 import asyncio
 import collections
 import os
+import time
 from lsst.utils import getPackageDir
 from lsst.ts import salobj
 import lsst.daf.butler as dafButler
@@ -248,6 +249,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: integer
                 default: 120
                 descriptor: Timeout value, in seconds, for OODS.
+            oods_timeout_retry_rate:
+                type: integer
+                default: 10
+                descriptor: Number of seconds to wait before trying \
+                    again the 'image_in_oods' command.
+            oods_timeout_max_try:
+                type: integer
+                default: 5
+                descriptor: Maximum number or re-tries for the \
+                    'image_in_oods' command.
         additionalProperties: false
         """
         return yaml.safe_load(schema)
@@ -380,10 +391,29 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         exposures = await self.take_image_type(image_type, exp_times)
 
-        await asyncio.wait_for(
-            self.image_in_oods_received_all_expected.wait(),
-            timeout=self.config.oods_timeout,
-        )
+        # Wait for image in OODS. Try several times before
+        # giving up, if there's a timeout.
+        do_wait_for_image_in_oods = True
+        retry = 0
+        retry_rate = self.config.oods_timeout_retry_rate
+        max_retry = self.config.oods_timeout_max_retry
+        while do_wait_for_image_in_oods:
+            do_wait_for_image_in_oods = False
+            try:
+                await asyncio.wait_for(
+                    self.image_in_oods_received_all_expected.wait(),
+                    timeout=self.config.oods_timeout,
+                )
+            except Exception as e:
+                self.log.warn("Operation failed due to %s.  Retry Number: %d", e, retry)
+                retry += 1
+                if retry > max_retry:
+                    raise RuntimeError(f"Maximum number of retries ({max_retry}) exceeded for "
+                                       "acknowledgement that the expected images in "
+                                       "OODS were received. Terminating!")
+                else:
+                    time.sleep(retry_rate)
+                    do_wait_for_image_in_oods = True
 
         self.ocps.evt_job_result.flush()
 
@@ -514,8 +544,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             ack.print_vars()
         # Wait for the job result message that matches the job id we're
         # interested in ignoring any others (from other remotes).
-        # This obviously needs to follow the first acknowledgement
-        # (that returns the, job id) but might as well wait for the second.
+        # This needs to follow the first acknowledgement
+        # (that returns the job id) but might as well wait for the second.
         while True:
             msg = await self.ocps.evt_job_result.next(
                 flush=False, timeout=self.config.oods_timeout
