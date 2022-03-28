@@ -74,8 +74,8 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
 
     @property
     def image_in_oods(self):
-        """Archiver imageInOODS event."""
-        return self.camera.rem.ccarchiver.evt_imageInOODS
+        """OODS imageInOODS event."""
+        return self.camera.rem.ccoods.evt_imageInOODS
 
     @classmethod
     def get_schema(cls):

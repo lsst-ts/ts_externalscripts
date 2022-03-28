@@ -73,8 +73,8 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
 
     @property
     def image_in_oods(self):
-        """Archiver imageInOODS event."""
-        return self.camera.rem.atarchiver.evt_imageInOODS
+        """OODS imageInOODS event."""
+        return self.camera.rem.atoods.evt_imageInOODS
 
     @classmethod
     def get_schema(cls):

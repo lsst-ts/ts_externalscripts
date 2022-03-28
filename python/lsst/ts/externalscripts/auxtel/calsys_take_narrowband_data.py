@@ -56,7 +56,7 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         )
         self.atcamera = salobj.Remote(domain=self.domain, name="ATCamera")
         self.atspectrograph = salobj.Remote(domain=self.domain, name="ATSpectrograph")
-        self.atarchiver = salobj.Remote(domain=self.domain, name="ATArchiver")
+        self.atoods = salobj.Remote(domain=self.domain, name="ATOODS")
 
     @classmethod
     def get_schema(cls):
@@ -301,8 +301,8 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         file_exists = pathlib.Path(f"{path}/{csv_filename}").is_file()
         fieldnames = []
         if self.take_image:
-            fieldnames.append("ATArchiver Image Name")
-            fieldnames.append("ATArchiver Image Sequence Name")
+            fieldnames.append("ATOODS Image Name")
+            fieldnames.append("ATOODS Image Sequence Name")
         if self.setup_spectrograph:
             fieldnames.append("ATSpectrograph Filter")
             fieldnames.append("ATSpectrograph Grating")
@@ -437,10 +437,8 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
                 row_dict["Fiber Spectrograph Fits File"] = fiber_spectrograph_lfo_url
                 row_dict["Electrometer Fits File"] = electrometer_lfo_url
                 if self.take_image:
-                    row_dict["ATArchiver Image Name"] = atcamera_image_name
-                    row_dict[
-                        "ATArchiver Image Sequence Name"
-                    ] = self.image_sequence_name[i]
+                    row_dict["ATOODS Image Name"] = atcamera_image_name
+                    row_dict["ATOODS Image Sequence Name"] = self.image_sequence_name[i]
                 if self.setup_spectrograph:
                     row_dict["ATSpectrograph Filter"] = self.latiss_filter[i]
                     row_dict["ATSpectrograph Grating"] = self.latiss_grating[i]
@@ -530,11 +528,11 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
             expTime=self.integration_times[index],
             imageSequenceName=self.image_sequence_name[index],
         )
-        atarchiver_lfo_coro = self.atarchiver.evt_processingStatus.next(
+        atoods_lfo_coro = self.atoods.evt_processingStatus.next(
             flush=True, timeout=(self.cmd_timeout * 2) + self.integration_times[index]
         )
         await self.atcamera.cmd_takeImages.start(
             timeout=self.cmd_timeout + self.integration_times[index]
         )
         self.log.debug("Camera took image")
-        return await atarchiver_lfo_coro
+        return await atoods_lfo_coro
