@@ -110,7 +110,7 @@ class TestLatissCWFSAlign(
 
         self.atcamera = salobj.Controller(name="ATCamera")
         self.atheaderservice = salobj.Controller(name="ATHeaderService")
-        self.atarchiver = salobj.Controller(name="ATArchiver")
+        self.atoods = salobj.Controller(name="ATOODS")
         self.ataos = salobj.Controller(name="ATAOS")
         self.athexapod = salobj.Controller(name="ATHexapod")
         self.atptg = salobj.Controller(name="ATPtg")
@@ -164,7 +164,7 @@ class TestLatissCWFSAlign(
         logger.debug("Closing Remotes")
         await asyncio.gather(*self.end_image_tasks, return_exceptions=True)
         await asyncio.gather(
-            self.atarchiver.close(),
+            self.atoods.close(),
             self.atcamera.close(),
             self.atheaderservice.close(),
             self.ataos.close(),
@@ -208,7 +208,7 @@ class TestLatissCWFSAlign(
         await asyncio.sleep(0.5)
         await self.atheaderservice.evt_largeFileObjectAvailable.write()
         await asyncio.sleep(1.0)
-        await self.atarchiver.evt_imageInOODS.set_write(obsid=image_name)
+        await self.atoods.evt_imageInOODS.set_write(obsid=image_name)
 
     @unittest.skipIf(
         CWFS_AVAILABLE is False,
