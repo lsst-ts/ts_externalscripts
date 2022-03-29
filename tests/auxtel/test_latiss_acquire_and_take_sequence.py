@@ -126,7 +126,7 @@ class TestLatissAcquireAndTakeSequence(
         )
 
         self.atheaderservice = salobj.Controller(name="ATHeaderService")
-        self.atarchiver = salobj.Controller(name="ATArchiver")
+        self.atoods = salobj.Controller(name="ATOODS")
         # Need ataos as the script waits for corrections to be applied on
         # grating/filter changes
         self.ataos = salobj.Controller(name="ATAOS")
@@ -187,7 +187,7 @@ class TestLatissAcquireAndTakeSequence(
         await asyncio.gather(*self.end_image_tasks, return_exceptions=True)
         logger.debug("Closing remotes")
         await asyncio.gather(
-            self.atarchiver.close(),
+            self.atoods.close(),
             self.atcamera.close(),
             self.atspectrograph.close(),
             self.ataos.close(),
@@ -221,7 +221,7 @@ class TestLatissAcquireAndTakeSequence(
         await asyncio.sleep(0.5)
         await self.atheaderservice.evt_largeFileObjectAvailable.write()
         await asyncio.sleep(1.0)
-        await self.atarchiver.evt_imageInOODS.set_write(obsid=image_name)
+        await self.atoods.evt_imageInOODS.set_write(obsid=image_name)
 
     async def test_configure(self):
         async with self.make_script():

@@ -364,7 +364,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         metadata.filter = f"{filters},{gratings}"
 
     async def get_next_image_data_id(self, timeout=STD_TIMEOUT, flush=True):
-        """Return dataID of image that appears from the ATArchiver CSC.
+        """Return dataID of image that appears from the ATOODS CSC.
         This is meant to be called at the same time as a take image command.
         If this is called after take_image is completed, it may not receive
         the imageInOODS event.
@@ -377,7 +377,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         self.log.info(
             f"Waiting for image to arrive in OODS for a maximum of {timeout} seconds."
         )
-        in_oods = await self.latiss.rem.atarchiver.evt_imageInOODS.next(
+        in_oods = await self.latiss.rem.atoods.evt_imageInOODS.next(
             timeout=timeout, flush=flush
         )
 
@@ -463,7 +463,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
 
             # Was not catching event from OODS in time without timing out
-            self.latiss.rem.atarchiver.evt_imageInOODS.flush()
+            self.latiss.rem.atoods.evt_imageInOODS.flush()
             tmp = await self.latiss.take_object(
                 exptime=self.acq_exposure_time,
                 n=1,

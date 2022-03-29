@@ -48,7 +48,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # 45 sec: Bias.
         self.estimated_process_time = 600
 
-        # Callback so that the archiver queue does not overflow.
+        # Callback so that the oods queue does not overflow.
         self.image_in_oods_received_all_expected = asyncio.Event()
         self.image_in_oods_received_all_expected.clear()
 
@@ -101,7 +101,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def image_in_oods(self):
-        """Archiver imageInOODS event"""
+        """OODS imageInOODS event"""
         raise NotImplementedError()
 
     @classmethod
@@ -339,12 +339,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         )
 
     async def image_in_oods_callback(self, data):
-        """Callback function to check images are in archiver
+        """Callback function to check images are in oods
 
         Parameters
         ----------
         data : `evt_imageInOODS.DataType`
-            Archiver, imageInOODS event sample.
+            OODS, imageInOODS event sample.
         """
 
         self.image_in_oods_samples[self.current_image_type].append(data)

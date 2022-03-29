@@ -223,8 +223,8 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             ]
             self.find_offset_return_value = (-10.0, 10.0)
 
-            self.script.latiss.rem.atarchiver = unittest.mock.AsyncMock()
-            self.script.latiss.rem.atarchiver.evt_imageInOODS.attach_mock(
+            self.script.latiss.rem.atoods = unittest.mock.AsyncMock()
+            self.script.latiss.rem.atoods.evt_imageInOODS.attach_mock(
                 unittest.mock.Mock(),
                 "flush",
             )
@@ -245,7 +245,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
 
     def assert_center_on_brightest_source(self):
 
-        self.script.latiss.rem.atarchiver.evt_imageInOODS.flush.assert_called_once()
+        self.script.latiss.rem.atoods.evt_imageInOODS.flush.assert_called_once()
 
         take_engtest_calls = [
             unittest.mock.call(
@@ -264,7 +264,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             ),
         ]
 
-        self.script.latiss.rem.atarchiver.evt_imageInOODS.next.assert_awaited_once_with(
+        self.script.latiss.rem.atoods.evt_imageInOODS.next.assert_awaited_once_with(
             flush=False, timeout=self.script.image_in_oods_timeout
         )
 

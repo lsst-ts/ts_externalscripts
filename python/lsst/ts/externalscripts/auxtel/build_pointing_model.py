@@ -295,7 +295,7 @@ additionalProperties: false
 
     async def center_on_brightest_source(self):
 
-        self.latiss.rem.atarchiver.evt_imageInOODS.flush()
+        self.latiss.rem.atoods.evt_imageInOODS.flush()
 
         acquisition_image_ids = await self.latiss.take_engtest(
             exptime=self.config.exposure_time,
@@ -306,7 +306,7 @@ additionalProperties: false
             program=self.config.program,
         )
 
-        await self.latiss.rem.atarchiver.evt_imageInOODS.next(
+        await self.latiss.rem.atoods.evt_imageInOODS.next(
             flush=False, timeout=self.image_in_oods_timeout
         )
 
