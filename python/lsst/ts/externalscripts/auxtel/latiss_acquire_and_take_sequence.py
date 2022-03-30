@@ -357,7 +357,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
             if self.do_take_sequence:
                 nexp = len(self.visit_configs)
-                for (filt, expTime, grating) in self.visit_config:
+                sci_expTimeTotal = 0.0
+                for (filt, expTime, grating) in self.visit_configs:
                     sci_expTimeTotal += expTime
                 self.time_on_target += sci_expTimeTotal
                 # assume 5s for readout and instrument reconfiguration
@@ -541,7 +542,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 current_position, target_position
             )
 
-            dr_arcsec = np.sqrt(dx_arcsec ** 2 + dy_arcsec ** 2)
+            dr_arcsec = np.sqrt(dx_arcsec**2 + dy_arcsec**2)
 
             self.log.debug(
                 f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f}, {dy_arcsec:0.2f}] arcsec as calculated"

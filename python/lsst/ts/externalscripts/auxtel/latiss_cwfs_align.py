@@ -435,7 +435,7 @@ Pixel_size (m)			{}
             self.extra_result.brightestObjCentroidCofM[1]
             - self.intra_result.brightestObjCentroidCofM[1]
         )
-        dr = np.sqrt(dy ** 2 + dx ** 2)
+        dr = np.sqrt(dy**2 + dx**2)
         if dr > 100.0:
             self.log.warning(
                 "Source finding algorithm found different sources for intra/extra. \n"
@@ -895,7 +895,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             coma_y = results["hex_offset"][1]
             focus_offset = results["hex_offset"][2]
 
-            total_coma_offset = np.sqrt(coma_x ** 2.0 + coma_y ** 2.0)
+            total_coma_offset = np.sqrt(coma_x**2.0 + coma_y**2.0)
             if (
                 abs(focus_offset) < self.threshold
                 and total_coma_offset < self.coma_threshold
