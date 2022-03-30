@@ -34,6 +34,7 @@ from lsst.ts import salobj
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
+from lsst.ts.idl.enums.ATPtg import WrapStrategy
 
 try:
     from lsst.ts.observing.utilities.auxtel.latiss.utils import (
@@ -434,7 +435,7 @@ Pixel_size (m)			{}
             self.extra_result.brightestObjCentroidCofM[1]
             - self.intra_result.brightestObjCentroidCofM[1]
         )
-        dr = np.sqrt(dy**2 + dx**2)
+        dr = np.sqrt(dy ** 2 + dx ** 2)
         if dr > 100.0:
             self.log.warning(
                 "Source finding algorithm found different sources for intra/extra. \n"
@@ -805,6 +806,9 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         self.take_detection_image = config.take_detection_image
 
+        # Assume the time-on-target is 10 minutes
+        self.time_on_target = 10 * 60
+
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
@@ -824,7 +828,11 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             if checkpoint:
                 await self.checkpoint(f"Slewing to object: {self.cwfs_target}")
             await self.atcs.slew_object(
-                name=self.cwfs_target, rot=0.0, rot_type=RotType.PhysicalSky
+                name=self.cwfs_target,
+                rot=0.0,
+                rot_type=RotType.PhysicalSky,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
             )
 
         elif (
@@ -844,6 +852,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 target_name=self.cwfs_target,
                 rot=0.0,
                 rot_type=RotType.PhysicalSky,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
             )
         elif (self.cwfs_target_dec is not None and self.cwfs_target_ra is None) or (
             self.cwfs_target_dec is None and self.cwfs_target_ra is not None
@@ -885,7 +895,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             coma_y = results["hex_offset"][1]
             focus_offset = results["hex_offset"][2]
 
-            total_coma_offset = np.sqrt(coma_x**2.0 + coma_y**2.0)
+            total_coma_offset = np.sqrt(coma_x ** 2.0 + coma_y ** 2.0)
             if (
                 abs(focus_offset) < self.threshold
                 and total_coma_offset < self.coma_threshold

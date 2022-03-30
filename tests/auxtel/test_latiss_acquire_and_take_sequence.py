@@ -296,12 +296,12 @@ class TestLatissAcquireAndTakeSequence(
 
             acq_filter = "acqfilter"
             acq_grating = "acqgrating"
-            acq_exposure_time = 1
+            acq_exposure_time = 10
             max_acq_iter = 3
             target_pointing_tolerance = 3
             filter_sequence = ["test_filt1", "test_filt2"]
             grating_sequence = "test_disp1"
-            exposure_time_sequence = [1.0, 2.0]
+            exposure_time_sequence = [20.0, 60.0]
 
             # Try configure will all parameters declared
             await self.configure_script(
@@ -328,6 +328,9 @@ class TestLatissAcquireAndTakeSequence(
             # Verify inputs
             assert self.script.do_take_sequence is True
             assert self.script.do_acquire is True
+            assert self.script.time_on_target >= acq_exposure_time + sum(
+                exposure_time_sequence
+            )
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,

@@ -34,6 +34,7 @@ from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.utils import format_as_list
+from lsst.ts.idl.enums.ATPtg import WrapStrategy
 
 try:
     from lsst.ts.observing.utilities.auxtel.latiss.utils import (
@@ -346,6 +347,25 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 DeprecationWarning,
             )
 
+        # Determine the amount of time spent on target so the rotator position
+        # can be optimized. Assumed slew time is 3 minutes,
+        # read+calculation+offset is 20s
+        if self.do_acquire:
+
+            self.time_on_target = 180 + self.max_acq_iter * (
+                self.acq_exposure_time + 20
+            )
+            if self.do_take_sequence:
+                nexp = len(self.visit_configs)
+                for (filt, expTime, grating) in self.visit_config:
+                    sci_expTimeTotal += expTime
+                self.time_on_target += sci_expTimeTotal
+                # assume 5s for readout and instrument reconfiguration
+                self.time_on_target += nexp * 5
+            self.log.debug(
+                f"Assuming a time_on_target of {self.time_on_target/60:0.2f} minutes."
+            )
+
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
@@ -423,6 +443,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 target_name=self.object_name,
                 rot_type=RotType.Parallactic,
                 slew_timeout=240,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
                 offset_x=dx_arcsec,
                 offset_y=dy_arcsec,
             )
@@ -432,6 +454,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 name=self.object_name,
                 rot_type=RotType.Parallactic,
                 slew_timeout=240,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
                 offset_x=dx_arcsec,
                 offset_y=dy_arcsec,
             )
@@ -517,7 +541,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 current_position, target_position
             )
 
-            dr_arcsec = np.sqrt(dx_arcsec**2 + dy_arcsec**2)
+            dr_arcsec = np.sqrt(dx_arcsec ** 2 + dy_arcsec ** 2)
 
             self.log.debug(
                 f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f}, {dy_arcsec:0.2f}] arcsec as calculated"
