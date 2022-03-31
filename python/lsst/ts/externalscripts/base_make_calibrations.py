@@ -641,7 +641,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return response
 
-    async def check_verification_stats(self, image_type, job_id_calib, job_id_verify):
+    async def check_verification_stats(
+        self, image_type, job_id_verify, job_id_calib=None
+    ):
         """Check verification statistics.
 
         Parameters
@@ -652,7 +654,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             verification currently only implemented for ["BIAS", "DARK",
             "FLAT"].
 
-        jod_id_calib : `str`
+        jod_id_calib : `str`, optional
             Job ID returned by OCPS during previous calibration
             generation pipetask call.
 
@@ -682,11 +684,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         verify_stats : `dict`
             Statistics from cp_verify.
+
+        Notes
+        -----
+        When `generate_calibrations=False`, verification will be performed
+        using the combined calibrations in
+        `self.config.input_collections_verify_bias`,
+        `self.config.input_collections_verify_dark`, and/or
+        `self.config.input_collections_verify_bias`, and this script won't
+        have generated any combined calibrations from the images taken.
+        Therefore, `job_id_calib` can be `None`.
         """
-        # Collection name containing the verification outputs.
-        verify_collection = f"u/ocps/{job_id_verify}"
-        # Collection that the calibration was constructed in.
-        gen_collection = f"u/ocps/{job_id_calib}"
         if image_type == "BIAS":
             verify_stats_string = "verifyBiasStats"
             max_number_failures_per_detector_per_test = (
@@ -706,9 +714,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             raise RuntimeError(
                 f"Verification is not currently implemented for {image_type}."
             )
-        butler = dafButler.Butler(
-            self.config.repo, collections=[verify_collection, gen_collection]
-        )
+
+        # Collection name containing the verification outputs.
+        verify_collection = f"u/ocps/{job_id_verify}"
+        if job_id_calib:
+            # Collection that the calibration was constructed in.
+            gen_collection = f"u/ocps/{job_id_calib}"
+            collections_butler = [verify_collection, gen_collection]
+        else:
+            collections_butler = [verify_collection]
+        butler = dafButler.Butler(self.config.repo, collections=collections_butler)
         # verify_stats is a dictionary with the verification
         # tests that failed, if any. See `cp_verify`.
         verify_stats = butler.get(verify_stats_string, instrument=self.instrument_name)
@@ -1007,6 +1022,75 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             self.log.error(stderr)
             raise RuntimeError(f"Error running command for certifying {image_type}.")
 
+    async def analyze_report_check_verify_stats(
+        self, im_type, report_check_verify_stats, job_id_verify, job_id_calib
+    ):
+        """Report the results from `check_verification_stats`
+
+        Parameters
+        ----------
+        im_type : `str`
+            Image type. One of ["BIAS", "DARK", "FLAT"]
+            (verification is not yet implemented for "DEFECTS"
+            and "PTC").
+
+        report_check_verify_stats : `dict`
+            Dictionary returned by `check_verification_stats`.
+
+        job_id_verify : `str`
+            Job ID returned by OCPS during previous calibration
+            verification pipetask call.
+
+        job_id_calib : `str`
+            Job ID returned by OCPS during previous calibration
+            generation pipetask call. If "generate_calibrations"
+            is False, this variable is "None".
+        """
+        if job_id_calib:
+            gen_collection = f"u/ocps/{job_id_calib}"
+        else:
+            gen_collection = (
+                f"None. 'generate_calibrations' is {self.config.generate_calibrations}."
+            )
+        verify_collection = f"u/ocps/{job_id_verify}"
+
+        verify_tests_pass = report_check_verify_stats["CERTIFY_CALIB"]
+
+        if verify_tests_pass and report_check_verify_stats["NUM_STAT_ERRORS"] is None:
+            self.log.info(
+                f"{im_type} calibration passed verification criteria "
+                f"and will be certified. \n Generation collection: {gen_collection} \n"
+                f"Verification collection: {verify_collection}"
+            )
+        elif (
+            verify_tests_pass
+            and report_check_verify_stats["NUM_STAT_ERRORS"] is not None
+        ):
+            self.log.warning(
+                f"{im_type} calibration passed the overall verification "
+                " criteria and will be certified, but the are tests that did not pass: "
+            )
+            final_report_string = await self.build_verification_report_summary(
+                report_check_verify_stats
+            )
+            self.log.error(
+                final_report_string + f"\n Generation collection: "
+                f"{gen_collection} \n Verification collection: "
+                f"{verify_collection}"
+            )
+        else:
+            final_report_string = await self.build_verification_report_summary(
+                report_check_verify_stats
+            )
+            self.log.error(
+                final_report_string + f"\n Generation collection:"
+                f"{gen_collection} \n Verification "
+                f"collection: {verify_collection}"
+            )
+            self.log.warning(
+                f"{im_type} calibration failed verification and will not be certified."
+            )
+
     async def arun(self, checkpoint=False):
 
         # Check that the camera is enabled
@@ -1083,122 +1167,125 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 job_id_calib = response_ocps_calib_pipetask["jobId"]
             else:
                 self.log.info(
-                    "Calibrations will not be generated from the images "
+                    f"A combined {im_type} will not be generated from the images "
                     "taken as part of this script. Any needed input "
                     "calibrations by the verification pipetasks will be "
-                    "sought in the input calibrations to the pipetask."
+                    "sought in their input calibrations."
                 )
                 job_id_calib = None
 
-            # 3. Verify the calibration (implemented so far for bias,
-            # dark, and flat).
-            if self.config.do_verify and im_type in ["BIAS", "DARK", "FLAT"]:
-                if (
-                    self.config.generate_calibrations
-                    and not response_ocps_calib_pipetask["phase"] == "completed"
-                ):
-                    raise RuntimeError(
-                        f"{im_type} generation not completed successfully: "
-                        f"Status: {response_ocps_calib_pipetask['phase']}. "
-                        f"{im_type} verification could not be performed."
-                    )
+            # 3. Verify the combined calibration (implemented so far for bias,
+            # dark, and flat), and certify it if the verification
+            # tests pass and it was generated.
+            if self.config.do_verify:
+                if im_type in ["BIAS", "DARK", "FLAT"]:
+                    if self.config.generate_calibrations:
+                        # Check that the task to generate the combined
+                        # calibration did not fail.
+                        if not response_ocps_calib_pipetask["phase"] == "completed":
+                            raise RuntimeError(
+                                f"{im_type} generation not completed successfully: "
+                                f"Status: {response_ocps_calib_pipetask['phase']}. "
+                                f"{im_type} verification could not be performed."
+                            )
+                        else:
+                            response_ocps_verify_pipetask = await self.verify_calib(
+                                im_type, job_id_calib, exposure_ids_dict
+                            )
+                            # Check that the task running cp_verify
+                            # did not fail.
+                            if (
+                                not response_ocps_verify_pipetask["phase"]
+                                == "completed"
+                            ):
+                                raise RuntimeError(
+                                    f"Running the {im_type} verification" "task failed."
+                                )
+                            else:
+                                # Check verification statistics
+                                job_id_verify = response_ocps_verify_pipetask["jobId"]
+                                report_check_verify_stats = (
+                                    await self.check_verification_stats(
+                                        im_type, job_id_verify, job_id_calib
+                                    )
+                                )
+                                # Inform the user about the results from
+                                # running cp_verify.
+                                # TODO: If verification failed, issue an
+                                # alarm in the watcher: DM-33898.
+                                await self.analyze_report_check_verify_stats(
+                                    im_type,
+                                    report_check_verify_stats,
+                                    job_id_verify,
+                                    job_id_calib,
+                                )
+                                # If the verification tests passed,
+                                # certify the combined calibrations.
+                                if report_check_verify_stats["CERTIFY_CALIB"]:
+                                    await self.certify_calib(im_type, job_id_calib)
+                                # If tests did not pass, end the loop, as
+                                # certified calibrations are needed to cons
+                                # construct subsequent calibrations
+                                # (bias->dark->flat).
+                                else:
+                                    break
+                    else:
+                        # If combined calibrations are not being generated
+                        # from the individual images just taken, and if
+                        # do_verify=True, the verification task
+                        # will run the tests using calibrations in its
+                        # input collections as reference.
+                        # Note that there is no certification of combined
+                        # calibrations here, because we are not generating
+                        # them.
+                        # job_id_calib should be None
+                        assert job_id_calib is None, "'job_id_calib' is not 'None'."
+                        response_ocps_verify_pipetask = await self.verify_calib(
+                            im_type, job_id_calib, exposure_ids_dict
+                        )
+                        # Check that the task running cp_verify
+                        # did not fail.
+                        if not response_ocps_verify_pipetask["phase"] == "completed":
+                            raise RuntimeError(
+                                f"Running the {im_type} verification" "task failed"
+                            )
+                        else:
+                            # Check verification statistics
+                            job_id_verify = response_ocps_verify_pipetask["jobId"]
+                            report_check_verify_stats = (
+                                await self.check_verification_stats(
+                                    im_type, job_id_verify, job_id_calib
+                                )
+                            )
+                            # Inform the user about the results from running
+                            # cp_verify.
+                            # TODO: If verification failed, issue an alarm
+                            # in the watcher: DM-33898
+                            await self.analyze_report_check_verify_stats(
+                                im_type,
+                                report_check_verify_stats,
+                                job_id_verify,
+                                job_id_calib,
+                            )
+                # im_type is not in ["BIAS", "DARK", "FLAT"], but
+                # in ["DEFECTS", "PTC"]
                 else:
-                    response_ocps_verify_pipetask = await self.verify_calib(
-                        im_type, job_id_calib, exposure_ids_dict
-                    )
-                    previous_step = "verification"
-            else:
-                self.log.info(f"Skipping verification for {im_type}. ")
-                if self.config.generate_calibrations:
-                    response_ocps_verify_pipetask = response_ocps_calib_pipetask
-                    previous_step = "generation"
-
-            # 4. Certify the calibration if the verification tests passed,
-            # and if not using pre-existing calibrations
-
-            # Nothing to certify if we are not generating new calibrations
-            if self.config.generate_calibrations:
-                if not self.config.do_verify:
                     self.log.info(
-                        f"'do_verify' is set to 'False'. "
+                        f"'do_verify' is set to 'True' "
+                        "but verification is not yet supported "
+                        f"in this script for {im_type}. "
                         f"{im_type} will be automatically certified."
                     )
                     await self.certify_calib(im_type, job_id_calib)
-                else:
-                    if not response_ocps_verify_pipetask["phase"] == "completed":
-                        raise RuntimeError(
-                            f"{im_type} {previous_step} not completed successfully: "
-                            f"Status: {response_ocps_verify_pipetask['phase']}. "
-                            f"{im_type} certification could not be performed."
-                        )
-                    else:
-                        # Check the verification statistics and decide whether
-                        # the master calibration gets certified or not.
-                        job_id_verify = response_ocps_verify_pipetask["jobId"]
-
-                        # Check verification tests only if bias,
-                        # dark, or flat. im_type can be an image or
-                        # calibration type in ["BIAS", "DARK",
-                        # "FLAT", "DEFECTS", "PTC"], but verification is not
-                        # yet implemented for "DEFECTS and "PTC".
-                        if im_type in ["BIAS", "DARK", "FLAT"]:
-                            report_check_verify_stats = (
-                                await self.check_verification_stats(
-                                    im_type, job_id_calib, job_id_verify
-                                )
-                            )
-                            verify_tests_pass = report_check_verify_stats[
-                                "CERTIFY_CALIB"
-                            ]
-                            gen_collection = f"u/ocps/{job_id_calib}"
-                            verify_collection = f"u/ocps/{job_id_verify}"
-                            if verify_tests_pass:
-                                self.log.info(
-                                    f"{im_type} calibration passed verification criteria "
-                                    f"and will be certified. \n Generation collection: {gen_collection} \n"
-                                    f"Verification collection: {verify_collection}"
-                                )
-                                await self.certify_calib(im_type, job_id_calib)
-                            elif (
-                                verify_tests_pass
-                                and report_check_verify_stats["NUM_STAT_ERRORS"]
-                                is not None
-                            ):
-                                await self.certify_calib(im_type, job_id_calib)
-                                self.log.warning(
-                                    f"{im_type} calibration passed the overall verification "
-                                    " criteria and was certified, but the are tests that did not pass: "
-                                )
-                                final_report_string = (
-                                    await self.build_verification_report_summary(
-                                        report_check_verify_stats
-                                    )
-                                )
-                                self.log.error(
-                                    final_report_string + f"\n Generation collection: "
-                                    f"{gen_collection} \n Verification collection: "
-                                    f"{verify_collection}"
-                                )
-                            else:
-                                final_report_string = (
-                                    await self.build_verification_report_summary(
-                                        report_check_verify_stats
-                                    )
-                                )
-                                self.log.error(
-                                    final_report_string + f"\n Generation collection:"
-                                    f"{gen_collection} \n Verification "
-                                    f"collection: {verify_collection}"
-                                )
-                                raise RuntimeError(
-                                    f"{im_type} calibration failed verification and will not be certified."
-                                )
-                        else:
-                            self.log.info(
-                                f"Verification is still not implemented for {im_type}. "
-                                f"{im_type} will be automatically certified."
-                            )
-                            await self.certify_calib(im_type, job_id_calib)
+            # do verify is False
+            else:
+                if self.config.generate_calibrations:
+                    self.log.info(
+                        "'do_verify' is set to 'False' and "
+                        "'generate_calibrations' to 'True'. "
+                        f"{im_type} will be automatically certified."
+                    )
+                    await self.certify_calib(im_type, job_id_calib)
 
     async def run(self):
         """"""
