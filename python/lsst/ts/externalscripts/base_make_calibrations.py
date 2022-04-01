@@ -504,7 +504,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         elif self.instrument_name == "LSSTComCam":
             pipeline_instrument = "LsstComCam"
         else:
-            raise RuntimeError("Nonvalid instrument name: {self.instrument_name")
+            raise RuntimeError("Nonvalid instrument name: {self.instrument_name"
+                               "Valid options: ['LATISS', 'LSSTComCam']")
 
         # Use the camera-agnostic yaml file if the camera-specific
         # file does not exist.
@@ -642,7 +643,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             exposure_ids = exposure_ids_dict["FLAT"]
         else:
             raise RuntimeError(
-                f"Verification is not currently implemented for {image_type}"
+                f"Verification is not currently supported in this script for {image_type}"
             )
 
         # Verify the master calibration
@@ -748,7 +749,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             )
         else:
             raise RuntimeError(
-                f"Verification is not currently implemented for {image_type}."
+                f"Verification is not currently supported in this script for {image_type}."
             )
         butler = dafButler.Butler(
             self.config.repo, collections=[verify_collection, gen_collection]
@@ -1049,7 +1050,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         if process.returncode != 0:
             self.log.debug(stdout)
             self.log.error(stderr)
-            raise RuntimeError(f"Error running command for certifying {image_type}.")
+            raise RuntimeError(f"Error running the butler certification command for {image_type}.")
 
     async def arun(self, checkpoint=False):
 
@@ -1080,10 +1081,20 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 "'BIAS_DARK_FLAT'."
             )
 
-        if self.config.do_defects and mode == "BIAS_DARK_FLAT":
-            image_types.append("DEFECTS")
-        if self.config.do_ptc and mode == "BIAS_DARK_FLAT":
-            image_types.append("PTC")
+        if self.config.generate_calibrations:
+            if self.config.do_defects:
+                if mode == "BIAS_DARK_FLAT":
+                    image_types.append("DEFECTS")
+                else:
+                    raise RuntimeError(f"'do_defects' is True, but 'script_mode' is {mode}"
+                                       "(must be 'BIAS_DARK_FLAT').")
+
+            if self.config.do_ptc:
+                if mode == "BIAS_DARK_FLAT":
+                    image_types.append("PTC")
+                else:
+                    raise RuntimeError(f"'do_ptc' is True, but 'script_mode' is {mode} "
+                                       "(must be 'BIAS_DARK_FLAT').")
 
         exposure_ids_dict = {"BIAS": (), "DARK": (), "FLAT": ()}
         for im_type in image_types:
@@ -1144,7 +1155,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     raise RuntimeError(
                         f"{im_type} generation not completed successfully: "
                         f"Status: {response_ocps_calib_pipetask['phase']}. "
-                        f"{im_type} verification could not be performed."
                     )
                 else:
                     response_ocps_verify_pipetask = await self.verify_calib(
@@ -1173,7 +1183,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         raise RuntimeError(
                             f"{im_type} {previous_step} not completed successfully: "
                             f"Status: {response_ocps_verify_pipetask['phase']}. "
-                            f"{im_type} certification could not be performed."
                         )
                     else:
                         # Check the verification statistics and decide whether
