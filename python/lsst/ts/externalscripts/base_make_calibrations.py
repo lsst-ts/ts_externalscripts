@@ -314,7 +314,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             f"n_bias: {config.n_bias}, detectors: {config.detectors}, "
             f"n_dark: {config.n_dark}, "
             f"n_flat: {config.n_flat}, "
-            f"instrument: {self.instrument_name} "
+            f"instrument: {self.instrument_name}, "
+            f"script_mode: {config.script_mode}, "
+            f"generate_calibrations: {config.generate_calibrations}, "
+            f"do_verify: {config.do_verify}, "
+            f"do_defects: {config.do_defects}, "
+            f"do_ptc: {config.do_ptc} "
         )
 
         self.config = config
