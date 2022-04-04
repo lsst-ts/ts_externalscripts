@@ -174,10 +174,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 descriptor: Detector IDs.
             generate_calibrations:
                 type: boolean
-                descriptor: Should the master calibrations be generated from the images taken? \
-                    If False, and do_verify = True, calibrations should be provided in the \
+                descriptor: Should the combined/master calibrations be generated from the images taken? \
+                    If False, and do_verify = True, reference calibrations should be provided in the \
                     input collections for the verification pipetasks.
-                default: True
+                default: False
             do_verify:
                 type: boolean
                 descriptor: Should the master calibrations be verified? (c.f., cp_verify)
