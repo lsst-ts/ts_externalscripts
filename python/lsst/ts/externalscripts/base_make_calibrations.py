@@ -1194,16 +1194,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                             )
                             # Check that the task running cp_verify
                             # did not fail.
+                            job_id_verify = response_ocps_verify_pipetask["jobId"]
                             if (
                                 not response_ocps_verify_pipetask["phase"]
                                 == "completed"
                             ):
                                 raise RuntimeError(
-                                    f"Running the {im_type} verification" "task failed."
+                                    f"Running the {im_type} verification task failed. Log file: "
+                                    f"/scratch/uws/jobs/{job_id_verify}/out/ocps.log "
                                 )
                             else:
                                 # Check verification statistics
-                                job_id_verify = response_ocps_verify_pipetask["jobId"]
                                 report_check_verify_stats = (
                                     await self.check_verification_stats(
                                         im_type, job_id_verify, job_id_calib
@@ -1245,13 +1246,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         )
                         # Check that the task running cp_verify
                         # did not fail.
+                        job_id_verify = response_ocps_verify_pipetask["jobId"]
                         if not response_ocps_verify_pipetask["phase"] == "completed":
                             raise RuntimeError(
-                                f"Running the {im_type} verification" "task failed"
+                                f"Running the {im_type} verification task failed. Log file: "
+                                f"/scratch/uws/jobs/{job_id_verify}/out/ocps.log "
                             )
                         else:
                             # Check verification statistics
-                            job_id_verify = response_ocps_verify_pipetask["jobId"]
                             report_check_verify_stats = (
                                 await self.check_verification_stats(
                                     im_type, job_id_verify, job_id_calib
