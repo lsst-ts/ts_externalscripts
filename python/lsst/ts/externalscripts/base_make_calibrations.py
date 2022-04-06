@@ -928,34 +928,32 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # thresholds_report
         final_report_string += "Threshold values:\n"
         final_report_string += (
-            "\t| Acceptable maximum number of failures per detector per test type:\n"
+            "\t Acceptable maximum number of failures per detector per test type: "
         )
         final_report_string += f"{thresholds_report['MAX_FAILURES_PER_DETECTOR_PER_TEST_TYPE_THRESHOLD']}\n"
 
         final_report_string += (
-            "This value is controlled by the configuration parameter\n"
+            "\t This value is controlled by the configuration parameter: "
         )
-        final_report_string += "'number_verification_tests_threshold_IMGTYPE'\n"
+        final_report_string += "'number_verification_tests_threshold_<IMGTYPE>'\n"
 
-        final_report_string += "\tAcceptable maximum number of failed detectors:]\n"
+        final_report_string += "\t Acceptable maximum number of failed detectors: "
         final_report_string += (
             f"{thresholds_report['MAX_FAILED_DETECTORS_THRESHOLD']}\n"
         )
 
         final_report_string += (
-            "\t Acceptable maximum number of failed tests per exposure:\n"
+            "\t Acceptable maximum number of failed tests per exposure: "
         )
         final_report_string += (
             f"{thresholds_report['MAX_FAILED_TESTS_PER_EXPOSURE_THRESHOLD']}\n"
         )
 
-        final_report_string += "\t Acceptable maximum number of failed exposures:\n"
+        final_report_string += "\t Acceptable maximum number of failed exposures: "
         final_report_string += (
             f"{thresholds_report['MAX_FAILED_EXPOSURES_THRESHOLD']}\n"
         )
-        final_report_string += (
-            "\t Final number of exposures that failed verification:\n"
-        )
+        final_report_string += "\t Final number of exposures that failed verification: "
         final_report_string += (
             f"{thresholds_report['FINAL_NUMBER_OF_FAILED_EXPOSURES']}\n"
         )
@@ -978,7 +976,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             "the final number of exposures that failed verification is greater than\n"
         )
         final_report_string += (
-            "or equal to the acceptable maximum number of failed exposures"
+            "or equal to the acceptable maximum number of failed exposures. \n"
         )
 
         return final_report_string
@@ -1083,7 +1081,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 report_check_verify_stats
             )
             self.log.error(
-                final_report_string + f"\n Generation collection:"
+                final_report_string + f"\n Generation collection: "
                 f"{gen_collection} \n Verification "
                 f"collection: {verify_collection}"
             )
