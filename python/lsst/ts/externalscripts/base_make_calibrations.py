@@ -82,6 +82,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
+    def validate_detector(self, detectors):
+        """Validate detectors."""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     def get_instrument_configuration(self):
         """Get instrument configuration
 
@@ -171,7 +176,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             detectors:
                 type: string
                 default: "(0)"
-                descriptor: Detector IDs.
+                descriptor: A tuple-like comma-separated list of detector IDs, e.g. "(0,1,2)".
             generate_calibrations:
                 type: boolean
                 descriptor: Should the master calibrations be generated from the images taken? \
@@ -300,7 +305,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Log information about the configuration
 
         self.log.debug(
-            f"n_bias: {config.n_bias}, detectors: {config.detectors}, "
+            f"n_bias: {config.n_bias}, "
+            f"detectors: {config.detectors}, "
             f"n_dark: {config.n_dark}, "
             f"n_flat: {config.n_flat}, "
             f"instrument: {self.instrument_name} "
@@ -333,7 +339,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return tuple(
             [
-                (await self.camera.take_imgtype(image_type, exp_time, 1))[0]
+                (
+                    await self.camera.take_imgtype(
+                        image_type,
+                        exp_time,
+                        1,
+                        sensors=self.config.detectors[1:-1].replace(",", ":"),
+                    )
+                )[0]
                 for exp_time in exp_times
             ]
         )
@@ -375,16 +388,18 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.image_in_oods_received_all_expected.clear()
         self.current_image_type = image_type
 
-        self.log.debug(
-            f"Detector: {self.config.detectors}, "
-            f"Number of exposures: {len(exp_times)}, "
-            f"Number of detectors: {n_detectors}, "
-            f"Number of images expected: {self.number_of_images_expected}, "
-        )
         # callback
         self.image_in_oods.callback = self.image_in_oods_callback
 
         exposures = await self.take_image_type(image_type, exp_times)
+
+        self.log.debug(
+            f"Waiting for {image_type} images to be ingested in the OODS. "
+            f"Detectors: {self.config.detectors}, "
+            f"Number of exposures: {len(exp_times)}, "
+            f"Number of detectors: {n_detectors}, "
+            f"Number of images expected: {self.number_of_images_expected}, "
+        )
 
         try:
             await asyncio.wait_for(
@@ -1038,6 +1053,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             raise RuntimeError(f"Error running command for certifying {image_type}.")
 
     async def arun(self, checkpoint=False):
+
+        self.validate_detector(self.config.detectors)
 
         # Check that the camera is enabled
         await self.camera.assert_all_enabled(

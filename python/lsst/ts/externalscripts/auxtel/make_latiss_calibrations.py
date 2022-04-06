@@ -76,6 +76,10 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         """Archiver imageInOODS event."""
         return self.camera.rem.atarchiver.evt_imageInOODS
 
+    def validate_detector(self, detectors):
+        """Validate detectors."""
+        assert detectors == "(0)", "Invalid detector definition for LATISS."
+
     @classmethod
     def get_schema(cls):
         schema = """

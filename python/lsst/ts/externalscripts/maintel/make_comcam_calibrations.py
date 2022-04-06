@@ -77,6 +77,14 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         """Archiver imageInOODS event."""
         return self.camera.rem.ccarchiver.evt_imageInOODS
 
+    def validate_detector(self, detectors):
+        """Validate detectors."""
+        valid_detector_set = set(range(8))
+        detector_list = set(detectors[1:-1].split(","))
+        assert detector_list.issubset(
+            valid_detector_set
+        ), f"Invalid detector definition for ComCam: {detectors}. Must be a subset of {valid_detector_set}."
+
     @classmethod
     def get_schema(cls):
         schema = """
