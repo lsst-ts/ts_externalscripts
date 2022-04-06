@@ -375,16 +375,37 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.image_in_oods_received_all_expected.clear()
         self.current_image_type = image_type
 
+        self.log.debug(
+            f"Detector: {self.config.detectors}, "
+            f"Number of exposures: {len(exp_times)}, "
+            f"Number of detectors: {n_detectors}, "
+            f"Number of images expected: {self.number_of_images_expected}, "
+        )
         # callback
         self.image_in_oods.callback = self.image_in_oods_callback
 
         exposures = await self.take_image_type(image_type, exp_times)
 
-        await asyncio.wait_for(
-            self.image_in_oods_received_all_expected.wait(),
-            timeout=self.config.oods_timeout,
-        )
+        try:
+            await asyncio.wait_for(
+                self.image_in_oods_received_all_expected.wait(),
+                timeout=self.config.oods_timeout,
+            )
+        except asyncio.TimeoutError:
+            expected_ids = set(exposures)
+            received_ids = set(
+                [
+                    self.get_exposure_id(image_in_oods.obsid)
+                    for image_in_oods in self.image_in_oods_samples[image_type]
+                ]
+            )
+            missing_image_ids = expected_ids - received_ids
 
+            raise RuntimeError(
+                "Timeout waiting for images to ingest in the OODS, "
+                f"expected: {len(exposures)}, received: {len(self.image_in_oods_samples[image_type])}. "
+                f"Missing image ids: {missing_image_ids}"
+            )
         self.ocps.evt_job_result.flush()
 
         return exposures
@@ -1208,6 +1229,28 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                                 f"{im_type} will be automatically certified."
                             )
                             await self.certify_calib(im_type, job_id_calib)
+
+    @staticmethod
+    def get_exposure_id(obsid):
+        """Parse obsid into an exposure id.
+
+        Convert string in the format ??_?_YYYYMMDD_012345 into an integer like
+        YYYYMMDD12345.
+
+        Parameters
+        ----------
+        obsid : str
+            Observation id in the format ??_?_YYYYMMDD_012345, e.g.,
+            AT_O_20220406_000007.
+
+        Returns
+        -------
+        int
+            Exposure id in the format YYYYMMDD12345, e.g., 2022040600007.
+        """
+        _, _, i_prefix, i_suffix = obsid.split("_")
+
+        return int((i_prefix + i_suffix[1:]))
 
     async def run(self):
         """"""
