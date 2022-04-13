@@ -87,6 +87,18 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         description: Configuration for making a LSSTComCam master calibrations SAL Script.
         type: object
         properties:
+            detector:
+                description: Detector IDs. If omitted, all 9 LSSTComCam detectors \
+                    will be used.
+                type: array
+                contains:
+                  - type: integer
+                minContains: 0
+                maxContains: 8
+                minItems: 0
+                maxItems: 9
+                uniqueItems: true
+                default: []
             filter:
                 description: Filter name or ID; if omitted the filter is not changed.
                 anyOf:

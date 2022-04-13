@@ -86,6 +86,17 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         description: Configuration for making a LATISS calibrations SAL Script.
         type: object
         properties:
+            detector:
+                description: Detector IDs.
+                type: array
+                contains:
+                  - type: integer
+                minContains: 0
+                maxContains: 0
+                minItems: 0
+                maxItems:1
+                uniqueItems: true
+                default: []
             filter:
                 description: Filter name or ID; if omitted the filter is not changed.
                 anyOf:

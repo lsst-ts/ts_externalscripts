@@ -168,10 +168,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                   - type: number
                     minimum: 0
                 default: 0
-            detectors:
-                type: string
-                default: "(0)"
-                descriptor: Detector IDs.
             generate_calibrations:
                 type: boolean
                 descriptor: Should the combined/master calibrations be generated from the images taken? \
@@ -296,6 +292,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         config: `types.SimpleNamespace`
             Configuration data. See `get_schema` for information about data
             structure.
+
+        Raises
+        ------
+            RuntimeError : Incorrect instrument name.
         """
         # Log information about the configuration
 
@@ -306,7 +306,27 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             f"instrument: {self.instrument_name} "
         )
 
+        if self.instrument_name == "LATISS":
+            # Just one case for LATISS: 1 detector.
+            config.detectors = "(0)"
+            n_detectors = 1
+        elif self.instrument_name == "LSSTComCam":
+            if len(config.detectors):
+                n_detectors = len(config.detectors)
+                d = "("
+                for x in config.detectors:
+                    d += f"{x},"
+                det_tuple_string = d[:-1] + ")"
+                config.detectors = det_tuple_string
+            else:
+                # Default value is an empty array: use all detectors.
+                config.detectors = "(0..9)"
+                n_detectors = 9
+        else:
+            raise RuntimeError("Incorrect instrument name: {self.instrument_name}.")
+
         self.config = config
+        self.config.n_detectors = n_detectors
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
@@ -368,9 +388,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         exp_times = await self.set_exp_times_per_im_type(image_type)
 
-        n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(","))))
-
-        self.number_of_images_expected = len(exp_times) * n_detectors
+        self.number_of_images_expected = len(exp_times) * self.config.n_detectors
         self.number_of_images_taken = 0
         self.image_in_oods_received_all_expected.clear()
         self.current_image_type = image_type
@@ -797,8 +815,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Main key of verify_stats is exposure IDs
         max_number_failed_exposures = int(len(verify_stats) / 2) + 1  # majority of exps
 
-        n_detectors = len(tuple(map(int, self.config.detectors[1:-1].split(","))))
-        max_number_failed_detectors = int(n_detectors / 2) + 1  # majority of detectors
+        max_number_failed_detectors = (
+            int(self.config.n_detectors / 2) + 1
+        )  # majority of detectors
 
         # Define failure threshold per exposure
         failure_threshold_exposure = (
