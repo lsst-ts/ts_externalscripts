@@ -224,8 +224,15 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             config_options_ptc:
                 type: string
                 descriptor: Options to be passed to the command-line PTC pipetask. They will overwrite \
-                    the values in measurePhotonTransferCurve.yaml.
+                    the values in cpPtc.yaml.
                 default: "-c ptcSolve:ptcFitType=EXPAPPROXIMATION "
+            do_gain_from_flat_pairs:
+                type: boolean
+                descriptor: Should the gain be estimated from each pair of flats
+                    taken at the same exposure time? Runs the cpPtc.yaml# generateGainFromFlatPairs \
+                    pipeline. Use the 'config_options_ptc' parameter to pass options to the ISR and \
+                    cpExtract tasks.
+                default: false
             n_processes:
                 type: integer
                 default: 8
@@ -414,7 +421,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         ----------
         image_type : `str`
             Image or calibration type. One of ["BIAS", "DARK",
-            "FLAT", "DEFECTS", "PTC"].
+            "FLAT", "DEFECTS", "PTC", "GAIN"].
         exposure_ids_dict: `dict` [`str`]
             Dictionary with tuple with exposure IDs for "BIAS",
             "DARK", or "FLAT".
@@ -466,8 +473,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 f"{self.config.config_options_defects}"
             )
             exposure_ids = exposure_ids_dict["DARK"] + exposure_ids_dict["FLAT"]
-        elif image_type == "PTC":
-            pipe_yaml = "cpPtc.yaml"
+        elif image_type == "PTC" or image_type == "GAIN":
+            if image_type == "PTC":
+                pipe_yaml = "cpPtc.yaml"
+            else:
+                pipe_yaml = "cpPtc.yaml#gainFromFlatPairs"
             config_string = (
                 f"-j {self.config.n_processes} -i {self.config.input_collections_ptc} "
                 "--register-dataset-types "
@@ -477,7 +487,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         else:
             raise RuntimeError(
                 "Invalid image or calib type {image_type} in 'call_pipetask' function. "
-                "Valid options: ['BIAS', 'DARK', 'FLAT', 'DEFECTS', 'PTC']"
+                "Valid options: ['BIAS', 'DARK', 'FLAT', 'DEFECTS', 'PTC', 'GAIN']"
             )
 
         # If we are using internal calibrations, place the
@@ -521,7 +531,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             f" detector IN {self.config.detectors} AND exposure IN {exposure_ids}",
         )
         self.log.debug(
-            f"Received acknowledgement of ocps command for making {image_type}"
+            f"Received acknowledgement of ocps command for {image_type} pipetask."
         )
 
         ack.print_vars()
@@ -530,7 +540,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Wait for the command completion acknowledgement.
         ack = await self.ocps.cmd_execute.next_ackcmd(ack)
         self.log.debug(
-            f"Received command completion acknowledgement from ocps for {image_type}"
+            f"Received command completion acknowledgement from ocps for {image_type}."
         )
         if ack.ack != salobj.SalRetCode.CMD_COMPLETE:
             ack.print_vars()
@@ -1116,6 +1126,47 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 f"{im_type} calibration failed verification and will not be certified."
             )
 
+    async def report_gains_from_flat_pairs(self, job_id_calib, exposure_ids_flat):
+        """Print gains estimated form flat pairs.
+
+        Parameters
+        ----------
+        jod_id_calib : `str`
+            Job ID returned by the OCPS after running the "GAIN" or
+            "PTC" pipetasks
+
+        exposure_ids_flat : `list` [`int`]
+            List of flat exposure IDs.
+
+        Notes
+        -----
+        The "PTC" and "GAIN" tasks are defined by the "cp_pipe" pipelines
+        "cpPtc.yaml" and "cpPtc.yaml#genGainsFromFlatPairs", respectively.
+        """
+        gen_collection = f"u/ocps/{job_id_calib}"
+        butler = dafButler.Butler(self.config.repo, collections=[gen_collection])
+
+        self.log_info(
+            "Gains estimated from flats pairs: \n "
+            "Exposure ID | Detector ID | Amp Name | Gain (e/ADU)"
+        )
+
+        for exp_id in exposure_ids_flat:
+            for det_id in self.config.detectors:
+                try:
+                    cpCov = butler.get(
+                        "cpCovariances",
+                        instrument="LSSTCam",
+                        detector=det_id,
+                        exposure=exp_id,
+                    )
+                    for amp_name in cpCov.gain:
+                        self.info(
+                            f"{exp_id} {det_id} {amp_name} {cpCov.gain[amp_name]}"
+                        )
+                except RuntimeError:
+                    continue
+
     async def arun(self, checkpoint=False):
 
         # Check that the camera is enabled
@@ -1291,10 +1342,18 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # After taking the basic images (biases, darks, and flats) do
         # defects and PTC if requested.
         calib_types = []
-        if self.config.do_ptc:
-            calib_types.append("PTC")
-        if self.config.do_defects:
-            calib_types.append("DEFECTS")
+        if mode == "BIAS_DARK_FLAT":
+            if self.config.do_ptc:
+                calib_types.append("PTC")
+            if self.config.do_defects:
+                calib_types.append("DEFECTS")
+            if self.config.do_gain_from_flat_pairs:
+                calib_types.append("GAIN")
+
+        # The 'gainFromFlatPairs' ("GAIN") pipeline is a subset of
+        # the 'cpPtc' pipeline ("PTC")
+        if "PTC" in calib_types and "GAIN" in calib_types:
+            calib_types.remove("GAIN")
 
         if len(calib_types):
             for calib_type in calib_types:
@@ -1310,6 +1369,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         f"Status: {response_ocps_calib_pipetask['phase']}. "
                     )
                 else:
+                    # Certify the calibrations in self.config.calib_collection
                     self.log.info(
                         "Verification for {calib_type} is not implemented yet "
                         "in this script. {calib_type} will be automatically certified."
@@ -1317,6 +1377,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     job_id_calib = response_ocps_calib_pipetask["jobId"]
                     await self.certify_calib(calib_type, job_id_calib)
                     self.log.info(f"{calib_type} generation job ID: {job_id_calib}")
+
+                    # Report the estimated gain from each pair of flats
+                    if calib_type in ["GAIN", "PTC"]:
+                        await self.report_gains_from_flat_pairs(
+                            job_id_calib, exposure_ids_dict["FLAT"]
+                        )
 
     async def run(self):
         """"""
