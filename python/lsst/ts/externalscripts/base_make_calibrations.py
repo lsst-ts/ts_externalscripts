@@ -485,6 +485,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         else:
             pipeline_yaml_file = f"${{CP_PIPE_DIR}}/pipelines/{pipe_yaml}"
 
+        # This returns the in-progress acknowledgement with the job identifier
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
             pipeline=f"{pipeline_yaml_file}",
@@ -493,11 +494,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             data_query=f"instrument='{self.instrument_name}' AND"
             f" detector IN {self.config.detectors} AND exposure IN {exposure_ids}",
         )
-        if ack.ack != salobj.SalRetCode.CMD_ACK:
-            ack.print_vars()
-
-        # Wait for the in-progress acknowledgement with the job identifier.
-        ack = await self.ocps.cmd_execute.next_ackcmd(ack, wait_done=False)
         self.log.debug(
             f"Received acknowledgement of ocps command for making {image_type}"
         )
@@ -619,11 +615,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             data_query=f"instrument='{self.instrument_name}' AND"
             f" detector IN {self.config.detectors} AND exposure IN {exposure_ids}",
         )
-
-        if ack.ack != salobj.SalRetCode.CMD_ACK:
-            ack.print_vars()
-
-        ack = await self.ocps.cmd_execute.next_ackcmd(ack, wait_done=False)
         self.log.debug(
             f"Received acknowledgement of ocps command for {image_type} verification."
         )
