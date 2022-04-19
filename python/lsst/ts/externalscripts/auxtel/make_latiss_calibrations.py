@@ -86,11 +86,11 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         description: Configuration for making a LATISS calibrations SAL Script.
         type: object
         properties:
-            detector:
+            detectors:
                 description: Detector IDs.
                 type: array
-                contains:
-                  - type: integer
+                items:
+                  - type: number
                 minContains: 0
                 maxContains: 0
                 minItems: 0

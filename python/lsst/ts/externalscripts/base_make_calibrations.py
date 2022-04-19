@@ -257,7 +257,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 default: 10
                 descriptor: Number of seconds to wait before trying \
                     again the 'image_in_oods' command.
-            oods_timeout_max_try:
+            oods_timeout_max_retry:
                 type: integer
                 default: 5
                 descriptor: Maximum number or re-tries for the \
