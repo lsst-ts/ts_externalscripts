@@ -51,7 +51,7 @@ class TestMakeLatissCalibrations(
             exp_times_dark = 10
             n_flat = 4
             exp_times_flat = [10, 10, 50, 50]
-            detectors = "(0, 1, 2, 3, 4, 5, 6, 7, 8)"
+            detectors = "[0, 1, 2, 3, 4, 5, 6, 7, 8]"
             n_processes = 4
 
             await self.configure_script(

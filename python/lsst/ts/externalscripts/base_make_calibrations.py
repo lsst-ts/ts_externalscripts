@@ -1071,6 +1071,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             Job ID returned by OCPS during previous calibration
             generation pipetask call.
 
+        Raises
+        ------
+            RuntimeError : Error in running the butler certification command.
+
         Notes
         -----
         The calibration will certified for use with a timespan that indicates
