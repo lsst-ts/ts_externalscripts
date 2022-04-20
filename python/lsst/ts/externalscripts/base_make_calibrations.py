@@ -1155,7 +1155,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             final_report_string = await self.build_verification_report_summary(
                 report_check_verify_stats
             )
-            self.log.error(
+            self.log.warning(
                 final_report_string + f"\n Generation collection: "
                 f"{gen_collection} \n Verification collection: "
                 f"{verify_collection}"
@@ -1164,7 +1164,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             final_report_string = await self.build_verification_report_summary(
                 report_check_verify_stats
             )
-            self.log.error(
+            self.log.warning(
                 final_report_string + f"\n Generation collection: "
                 f"{gen_collection} \n Verification "
                 f"collection: {verify_collection}"
