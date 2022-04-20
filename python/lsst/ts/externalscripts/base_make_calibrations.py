@@ -226,7 +226,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: string
                 descriptor: Options to be passed to the command-line PTC pipetask. They will overwrite \
                     the values in cpPtc.yaml.
-                default: "-c ptcSolve:ptcFitType=EXPAPPROXIMATION "
+                default: " "
             do_gain_from_flat_pairs:
                 type: boolean
                 descriptor: Should the gain be estimated from each pair of flats
