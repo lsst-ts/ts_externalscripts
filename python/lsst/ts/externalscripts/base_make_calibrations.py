@@ -27,6 +27,7 @@ import asyncio
 import collections
 import os
 import time
+import numpy as np
 from lsst.utils import getPackageDir
 from lsst.ts import salobj
 import lsst.daf.butler as dafButler
@@ -226,7 +227,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: string
                 descriptor: Options to be passed to the command-line PTC pipetask. They will overwrite \
                     the values in cpPtc.yaml.
-                default: " "
+                default: "-c isr:doCrosstalk=False "
             do_gain_from_flat_pairs:
                 type: boolean
                 descriptor: Should the gain be estimated from each pair of flats
@@ -1193,26 +1194,27 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         gen_collection = f"u/ocps/{job_id_calib}"
         butler = dafButler.Butler(self.config.repo, collections=[gen_collection])
 
-        self.log_info(
-            "Gains estimated from flats pairs: \n "
-            "Exposure ID | Detector ID | Amp Name | Gain (e/ADU)"
-        )
+        final_report_string = "Gains estimated from flats pairs: \n "
 
+        detector_ids = np.arange(0, int(self.config.detectors[-2]) + 1)
         for exp_id in exposure_ids_flat:
-            for det_id in self.config.detectors:
+            final_report_string += f"{exp_id}: \n"
+            for det_id in detector_ids:
+                final_report_string += f"\t Detector {det_id}: \n"
                 try:
                     cpCov = butler.get(
                         "cpCovariances",
-                        instrument="LSSTCam",
+                        instrument=self.instrument_name,
                         detector=det_id,
                         exposure=exp_id,
                     )
                     for amp_name in cpCov.gain:
-                        self.info(
-                            f"{exp_id} {det_id} {amp_name} {cpCov.gain[amp_name]}"
+                        final_report_string += (
+                            f"\t {amp_name}: {cpCov.gain[amp_name]}\n"
                         )
                 except RuntimeError:
                     continue
+        self.log.info(final_report_string)
 
     async def arun(self, checkpoint=False):
 
@@ -1416,15 +1418,17 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         f"{calib_type} generation pipetask not completed successfully: "
                         f"Status: {response_ocps_calib_pipetask['phase']}. Log file: \n "
                         f"/scratch/uws/jobs/{job_id_calib}/out/ocps.log "
-
                     )
                 else:
                     # Certify the calibrations in self.config.calib_collection
+                    # The quick gain estimation does not need to be certified.
                     self.log.info(
-                        "Verification for {calib_type} is not implemented yet "
-                        "in this script. {calib_type} will be automatically certified."
+                        f"Verification for {calib_type} is not implemented yet "
+                        f"in this script. {calib_type} will be automatically certified."
                     )
-                    await self.certify_calib(calib_type, job_id_calib)
+                    if calib_type != "GAIN":
+                        await self.certify_calib(calib_type, job_id_calib)
+
                     self.log.info(f"{calib_type} generation job ID: {job_id_calib}")
 
                     # Report the estimated gain from each pair of flats
