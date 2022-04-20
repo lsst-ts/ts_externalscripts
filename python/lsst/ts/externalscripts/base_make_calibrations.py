@@ -1408,12 +1408,15 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 response_ocps_calib_pipetask = await self.call_pipetask(
                     calib_type, exposure_ids_dict
                 )
+                job_id_calib = response_ocps_calib_pipetask["jobId"]
                 # Check that the task to generate the combined
                 # calibration did not fail.
                 if not response_ocps_calib_pipetask["phase"] == "completed":
                     raise RuntimeError(
                         f"{calib_type} generation pipetask not completed successfully: "
-                        f"Status: {response_ocps_calib_pipetask['phase']}. "
+                        f"Status: {response_ocps_calib_pipetask['phase']}. Log file: \n "
+                        f"/scratch/uws/jobs/{job_id_calib}/out/ocps.log "
+
                     )
                 else:
                     # Certify the calibrations in self.config.calib_collection
@@ -1421,7 +1424,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         "Verification for {calib_type} is not implemented yet "
                         "in this script. {calib_type} will be automatically certified."
                     )
-                    job_id_calib = response_ocps_calib_pipetask["jobId"]
                     await self.certify_calib(calib_type, job_id_calib)
                     self.log.info(f"{calib_type} generation job ID: {job_id_calib}")
 
