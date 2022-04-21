@@ -94,7 +94,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
                 minContains: 0
                 maxContains: 0
                 minItems: 0
-                maxItems:1
+                maxItems: 1
                 uniqueItems: true
                 default: []
             filter:
