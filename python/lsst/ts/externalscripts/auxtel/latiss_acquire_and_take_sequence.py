@@ -560,7 +560,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 current_position, target_position
             )
 
-            dr_arcsec = np.sqrt(dx_arcsec ** 2 + dy_arcsec ** 2)
+            dr_arcsec = np.sqrt(dx_arcsec**2 + dy_arcsec**2)
 
             self.log.debug(
                 f"Calculated offsets [dx,dy] are [{dx_arcsec:0.2f}, {dy_arcsec:0.2f}] arcsec as calculated"
