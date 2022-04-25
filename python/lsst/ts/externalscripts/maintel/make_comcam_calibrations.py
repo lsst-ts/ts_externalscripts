@@ -118,7 +118,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
                     will be used.
                 type: array
                 items:
-                  - type: number
+                  - type: integer
                 minContains: 0
                 maxContains: 8
                 minItems: 0
