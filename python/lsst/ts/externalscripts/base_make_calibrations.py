@@ -26,7 +26,6 @@ import json
 import asyncio
 import collections
 import os
-import time
 
 import numpy as np
 from lsst.utils import getPackageDir
@@ -266,16 +265,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: integer
                 default: 120
                 descriptor: Timeout value, in seconds, for OODS.
-            oods_timeout_retry_rate:
-                type: integer
-                default: 10
-                descriptor: Number of seconds to wait before trying \
-                    again the 'image_in_oods' command.
-            oods_timeout_max_retry:
-                type: integer
-                default: 5
-                descriptor: Maximum number or re-tries for the \
-                    'image_in_oods' command.
         additionalProperties: false
         """
         return yaml.safe_load(schema)
@@ -416,31 +405,26 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         exposures = await self.take_image_type(image_type, exp_times)
 
-        # Wait for image in OODS. Try several times before
-        # giving up, if there's a timeout.
-        do_wait_for_image_in_oods = True
-        retry = 0
-        retry_rate = self.config.oods_timeout_retry_rate
-        max_retry = self.config.oods_timeout_max_retry
-        while do_wait_for_image_in_oods:
-            do_wait_for_image_in_oods = False
-            try:
-                await asyncio.wait_for(
-                    self.image_in_oods_received_all_expected.wait(),
-                    timeout=self.config.oods_timeout,
-                )
-            except Exception as e:
-                self.log.warn("Operation failed due to %s.  Retry Number: %d", e, retry)
-                retry += 1
-                if retry > max_retry:
-                    raise RuntimeError(
-                        f"Maximum number of retries ({max_retry}) exceeded for "
-                        "acknowledgement that the expected images in "
-                        "OODS were received. Terminating!"
-                    )
-                else:
-                    time.sleep(retry_rate)
-                    do_wait_for_image_in_oods = True
+        try:
+            await asyncio.wait_for(
+                self.image_in_oods_received_all_expected.wait(),
+                timeout=self.config.oods_timeout,
+            )
+        except asyncio.TimeoutError:
+            expected_ids = set(exposures)
+            received_ids = set(
+                [
+                    self.get_exposure_id(image_in_oods.obsid)
+                    for image_in_oods in self.image_in_oods_samples[image_type]
+                ]
+            )
+            missing_image_ids = expected_ids - received_ids
+
+            raise RuntimeError(
+                "Timeout waiting for images to ingest in the OODS, "
+                f"expected: {len(exposures)}, received: {len(self.image_in_oods_samples[image_type])}. "
+                f"Missing image ids: {missing_image_ids}"
+            )
 
         self.ocps.evt_job_result.flush()
 
@@ -1429,6 +1413,27 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         await self.report_gains_from_flat_pairs(
                             job_id_calib, exposure_ids_dict["FLAT"]
                         )
+
+    @staticmethod
+    def get_exposure_id(obsid):
+        """Parse obsid into an exposure id.
+        Convert string in the format ??_?_YYYYMMDD_012345 into an integer like
+        YYYYMMDD12345.
+
+        Parameters
+        ----------
+        obsid : `str`
+            Observation id in the format ??_?_YYYYMMDD_012345, e.g.,
+            AT_O_20220406_000007.
+
+        Returns
+        -------
+        int
+            Exposure id in the format YYYYMMDD12345, e.g., 2022040600007.
+        """
+        _, _, i_prefix, i_suffix = obsid.split("_")
+
+        return int((i_prefix + i_suffix[1:]))
 
     async def run(self):
         """"""
