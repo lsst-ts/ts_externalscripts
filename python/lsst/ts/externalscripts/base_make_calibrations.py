@@ -27,6 +27,7 @@ import asyncio
 import collections
 import os
 import time
+
 import numpy as np
 from lsst.utils import getPackageDir
 from lsst.ts import salobj
@@ -97,7 +98,19 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def instrument_name(self):
-        """String with instrument name for pipeline task"""
+        """String with instrument name for pipeline tasks"""
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
+    def detectors(self):
+        """String with detector IDs for pipeline tasks"""
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
+    def n_detectors(self):
+        """Number of detectors"""
         raise NotImplementedError()
 
     @property
@@ -319,7 +332,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Log information about the configuration
 
         self.log.debug(
-            f"n_bias: {config.n_bias}, detectors: {config.detectors}, "
+            f"n_bias: {config.n_bias}, detectors: {self.detectors}, "
             f"n_dark: {config.n_dark}, "
             f"n_flat: {config.n_flat}, "
             f"instrument: {self.instrument_name}, "
@@ -331,27 +344,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             f"do_gain_from_flat_pairs: {config.do_gain_from_flat_pairs} "
         )
 
-        if self.instrument_name == "LATISS":
-            # Just one case for LATISS: 1 detector.
-            config.detectors = "(0)"
-            n_detectors = 1
-        elif self.instrument_name == "LSSTComCam":
-            if len(config.detectors):
-                n_detectors = len(config.detectors)
-                d = "("
-                for x in config.detectors:
-                    d += f"{x},"
-                det_tuple_string = d[:-1] + ")"
-                config.detectors = det_tuple_string
-            else:
-                # Default value is an empty array: use all detectors.
-                config.detectors = "(0..9)"
-                n_detectors = 9
-        else:
-            raise RuntimeError("Incorrect instrument name: {self.instrument_name}.")
-
         self.config = config
-        self.config.n_detectors = n_detectors
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
@@ -413,7 +406,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         exp_times = await self.set_exp_times_per_im_type(image_type)
 
-        self.number_of_images_expected = len(exp_times) * self.config.n_detectors
+        self.number_of_images_expected = len(exp_times) * self.n_detectors
         self.number_of_images_taken = 0
         self.image_in_oods_received_all_expected.clear()
         self.current_image_type = image_type
@@ -570,7 +563,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
-            f" detector IN {self.config.detectors} AND exposure IN {exposure_ids}",
+            f" detector IN {self.detectors} AND exposure IN {exposure_ids}",
         )
         self.log.debug(
             f"Received acknowledgement of ocps command for {image_type} pipetask."
@@ -691,7 +684,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
-            f" detector IN {self.config.detectors} AND exposure IN {exposure_ids}",
+            f" detector IN {self.detectors} AND exposure IN {exposure_ids}",
         )
         self.log.debug(
             f"Received acknowledgement of ocps command for {image_type} verification."
@@ -876,7 +869,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         max_number_failed_exposures = int(len(verify_stats) / 2) + 1  # majority of exps
 
         max_number_failed_detectors = (
-            int(self.config.n_detectors / 2) + 1
+            int(self.n_detectors / 2) + 1
         )  # majority of detectors
 
         # Define failure threshold per exposure
@@ -1196,7 +1189,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         final_report_string = "Gains estimated from flats pairs: \n "
 
-        detector_ids = np.arange(0, int(self.config.detectors[-2]) + 1)
+        detector_ids = np.arange(0, int(self.detectors[-2]) + 1)
         for exp_id in exposure_ids_flat:
             final_report_string += f"{exp_id}: \n"
             for det_id in detector_ids:

@@ -72,6 +72,16 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         return "LATISS"
 
     @property
+    def detectors(self):
+        """String with detector IDs for pipeline tasks"""
+        return "(0)"
+
+    @property
+    def n_detectors(self):
+        """Number of detectors passed to the pipeline tasks"""
+        return 1
+
+    @property
     def image_in_oods(self):
         """OODS imageInOODS event."""
         return self.camera.rem.atoods.evt_imageInOODS
@@ -86,17 +96,6 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         description: Configuration for making a LATISS calibrations SAL Script.
         type: object
         properties:
-            detectors:
-                description: Detector IDs.
-                type: array
-                items:
-                  - type: number
-                minContains: 0
-                maxContains: 0
-                minItems: 0
-                maxItems: 1
-                uniqueItems: true
-                default: []
             filter:
                 description: Filter name or ID; if omitted the filter is not changed.
                 anyOf:

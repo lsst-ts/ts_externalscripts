@@ -73,6 +73,32 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         return "LSSTComCam"
 
     @property
+    def detectors(self):
+        """String with detector IDs for pipeline tasks"""
+        if len(self.config.detectors):
+            d = "("
+            for x in self.config.detectors:
+                d += f"{x},"
+            det_tuple_string = d[:-1] + ")"
+        else:
+            # Default value is an empty array: use all detectors.
+            det_tuple_string = "(0..9)"
+
+        return det_tuple_string
+
+    @property
+    def n_detectors(self):
+        """Number of detectors passed to the pipeline tasks"""
+
+        if len(self.config.detectors):
+            n_detectors = len(self.config.detectors)
+        else:
+            # All detectors
+            n_detectors = 9
+
+        return n_detectors
+
+    @property
     def image_in_oods(self):
         """OODS imageInOODS event."""
         return self.camera.rem.ccoods.evt_imageInOODS
