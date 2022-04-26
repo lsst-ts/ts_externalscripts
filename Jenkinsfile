@@ -25,8 +25,8 @@ pipeline {
                 dir(env.WORKSPACE + '/ci/atmospec') {
                     git branch: 'main', url: 'https://github.com/lsst-dm/atmospec.git'
                 }
-                dir(env.WORKSPACE + '/ci/rapid_analysis') {
-                    git branch: 'main', url: 'https://github.com/lsst-sitcom/rapid_analysis.git'
+                dir(env.WORKSPACE + '/ci/summit_utils') {
+                    git branch: 'main', url: 'https://github.com/lsst-sitcom/summit_utils.git'
                 }
                 dir(env.WORKSPACE + '/ci/cwfs') {
                     git branch: 'master', url: 'https://github.com/lsst-ts/cwfs.git'
@@ -186,11 +186,11 @@ pipeline {
                }
            }
        }
-       stage("setup rapid_analysis") {
+       stage("setup summit_utils") {
            steps {
                script {
                    sh """
-                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/rapid_analysis && eups declare -r . -t saluser && setup atmospec -t saluser && setup rapid_analysis -t saluser && scons || echo FAILED to build rapid_analysis. Continuing...\"
+                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/summit_utils && eups declare -r . -t saluser && setup atmospec -t saluser && setup summit_utils -t saluser && scons || echo FAILED to build summit_utils. Continuing...\"
                    """
                }
            }
@@ -219,7 +219,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/ts_externalscripts && eups declare -r . -t saluser && setup ts_externalscripts -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && setup ts_observing_utilities -t saluser && setup atmospec -t saluser && setup rapid_analysis -t saluser && py.test --junitxml=tests/.tests/junit.xml\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/ts_externalscripts && eups declare -r . -t saluser && setup ts_externalscripts -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && setup ts_observing_utilities -t saluser && setup atmospec -t saluser && setup summit_utils -t saluser && py.test --junitxml=tests/.tests/junit.xml\"
                     """
                 }
             }

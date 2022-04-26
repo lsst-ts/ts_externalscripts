@@ -30,7 +30,7 @@ from lsst.geom import PointD
 
 try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
-    from lsst.rapid.analysis import BestEffortIsr
+    from lsst.summit.utils import BestEffortIsr
 
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
     from lsst.ts.observing.utilities.auxtel.latiss.utils import (
