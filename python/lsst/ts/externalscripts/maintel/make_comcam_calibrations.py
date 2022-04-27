@@ -50,6 +50,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         self._ocps_group = RemoteGroup(
             domain=self.domain, components=["OCPS:2"], log=self.log
         )
+        self._detectors = []
 
     @property
     def camera(self):
@@ -74,29 +75,13 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
 
     @property
     def detectors(self):
-        """String with detector IDs for pipeline tasks"""
-        if len(self.config.detectors):
-            d = "("
-            for x in self.config.detectors:
-                d += f"{x},"
-            det_tuple_string = d[:-1] + ")"
-        else:
-            # Default value is an empty array: use all detectors.
-            det_tuple_string = "(0..9)"
+        """Array with detector IDs"""
+        return self._detectors
 
-        return det_tuple_string
-
-    @property
-    def n_detectors(self):
-        """Number of detectors passed to the pipeline tasks"""
-
-        if len(self.config.detectors):
-            n_detectors = len(self.config.detectors)
-        else:
-            # All detectors
-            n_detectors = 9
-
-        return n_detectors
+    @detectors.setter
+    def detectors(self, value):
+        """Detector IDs array setter """
+        self._detectors = value
 
     @property
     def image_in_oods(self):

@@ -49,6 +49,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         self._ocps_group = RemoteGroup(
             domain=self.domain, components=["OCPS:1"], log=self.log
         )
+        self._detectors = [0]
 
     @property
     def camera(self):
@@ -73,13 +74,13 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
 
     @property
     def detectors(self):
-        """String with detector IDs for pipeline tasks"""
-        return "(0)"
+        """Array with detector IDs"""
+        return self._detectors
 
-    @property
-    def n_detectors(self):
-        """Number of detectors passed to the pipeline tasks"""
-        return 1
+    @detectors.setter
+    def detectors(self, value):
+        """Detector IDs array setter """
+        self._detectors = value
 
     @property
     def image_in_oods(self):

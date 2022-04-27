@@ -108,12 +108,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def n_detectors(self):
-        """Number of detectors"""
-        raise NotImplementedError()
-
-    @property
-    @abc.abstractmethod
     def image_in_oods(self):
         """OODS imageInOODS event"""
         raise NotImplementedError()
@@ -321,7 +315,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Log information about the configuration
 
         self.log.debug(
-            f"n_bias: {config.n_bias}, detectors: {self.detectors}, "
+            f"n_bias: {config.n_bias}, detectors: {config.detectors}, "
             f"n_dark: {config.n_dark}, "
             f"n_flat: {config.n_flat}, "
             f"instrument: {self.instrument_name}, "
@@ -334,6 +328,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         )
 
         self.config = config
+        self.detectors = config.detectors
+
+        if len(self.detectors):
+            self.n_detectors = len(self.detectors)
+        else:
+            self.n_detectors = 1
+
+        self.detectors_string = self.get_detectors_string(self.detectors)
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
@@ -547,7 +549,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
-            f" detector IN {self.detectors} AND exposure IN {exposure_ids}",
+            f" detector IN {self.detectors_string} AND exposure IN {exposure_ids}",
         )
         self.log.debug(
             f"Received acknowledgement of ocps command for {image_type} pipetask."
@@ -668,7 +670,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
-            f" detector IN {self.detectors} AND exposure IN {exposure_ids}",
+            f" detector IN {self.detectors_string} AND exposure IN {exposure_ids}",
         )
         self.log.debug(
             f"Received acknowledgement of ocps command for {image_type} verification."
@@ -1173,7 +1175,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         final_report_string = "Gains estimated from flats pairs: \n "
 
-        detector_ids = np.arange(0, int(self.detectors[-2]) + 1)
+        detector_ids = np.arange(0, self.n_detectors)
         for exp_id in exposure_ids_flat:
             final_report_string += f"{exp_id}: \n"
             for det_id in detector_ids:
@@ -1434,6 +1436,34 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         _, _, i_prefix, i_suffix = obsid.split("_")
 
         return int((i_prefix + i_suffix[1:]))
+
+    def get_detectors_string(self, detector_array):
+        """Get a detetcor string from a detctor array.
+        Convert a detetcor array of the form [0, 1, 2, ...] into a
+        string of the form "(0, 1, 2, ...)" to be used by pipetasks.
+
+        Parameters
+        ----------
+        detector_array : `array`
+            Array with the detector IDs
+
+        Returns
+        -------
+        detectors_string : `str`
+            Detector IDs list in the form "(0, 1, 2..)"
+        """
+
+        if len(detector_array):
+            d = "("
+            for x in detector_array:
+                d += f"{x},"
+            detectors_string = d[:-1] + ")"
+        else:
+            # Default value is an empty array: use all detectors.
+            n_det = self.n_detectors - 1
+            detectors_string = f"(0..{n_det})"
+
+        return detectors_string
 
     async def run(self):
         """"""
