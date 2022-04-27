@@ -108,6 +108,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
+    def n_detectors(self):
+        """Number of detectors for pipeline tasks"""
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
     def image_in_oods(self):
         """OODS imageInOODS event"""
         raise NotImplementedError()
@@ -332,8 +338,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         if len(self.detectors):
             self.n_detectors = len(self.detectors)
-        else:
-            self.n_detectors = 1
 
         self.detectors_string = self.get_detectors_string(self.detectors)
 

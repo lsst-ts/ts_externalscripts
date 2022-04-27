@@ -50,6 +50,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
             domain=self.domain, components=["OCPS:1"], log=self.log
         )
         self._detectors = [0]
+        self._n_detectors = 1
 
     @property
     def camera(self):
@@ -81,6 +82,16 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
     def detectors(self, value):
         """Detector IDs array setter """
         self._detectors = value
+
+    @property
+    def n_detectors(self):
+        """Number of detectors"""
+        return self._n_detectors
+
+    @n_detectors.setter
+    def n_detectors(self, value):
+        """Number of detectors setter """
+        self._n_detectors = value
 
     @property
     def image_in_oods(self):
