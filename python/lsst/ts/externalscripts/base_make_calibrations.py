@@ -321,7 +321,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Log information about the configuration
 
         self.log.debug(
-            f"n_bias: {config.n_bias}, detectors: {config.detectors}, "
+            f"n_bias: {config.n_bias}, detectors: {self.detectors}, "
             f"n_dark: {config.n_dark}, "
             f"n_flat: {config.n_flat}, "
             f"instrument: {self.instrument_name}, "
@@ -334,7 +334,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         )
 
         self.config = config
-        self.detectors = config.detectors
+        try:
+            self.detectors = config.detectors
+        except AttributeError:
+            self.detectors = []
 
         if len(self.detectors):
             self.n_detectors = len(self.detectors)
