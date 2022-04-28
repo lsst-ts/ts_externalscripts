@@ -34,13 +34,14 @@ from lsst.ts import salobj
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
+from lsst.ts.idl.enums.ATPtg import WrapStrategy
 
 try:
     from lsst.ts.observing.utilities.auxtel.latiss.utils import (
         parse_visit_id,
     )
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
-    from lsst.rapid.analysis import BestEffortIsr
+    from lsst.summit.utils import BestEffortIsr
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
@@ -163,6 +164,11 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.grating = None
         # exposure time for the intra/extra images (in seconds)
         self.exposure_time = None
+
+        # Assume the time-on-target is 10 minutes (600 seconds)
+        # for rotator positioning
+        self.time_on_target = 600
+
         # offset for the intra/extra images
         self._dz = None
         # butler data path.
@@ -186,6 +192,7 @@ class LatissCWFSAlign(salobj.BaseScript):
 
         self.intra_exposure = None
         self.extra_exposure = None
+        self.extra_focal_position_out_of_range = None
         self.detection_exp = None
 
         self.I1 = []
@@ -436,9 +443,17 @@ Pixel_size (m)			{}
         )
         dr = np.sqrt(dy**2 + dx**2)
         if dr > 100.0:
-            raise RuntimeError(
-                "Intra and Extra source finding algorithm " "found different sources."
+            self.log.warning(
+                "Source finding algorithm found different sources for intra/extra. \n"
+                f"intra found [y,x] = [{self.intra_result.brightestObjCentroidCofM[1]},"
+                "{self.intra_result.brightestObjCentroidCofM[0]}]\n"
+                f"extra found [y,x] = [{self.extra_result.brightestObjCentroidCofM[1]},"
+                "{self.extra_result.brightestObjCentroidCofM[0]}]\n"
+                "Forcing them to use the intra-location."
             )
+            self.extra_focal_position_out_of_range = True
+        else:
+            self.extra_focal_position_out_of_range = False
 
         # Create stamps for CWFS algorithm. Bin (if desired).
         self.create_donut_stamps_for_cwfs()
@@ -462,34 +477,58 @@ Pixel_size (m)			{}
         results_dict = self.calculate_results()
         return results_dict
 
+    def get_donut_region(self, center_y, center_x):
+
+        return (
+            center_y - self.side,
+            center_y + self.side,
+            center_x - self.side,
+            center_x + self.side,
+        )
+
+    def get_intra_donut_center(self):
+        return (
+            int(self.intra_result.brightestObjCentroidCofM[1]),
+            int(self.intra_result.brightestObjCentroidCofM[0]),
+        )
+
+    def get_extra_donut_center(self):
+
+        if self.extra_focal_position_out_of_range:
+            return self.get_intra_donut_center()
+
+        else:
+            return int(self.extra_result.brightestObjCentroidCofM[1]), int(
+                self.extra_result.brightestObjCentroidCofM[0]
+            )
+
     def create_donut_stamps_for_cwfs(self):
         """Create square stamps with donuts based on centroids."""
         # reset I1 and I2
         self.I1 = []
         self.I2 = []
 
-        ceny, cenx = int(self.intra_result.brightestObjCentroidCofM[1]), int(
-            self.intra_result.brightestObjCentroidCofM[0]
-        )
         self.log.debug(
-            f"Creating stamp for intra_image donut on centroid [y,x] = [{ceny},{cenx}] with a side "
+            f"Creating stamp for intra_image donut on centroid "
+            f"[y,x] = [{self.get_intra_donut_center()}] with a side "
             f"length of {2 * self.side} pixels"
         )
+
+        intra_box = self.get_donut_region(*self.get_intra_donut_center())
         intra_square = self.intra_exposure.image.array[
-            ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
+            intra_box[0] : intra_box[1], intra_box[2] : intra_box[3]
         ]
 
-        ceny, cenx = int(self.extra_result.brightestObjCentroidCofM[1]), int(
-            self.extra_result.brightestObjCentroidCofM[0]
-        )
+        extra_box = self.get_donut_region(*self.get_extra_donut_center())
+        extra_square = self.extra_exposure.image.array[
+            extra_box[0] : extra_box[1], extra_box[2] : extra_box[3]
+        ]
+
         self.log.debug(
-            f"Creating stamp for intra_image donut on centroid [y,x] = [{ceny},{cenx}] with a side "
+            f"Created stamp for extra_image donut on centroid "
+            f"[y,x] = [{self.get_extra_donut_center()}] with a side "
             f"length of {2 * self.side} pixels"
         )
-
-        extra_square = self.extra_exposure.image.array[
-            ceny - self.side : ceny + self.side, cenx - self.side : cenx + self.side
-        ]
 
         # Bin the images
         if self.binning != 1:
@@ -810,9 +849,12 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             if checkpoint:
                 await self.checkpoint(f"Slewing to object: {self.cwfs_target}")
             await self.atcs.slew_object(
-                name=self.cwfs_target, rot=0.0, rot_type=RotType.PhysicalSky
+                name=self.cwfs_target,
+                rot=0.0,
+                rot_type=RotType.PhysicalSky,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
             )
-
         elif (
             self.cwfs_target is not None
             and self.cwfs_target_dec is not None
@@ -830,6 +872,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 target_name=self.cwfs_target,
                 rot=0.0,
                 rot_type=RotType.PhysicalSky,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
             )
         elif (self.cwfs_target_dec is not None and self.cwfs_target_ra is None) or (
             self.cwfs_target_dec is None and self.cwfs_target_ra is not None

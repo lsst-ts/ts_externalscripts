@@ -8,7 +8,7 @@ setupRequired(ts_standardscripts)
 setupOptional(ts_observing_utilities)
 setupOptional(atmospec)
 setupOptional(cwfs)
-setupOptional(rapid_analysis)
+setupOptional(summit_utils)
 
 envPrepend(PATH, ${PRODUCT_DIR}/bin)
 envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)

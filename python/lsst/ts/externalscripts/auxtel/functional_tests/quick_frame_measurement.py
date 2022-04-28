@@ -28,7 +28,7 @@ import yaml
 import concurrent.futures
 
 try:
-    from lsst.rapid.analysis import BestEffortIsr
+    from lsst.summit.utils import BestEffortIsr
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_obs_id
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image

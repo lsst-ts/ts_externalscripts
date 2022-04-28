@@ -29,7 +29,7 @@ import os
 import pytest
 
 from lsst.ts import salobj
-from lsst.ts.utils import make_done_future
+
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
 from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
@@ -50,10 +50,9 @@ logger.propagate = True
 # Check to see if the test data is accessible for testing
 # Depending upon how we load test data this will change
 # for now just checking if butler is instantiated with
-# the default path used on the summit and on the NTS.
+# the default path used on the summit and on the TTS.
 
-# DATAPATH set to NTS repo
-DATAPATH = "/readonly/repo/main"
+DATAPATH = "/repo/LATISS"  # summit and TTS
 try:
     butler = dafButler.Butler(
         DATAPATH, instrument="LATISS", collections="LATISS/raw/all"
@@ -106,7 +105,9 @@ class TestLatissAcquireAndTakeSequence(
         self.script.atcs.slew_icrs = unittest.mock.AsyncMock()
         self.script.atcs.offset_xy = unittest.mock.AsyncMock()
         self.script.atcs.add_point_data = unittest.mock.AsyncMock()
-        self.script.latiss.ready_to_take_data = make_done_future()
+        self.script.latiss.ready_to_take_data = unittest.mock.AsyncMock(
+            return_value=True
+        )
 
         # Mock the latiss instrument setups
         self.script.latiss.setup_atspec = unittest.mock.AsyncMock(
@@ -232,6 +233,8 @@ class TestLatissAcquireAndTakeSequence(
             object_name = "HR8799"
             grating_sequence = "test_disp1"
             filter_sequence = "test_filt1"
+            reason = "test"
+            program = "test_program"
             exposure_time_sequence = 1.0
             do_acquire = False
             do_take_sequence = True
@@ -243,6 +246,8 @@ class TestLatissAcquireAndTakeSequence(
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
                 datapath=DATAPATH,
+                reason=reason,
+                program=program,
             )
 
             assert self.script.object_name == object_name
@@ -266,6 +271,8 @@ class TestLatissAcquireAndTakeSequence(
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
                 datapath=DATAPATH,
+                reason=reason,
+                program=program,
             )
 
             assert self.script.object_name == object_name
@@ -295,12 +302,12 @@ class TestLatissAcquireAndTakeSequence(
 
             acq_filter = "acqfilter"
             acq_grating = "acqgrating"
-            acq_exposure_time = 1
+            acq_exposure_time = 10
             max_acq_iter = 3
             target_pointing_tolerance = 3
             filter_sequence = ["test_filt1", "test_filt2"]
             grating_sequence = "test_disp1"
-            exposure_time_sequence = [1.0, 2.0]
+            exposure_time_sequence = [20.0, 60.0]
 
             # Try configure will all parameters declared
             await self.configure_script(
@@ -316,6 +323,8 @@ class TestLatissAcquireAndTakeSequence(
                 grating_sequence=grating_sequence,
                 exposure_time_sequence=exposure_time_sequence,
                 datapath=DATAPATH,
+                reason=reason,
+                program=program,
             )
             assert self.script.object_name == object_name
             for i, v in enumerate(self.script.visit_configs):
@@ -327,6 +336,9 @@ class TestLatissAcquireAndTakeSequence(
             # Verify inputs
             assert self.script.do_take_sequence is True
             assert self.script.do_acquire is True
+            assert self.script.time_on_target >= acq_exposure_time + sum(
+                exposure_time_sequence
+            )
 
     @unittest.skipIf(
         DATA_AVAILABLE is False,
@@ -342,6 +354,8 @@ class TestLatissAcquireAndTakeSequence(
             object_name = "HR8799"
             grating_sequence = ["test_disp1", "test_disp2"]
             filter_sequence = ["test_filt1", "test_filt2"]
+            reason = "test"
+            program = "test_program"
             exposure_time_sequence = [0.3, 0.8]
             do_acquire = False
             do_take_sequence = True
@@ -353,6 +367,8 @@ class TestLatissAcquireAndTakeSequence(
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
                 datapath=DATAPATH,
+                reason=reason,
+                program=program,
             )
 
             # publish ataos event saying corrections are enabled
@@ -412,6 +428,8 @@ class TestLatissAcquireAndTakeSequence(
             do_acquire = True
             do_take_sequence = False
             do_pointing_model = True
+            reason = "test"
+            program = "test_program"
             await self.configure_script(
                 object_name=object_name,
                 object_ra=object_ra,
@@ -424,6 +442,8 @@ class TestLatissAcquireAndTakeSequence(
                 max_acq_iter=max_acq_iter,
                 do_pointing_model=do_pointing_model,
                 datapath=DATAPATH,
+                reason=reason,
+                program=program,
             )
 
             # publish ataos event saying corrections are enabled
@@ -477,6 +497,8 @@ class TestLatissAcquireAndTakeSequence(
             do_pointing_model = False
             acq_exposure_time = 0.4
             target_pointing_verification = False
+            reason = "test"
+            program = "test_program"
             await self.configure_script(
                 object_name=object_name,
                 do_acquire=do_acquire,
@@ -489,6 +511,8 @@ class TestLatissAcquireAndTakeSequence(
                 acq_exposure_time=acq_exposure_time,
                 target_pointing_verification=target_pointing_verification,
                 datapath=DATAPATH,
+                reason=reason,
+                program=program,
             )
 
             # publish ataos event saying corrections are enabled
@@ -539,6 +563,8 @@ class TestLatissAcquireAndTakeSequence(
             do_acquire = True
             do_take_sequence = False
             target_pointing_verification = False
+            reason = "test"
+            program = "test_program"
             await self.configure_script(
                 object_name=object_name,
                 do_acquire=do_acquire,
@@ -549,6 +575,8 @@ class TestLatissAcquireAndTakeSequence(
                 max_acq_iter=max_acq_iter,
                 target_pointing_verification=target_pointing_verification,
                 datapath=DATAPATH,
+                reason=reason,
+                program=program,
             )
 
             # publish ataos event saying corrections are enabled
@@ -604,6 +632,8 @@ class TestLatissAcquireAndTakeSequence(
             target_pointing_verification = False
             do_acquire = True
             do_take_sequence = True
+            reason = "test"
+            program = "test_program"
             await self.configure_script(
                 object_name=object_name,
                 do_acquire=do_acquire,
@@ -616,6 +646,8 @@ class TestLatissAcquireAndTakeSequence(
                 exposure_time_sequence=exposure_time_sequence,
                 target_pointing_verification=target_pointing_verification,
                 datapath=DATAPATH,
+                reason=reason,
+                program=program,
             )
 
             # publish ataos event saying corrections are enabled

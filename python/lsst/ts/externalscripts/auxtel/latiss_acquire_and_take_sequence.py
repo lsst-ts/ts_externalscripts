@@ -21,7 +21,7 @@
 __all__ = ["LatissAcquireAndTakeSequence"]
 
 import asyncio
-import collections.abc
+import collections
 import warnings
 
 import numpy as np
@@ -34,6 +34,7 @@ from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.utils import format_as_list
+from lsst.ts.idl.enums.ATPtg import WrapStrategy
 
 try:
     from lsst.ts.observing.utilities.auxtel.latiss.utils import (
@@ -41,7 +42,7 @@ try:
         parse_obs_id,
     )
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
-    from lsst.rapid.analysis import BestEffortIsr
+    from lsst.summit.utils import BestEffortIsr
 
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
 except ImportError:
@@ -214,6 +215,17 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     minimum: 0
                 default: 2.
 
+              time_on_target:
+                description: Override the automatically calculated time_on_target value used
+                    to optimize the telescope cable wrap positions.
+                    Set to null (default) to have it calculated automatically.
+
+                anyOf:
+                  - type: "null"
+                  - type: number
+                    minimum: 0.0
+                default: null
+
               datapath:
                 description: Path to the gen3 butler data repository. The default is for the summit.
                 type: string
@@ -313,7 +325,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         # make a list of tuples from the filter, exptime and grating lists
         _recurrences = (
             len(config.exposure_time_sequence)
-            if isinstance(config.exposure_time_sequence, collections.abc.Iterable)
+            if isinstance(config.exposure_time_sequence, collections.Iterable)
             else 1
         )
 
@@ -346,6 +358,41 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 DeprecationWarning,
             )
 
+        self.time_on_target = config.time_on_target
+        self.time_on_target = (
+            self.compute_time_on_target()
+            if config.time_on_target is None
+            else config.time_on_target
+        )
+
+    def compute_time_on_target(self):
+        """Determine the amount of time spent on target so the rotator position
+        can be optimized. Assumed slew time is 3 minutes, and that the read,
+        calculation, and offset totals 20s.
+
+        Returns
+        -------
+        time_on_target: float
+            Estimate of time on target in seconds.
+        """
+
+        time_on_target = 180 + self.max_acq_iter * (self.acq_exposure_time + 20)
+        if self.do_take_sequence:
+            nexp = len(self.visit_configs)
+            visit_exptime_total = 0.0
+            for (filt, exptime, grating) in self.visit_configs:
+                visit_exptime_total += exptime
+
+            time_on_target += visit_exptime_total
+            # assume 5s for readout and instrument reconfiguration
+            # for each exposure
+            time_on_target += nexp * 5
+        self.log.debug(
+            f"Assuming a time_on_target of {time_on_target/60:0.2f} minutes."
+        )
+
+        return time_on_target
+
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
@@ -356,9 +403,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
     # I'm not quite sure what the metadata.filter bit is used for...
     def set_metadata(self, metadata):
         metadata.duration = 300
-        filters, gratings, expTimeTotal = set(), set(), 0
-        for (filt, expTime, grating) in self.visit_configs:
-            expTimeTotal += expTime
+        filters, gratings, exptime_total = set(), set(), 0
+        for (filt, exptime, grating) in self.visit_configs:
+            exptime_total += exptime
             filters.add(filt)
             gratings.add(grating)
         metadata.filter = f"{filters},{gratings}"
@@ -423,6 +470,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 target_name=self.object_name,
                 rot_type=RotType.Parallactic,
                 slew_timeout=240,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
                 offset_x=dx_arcsec,
                 offset_y=dy_arcsec,
             )
@@ -432,6 +481,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 name=self.object_name,
                 rot_type=RotType.Parallactic,
                 slew_timeout=240,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
                 offset_x=dx_arcsec,
                 offset_y=dy_arcsec,
             )
@@ -608,7 +659,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         nexp = len(self.visit_configs)
 
-        for i, (filt, expTime, grating) in enumerate(self.visit_configs):
+        for i, (filt, exptime, grating) in enumerate(self.visit_configs):
 
             # Check if a manual focus offset is required
             if self.manual_focus_offset != 0.0 and not self.manual_focus_offset_applied:
@@ -626,7 +677,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             # Take an image
             await self.latiss.take_object(
-                exptime=expTime,
+                exptime=exptime,
                 n=1,
                 filter=filt,
                 grating=grating,
@@ -636,7 +687,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             )
 
             self.log.info(
-                f"Completed exposure {i + 1} of {nexp}. Exptime = {expTime:6.1f}s,"
+                f"Completed exposure {i + 1} of {nexp}. Exptime = {exptime:6.1f}s,"
                 f" filter={filt}, grating={grating})"
             )
 
