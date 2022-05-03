@@ -31,7 +31,6 @@ import pytest
 
 try:
     # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
-    from lsst.summit.utils import BestEffortIsr
     from lsst import cwfs
 
     CWFS_AVAILABLE = True
@@ -151,10 +150,6 @@ class TestLatissCWFSAlign(
 
         # Return a single element tuple
         return (self.script,)
-
-    def get_best_effort_isr_mock(self):
-        logger.debug("Mocking BestEffortISR")
-        return BestEffortIsr(self.datapath, doWrite=False)
 
     async def ataos_cmd_offset_callback(self, data):
         """Publishes event from hexapod saying movement completed"""
