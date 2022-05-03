@@ -130,12 +130,6 @@ properties:
         description: >-
             Magnitude range. The faintest limit is defined as
             magnitude_limit+magnitude_range.
-    datapath:
-        type: string
-        default: /repo/LATISS
-        description: >-
-            Path to the gen3 butler data repository where the images are located.
-            The default is for the summit.
     exposure_time:
         type: number
         default: 1.
@@ -183,7 +177,7 @@ additionalProperties: false
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
-        return BestEffortIsr(self.config.datapath)
+        return BestEffortIsr()
 
     def configure_grid(self):
         """Configure the observation grid."""
