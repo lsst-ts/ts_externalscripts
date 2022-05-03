@@ -171,8 +171,6 @@ class LatissCWFSAlign(salobj.BaseScript):
 
         # offset for the intra/extra images
         self._dz = None
-        # butler data path.
-        self.datapath = None
         # end of configurable attributes
 
         # Set (oversized) stamp size for centroid estimation
@@ -387,7 +385,6 @@ Pixel_size (m)			{}
             self.log.info(
                 f"Running cwfs on {self.intra_visit_id} and {self.extra_visit_id}."
             )
-            self.log.debug(f"Using datapath of {self.datapath}.")
             self.log.debug(
                 f"Using a data_id of {parse_visit_id(self.intra_visit_id)} "
                 f"and {parse_visit_id(self.extra_visit_id)}."
@@ -717,10 +714,6 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     the change in magnification from moving the secondary mirror.
                 type: number
                 default: 0.0011
-              datapath:
-                description: Path to the gen3 butler data repository. The default is for the summit.
-                type: string
-                default: /repo/LATISS
               large_defocus:
                 description: >-
                     Defines a large defocus. If the measured defocus is larger than this value,
@@ -808,9 +801,6 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         # delta offset for extra focal image
         self.extra_focal_offset = config.extra_focal_offset
 
-        # butler data path.
-        self.datapath = config.datapath
-
         # Instantiate BestEffortIsr
         self.best_effort_isr = self.get_best_effort_isr()
 
@@ -833,7 +823,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
-        return BestEffortIsr(self.datapath)
+        return BestEffortIsr()
 
     def set_metadata(self, metadata):
         # It takes about 300s to run the cwfs code, plus the two exposures
