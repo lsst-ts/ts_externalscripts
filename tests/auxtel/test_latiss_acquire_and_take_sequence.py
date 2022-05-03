@@ -245,7 +245,6 @@ class TestLatissAcquireAndTakeSequence(
                 exposure_time_sequence=exposure_time_sequence,
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
-                datapath=DATAPATH,
                 reason=reason,
                 program=program,
             )
@@ -270,7 +269,6 @@ class TestLatissAcquireAndTakeSequence(
                 exposure_time_sequence=exposure_time_sequence,
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
-                datapath=DATAPATH,
                 reason=reason,
                 program=program,
             )
@@ -297,7 +295,6 @@ class TestLatissAcquireAndTakeSequence(
                     exposure_time_sequence=exposure_time_sequence,
                     do_acquire=do_acquire,
                     do_take_sequence=do_take_sequence,
-                    datapath=DATAPATH,
                 )
 
             acq_filter = "acqfilter"
@@ -322,7 +319,6 @@ class TestLatissAcquireAndTakeSequence(
                 filter_sequence=filter_sequence,
                 grating_sequence=grating_sequence,
                 exposure_time_sequence=exposure_time_sequence,
-                datapath=DATAPATH,
                 reason=reason,
                 program=program,
             )
@@ -366,7 +362,6 @@ class TestLatissAcquireAndTakeSequence(
                 exposure_time_sequence=exposure_time_sequence,
                 do_acquire=do_acquire,
                 do_take_sequence=do_take_sequence,
-                datapath=DATAPATH,
                 reason=reason,
                 program=program,
             )
@@ -441,7 +436,6 @@ class TestLatissAcquireAndTakeSequence(
                 target_pointing_tolerance=target_pointing_tolerance,
                 max_acq_iter=max_acq_iter,
                 do_pointing_model=do_pointing_model,
-                datapath=DATAPATH,
                 reason=reason,
                 program=program,
             )
@@ -510,7 +504,6 @@ class TestLatissAcquireAndTakeSequence(
                 do_pointing_model=do_pointing_model,
                 acq_exposure_time=acq_exposure_time,
                 target_pointing_verification=target_pointing_verification,
-                datapath=DATAPATH,
                 reason=reason,
                 program=program,
             )
@@ -574,7 +567,6 @@ class TestLatissAcquireAndTakeSequence(
                 target_pointing_tolerance=target_pointing_tolerance,
                 max_acq_iter=max_acq_iter,
                 target_pointing_verification=target_pointing_verification,
-                datapath=DATAPATH,
                 reason=reason,
                 program=program,
             )
@@ -645,7 +637,6 @@ class TestLatissAcquireAndTakeSequence(
                 target_pointing_tolerance=target_pointing_tolerance,
                 exposure_time_sequence=exposure_time_sequence,
                 target_pointing_verification=target_pointing_verification,
-                datapath=DATAPATH,
                 reason=reason,
                 program=program,
             )
