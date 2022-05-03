@@ -226,11 +226,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     minimum: 0.0
                 default: null
 
-              datapath:
-                description: Path to the gen3 butler data repository. The default is for the summit.
-                type: string
-                default: /repo/LATISS
-
               do_pointing_model:
                 description: Adjust star position (sweet spot) to use boresight. Save datapoint
                     when on target.
@@ -279,9 +274,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         config : `types.SimpleNamespace`
             Script configuration, as defined by `schema`.
         """
-
-        # butler data path
-        self.datapath = config.datapath
 
         # Instantiate BestEffortIsr
         self.best_effort_isr = self.get_best_effort_isr()
@@ -396,7 +388,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
-        return BestEffortIsr(self.datapath)
+        return BestEffortIsr()
 
     # This bit is required for ScriptQueue
     # Does the calculation below need acquisition times?
