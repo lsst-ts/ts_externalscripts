@@ -288,7 +288,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             elevation_minimum=20.0,
             elevation_maximum=80.0,
             magnitude_limit=9.0,
-            datapath=DATAPATH,
             exposure_time=1.0,
         )
 
