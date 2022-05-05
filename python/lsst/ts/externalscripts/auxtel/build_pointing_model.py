@@ -235,13 +235,19 @@ additionalProperties: false
 
     async def arun(self, checkpoint_active=False):
 
+        self.log.info("Reset pointing and hexapod offsets.")
+
+        await self.atcs.rem.ataos.cmd_resetOffset.set_start(axis="x")
+        await self.atcs.rem.ataos.cmd_resetOffset.set_start(axis="y")
+        await self.atcs.reset_offsets()
+
         for grid_index, azimuth, elevation in zip(
             range(self.grid_size), self.azimuth_grid, self.elevation_grid
         ):
 
             checkpoint_message = (
                 f"Execute grid position {grid_index+1} of {self.grid_size}: "
-                f"az={azimuth}, el={elevation}."
+                f"az={azimuth:0.2f}, el={elevation:0.2f}."
             )
 
             await self.handle_checkpoint(checkpoint_active, checkpoint_message)
