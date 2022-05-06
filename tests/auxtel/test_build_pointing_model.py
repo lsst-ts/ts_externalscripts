@@ -135,13 +135,38 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
     def assert_arun(self):
 
         assert self.script.execute_grid.await_count == self.script.grid_size
-        calls = [
+        execute_grid_calls = [
             unittest.mock.call(azimuth, elevation)
             for azimuth, elevation in zip(
                 self.script.azimuth_grid, self.script.elevation_grid
             )
         ]
-        self.script.execute_grid.assert_has_awaits(calls)
+        self.script.execute_grid.assert_has_awaits(execute_grid_calls)
+
+        ataos_reset_offset_calls = [
+            unittest.mock.call(axis="x", timeout=self.script.atcs.long_timeout),
+            unittest.mock.call(axis="y", timeout=self.script.atcs.long_timeout),
+        ]
+
+        self.script.atcs.rem.ataos.cmd_resetOffset.set_start.assert_has_awaits(
+            ataos_reset_offset_calls
+        )
+
+        atptg_porigin_clear_calls = [
+            unittest.mock.call(num=0, timeout=self.script.atcs.fast_timeout),
+            unittest.mock.call(num=1, timeout=self.script.atcs.fast_timeout),
+        ]
+        atptg_offset_clear_calls = [
+            unittest.mock.call(num=0, timeout=self.script.atcs.fast_timeout),
+            unittest.mock.call(num=1, timeout=self.script.atcs.fast_timeout),
+        ]
+
+        self.script.atcs.rem.atptg.cmd_poriginClear.set_start.assert_has_awaits(
+            atptg_porigin_clear_calls
+        )
+        self.script.atcs.rem.atptg.cmd_offsetClear.set_start.assert_has_awaits(
+            atptg_offset_clear_calls
+        )
 
     async def test_execute_grid(self):
 
@@ -307,5 +332,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         async with self.make_script():
 
             test_configuration = await self.set_test_configuration()
+            self.script.atcs.rem.ataos = unittest.mock.AsyncMock()
+            self.script.atcs.rem.atptg = unittest.mock.AsyncMock()
 
             yield test_configuration
