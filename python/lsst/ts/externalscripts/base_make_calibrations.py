@@ -313,10 +313,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         config: `types.SimpleNamespace`
             Configuration data. See `get_schema` for information about data
             structure.
-
-        Raises
-        ------
-            RuntimeError : Incorrect instrument name.
         """
         # Log information about the configuration
 
@@ -334,10 +330,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         )
 
         self.config = config
-        try:
-            self.detectors = config.detectors
-        except AttributeError:
-            self.detectors = []
 
         if len(self.detectors):
             self.n_detectors = len(self.detectors)
