@@ -83,10 +83,6 @@ class QuickFrameMeasurement(salobj.BaseScript):
             description: Configuration for QuickFrameMeasurement Script.
             type: object
             properties:
-              datapath:
-                description: Path to the gen3 butler data repository.
-                type: string
-                default: /repo/LATISS/
               visit_id:
                 description: Visit id of the image to process. Format is AT_O_YYYYMMDD_NNNNNN.
                 type: string
@@ -114,7 +110,7 @@ class QuickFrameMeasurement(salobj.BaseScript):
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
-        return BestEffortIsr(self.config.datapath)
+        return BestEffortIsr()
 
     def set_metadata(self, metadata):
         metadata.duration = 60.0

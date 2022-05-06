@@ -31,7 +31,6 @@ import pytest
 
 try:
     # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
-    from lsst.summit.utils import BestEffortIsr
     from lsst import cwfs
 
     CWFS_AVAILABLE = True
@@ -152,10 +151,6 @@ class TestLatissCWFSAlign(
         # Return a single element tuple
         return (self.script,)
 
-    def get_best_effort_isr_mock(self):
-        logger.debug("Mocking BestEffortISR")
-        return BestEffortIsr(self.datapath, doWrite=False)
-
     async def ataos_cmd_offset_callback(self, data):
         """Publishes event from hexapod saying movement completed"""
         logger.debug("Sending hexapod event ")
@@ -231,7 +226,6 @@ class TestLatissCWFSAlign(
                 grating=grating,
                 filter=filter,
                 exposure_time=exposure_time,
-                datapath=DATAPATH,
             )
 
             assert self.script.filter == filter
@@ -373,7 +367,6 @@ class TestLatissCWFSAlign(
                 grating=grating,
                 filter=filter,
                 exposure_time=exposure_time,
-                datapath=DATAPATH,
             )
 
             # await self.run_script()
@@ -526,9 +519,7 @@ class TestLatissCWFSAlign(
         """
         async with self.make_script():
 
-            await self.configure_script(
-                datapath=DATAPATH,
-            )
+            await self.configure_script()
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2021110400954: [76.95, 89.09]})
             self.visit_id_angles.update({2021110400955: [76.96, 88.79]})
@@ -650,9 +641,7 @@ class TestLatissCWFSAlign(
         """
         async with self.make_script():
 
-            await self.configure_script(
-                datapath=DATAPATH,
-            )
+            await self.configure_script()
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2022031600232: [51.07, 0.58]})
             self.visit_id_angles.update({2022031600233: [51.07, 0.58]})

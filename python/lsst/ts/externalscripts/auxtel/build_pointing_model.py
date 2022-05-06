@@ -130,12 +130,6 @@ properties:
         description: >-
             Magnitude range. The faintest limit is defined as
             magnitude_limit+magnitude_range.
-    datapath:
-        type: string
-        default: /repo/LATISS
-        description: >-
-            Path to the gen3 butler data repository where the images are located.
-            The default is for the summit.
     exposure_time:
         type: number
         default: 1.
@@ -183,7 +177,7 @@ additionalProperties: false
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
-        return BestEffortIsr(self.config.datapath)
+        return BestEffortIsr()
 
     def configure_grid(self):
         """Configure the observation grid."""
@@ -241,13 +235,25 @@ additionalProperties: false
 
     async def arun(self, checkpoint_active=False):
 
+        self.log.info("Resetting pointing and hexapod x and y offsets.")
+
+        await self.atcs.rem.ataos.cmd_resetOffset.set_start(
+            axis="x",
+            timeout=self.atcs.long_timeout,
+        )
+        await self.atcs.rem.ataos.cmd_resetOffset.set_start(
+            axis="y",
+            timeout=self.atcs.long_timeout,
+        )
+        await self.atcs.reset_offsets()
+
         for grid_index, azimuth, elevation in zip(
             range(self.grid_size), self.azimuth_grid, self.elevation_grid
         ):
 
             checkpoint_message = (
                 f"Execute grid position {grid_index+1} of {self.grid_size}: "
-                f"az={azimuth}, el={elevation}."
+                f"az={azimuth:0.2f}, el={elevation:0.2f}."
             )
 
             await self.handle_checkpoint(checkpoint_active, checkpoint_message)
