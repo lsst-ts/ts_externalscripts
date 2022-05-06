@@ -226,7 +226,6 @@ class TestLatissCWFSAlign(
                 grating=grating,
                 filter=filter,
                 exposure_time=exposure_time,
-                datapath=DATAPATH,
             )
 
             assert self.script.filter == filter
@@ -368,7 +367,6 @@ class TestLatissCWFSAlign(
                 grating=grating,
                 filter=filter,
                 exposure_time=exposure_time,
-                datapath=DATAPATH,
             )
 
             # await self.run_script()
@@ -521,9 +519,7 @@ class TestLatissCWFSAlign(
         """
         async with self.make_script():
 
-            await self.configure_script(
-                datapath=DATAPATH,
-            )
+            await self.configure_script()
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2021110400954: [76.95, 89.09]})
             self.visit_id_angles.update({2021110400955: [76.96, 88.79]})
@@ -645,9 +641,7 @@ class TestLatissCWFSAlign(
         """
         async with self.make_script():
 
-            await self.configure_script(
-                datapath=DATAPATH,
-            )
+            await self.configure_script()
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2022031600232: [51.07, 0.58]})
             self.visit_id_angles.update({2022031600233: [51.07, 0.58]})
