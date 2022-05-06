@@ -283,7 +283,7 @@ Pixel_size (m)			{}
 
         await self.hexapod_offset(self.dz)
 
-        intra_image = await self.latiss.take_engtest(
+        intra_image = await self.latiss.take_cwfs(
             exptime=self.exposure_time,
             n=1,
             group_id=self.group_id,
@@ -302,7 +302,7 @@ Pixel_size (m)			{}
 
         self.log.debug("Taking extra-focal image")
 
-        extra_image = await self.latiss.take_engtest(
+        extra_image = await self.latiss.take_cwfs(
             exptime=self.exposure_time,
             n=1,
             group_id=self.group_id,
@@ -877,7 +877,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         if self.take_detection_image:
             if checkpoint:
                 await self.checkpoint("Detection image.")
-            await self.latiss.take_engtest(
+            await self.latiss.take_acq(
                 self.acq_exposure_time,
                 group_id=self.group_id,
                 reason="DETECTION_INFOCUS"
@@ -951,7 +951,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     f"reported hexapod position is, {hexapod_position.reportedPosition}."
                 )
                 self.log.debug("Taking in focus image after applying final results.")
-                await self.latiss.take_object(
+                await self.latiss.take_acq(
                     self.acq_exposure_time,
                     group_id=self.group_id,
                     reason="FINAL_INFOCUS"
