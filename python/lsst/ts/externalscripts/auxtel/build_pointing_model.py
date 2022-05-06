@@ -235,10 +235,16 @@ additionalProperties: false
 
     async def arun(self, checkpoint_active=False):
 
-        self.log.info("Reset pointing and hexapod offsets.")
+        self.log.info("Resetting pointing and hexapod x and y offsets.")
 
-        await self.atcs.rem.ataos.cmd_resetOffset.set_start(axis="x")
-        await self.atcs.rem.ataos.cmd_resetOffset.set_start(axis="y")
+        await self.atcs.rem.ataos.cmd_resetOffset.set_start(
+            axis="x",
+            timeout=self.atcs.long_timeout,
+        )
+        await self.atcs.rem.ataos.cmd_resetOffset.set_start(
+            axis="y",
+            timeout=self.atcs.long_timeout,
+        )
         await self.atcs.reset_offsets()
 
         for grid_index, azimuth, elevation in zip(
