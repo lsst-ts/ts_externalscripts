@@ -102,6 +102,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
+    def pipeline_instrument(self):
+        """String with instrument name for pipeline yaml file"""
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
     def detectors(self):
         """String with detector IDs for pipeline tasks"""
         raise NotImplementedError()
@@ -517,26 +523,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             split_string[3] = f"{self.config.calib_collection}," + split_string[3]
             config_string = " ".join(split_string)
 
-        if self.instrument_name == "LATISS":
-            pipeline_instrument = "Latiss"
-        elif self.instrument_name == "LSSTComCam":
-            pipeline_instrument = "LsstComCam"
-        else:
-            raise RuntimeError(
-                "Nonvalid instrument name: {self.instrument_name}"
-                "Valid options: ['LATISS', 'LSSTComCam']"
-            )
-
         # Use the camera-agnostic yaml file if the camera-specific
         # file does not exist.
         cp_pipe_dir = getPackageDir("cp_pipe")
         pipeline_yaml_file = os.path.join(
-            cp_pipe_dir, "pipelines", pipeline_instrument, pipe_yaml
+            cp_pipe_dir, "pipelines", self.pipeline_instrument, pipe_yaml
         )
         file_exists = os.path.exists(pipeline_yaml_file)
         if file_exists:
             pipeline_yaml_file = (
-                f"${{CP_PIPE_DIR}}/pipelines/{pipeline_instrument}/{pipe_yaml}"
+                f"${{CP_PIPE_DIR}}/pipelines/{self.pipeline_instrument}/{pipe_yaml}"
             )
         else:
             pipeline_yaml_file = f"${{CP_PIPE_DIR}}/pipelines/{pipe_yaml}"

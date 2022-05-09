@@ -74,6 +74,11 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         return "LATISS"
 
     @property
+    def pipeline_instrument(self):
+        """String with instrument name for pipeline yaml file"""
+        return "Latiss"
+
+    @property
     def detectors(self):
         """Array with detector IDs"""
         return self._detectors
