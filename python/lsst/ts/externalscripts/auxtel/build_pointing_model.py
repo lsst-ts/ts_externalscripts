@@ -303,7 +303,7 @@ additionalProperties: false
 
         self.latiss.rem.atoods.evt_imageInOODS.flush()
 
-        acquisition_image_ids = await self.latiss.take_engtest(
+        acquisition_image_ids = await self.latiss.take_acq(
             exptime=self.config.exposure_time,
             n=1,
             group_id=self.group_id,
@@ -320,7 +320,7 @@ additionalProperties: false
 
         await self.atcs.offset_xy(x=offset_x, y=offset_y)
 
-        await self.latiss.take_engtest(
+        await self.latiss.take_acq(
             exptime=self.config.exposure_time,
             n=1,
             group_id=self.group_id,

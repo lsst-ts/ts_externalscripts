@@ -253,7 +253,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
                 unittest.mock.Mock(),
                 "flush",
             )
-            self.script.latiss.take_engtest = unittest.mock.AsyncMock(
+            self.script.latiss.take_acq = unittest.mock.AsyncMock(
                 return_value=self.find_offset_image_id
             )
 
@@ -272,7 +272,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
 
         self.script.latiss.rem.atoods.evt_imageInOODS.flush.assert_called_once()
 
-        take_engtest_calls = [
+        take_acq_calls = [
             unittest.mock.call(
                 exptime=self.script.config.exposure_time,
                 n=1,
@@ -293,7 +293,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             flush=False, timeout=self.script.image_in_oods_timeout
         )
 
-        self.script.latiss.take_engtest.assert_has_awaits(take_engtest_calls)
+        self.script.latiss.take_acq.assert_has_awaits(take_acq_calls)
 
         self.script.find_offset.assert_awaited_once_with(
             image_id=self.find_offset_image_id[0]

@@ -507,7 +507,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             # Was not catching event from OODS in time without timing out
             self.latiss.rem.atoods.evt_imageInOODS.flush()
-            tmp = await self.latiss.take_object(
+            tmp = await self.latiss.take_acq(
                 exptime=self.acq_exposure_time,
                 n=1,
                 group_id=self.group_id,
@@ -619,7 +619,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
         # Verify with another image that we're on target?
         if self.target_pointing_verification:
-            await self.latiss.take_object(
+            await self.latiss.take_acq(
                 exptime=self.acq_exposure_time,
                 n=1,
                 group_id=self.group_id,
