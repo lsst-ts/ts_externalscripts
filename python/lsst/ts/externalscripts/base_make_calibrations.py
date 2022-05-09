@@ -67,6 +67,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.supported_calibrations_verification = ["BIAS", "DARK", "FLAT"]
         self.supported_calibrations_certification = ["BIAS", "DARK", "FLAT", "DEFECTS", "PTC"]
 
+        # Pipetask methods for calibrations generation
+        self.pipetask_parameters = dict(BIAS=self.get_pipetask_parameters_bias,
+                                        DARK=self.get_pipetask_parameters_dark,
+                                        FLAT=self.get_pipetask_parameters_flat,
+                                        DEFECTS=self.get_pipetask_parameters_defects,
+                                        PTC=self.get_pipetask_parameters_ptc,
+                                        GAIN=self.get_pipetask_parameters_ptc)
+        # List of exposure IDs
+        self.exposure_ids = dict(BIAS=[], DARK=[], FLAT=[])
+
     @property
     @abc.abstractmethod
     def ocps_group(self):
@@ -442,16 +452,146 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return exposures
 
-    async def call_pipetask(self, image_type, exposure_ids_dict):
+    async def get_pipetask_parameters_bias(self):
+        """Get necessary information to run the bias generation pipetask.
+
+        Returns
+        -------
+        cpBias.yaml : `str`
+            cp_pipe bias pipeline.
+
+        config_string : `str`
+            Bias pipetask configuration for OCPS.
+
+        exposure_ids_bias : `list`[`int`]
+            List of bias exposure IDs.
+        """
+
+        return "cpBias.yaml", (
+            f"-j {self.config.n_processes} -i {self.config.input_collections_bias} "
+            "--register-dataset-types  "
+            f"{self.config.config_options_bias}"), self.exposure_ids['BIAS']
+
+    async def get_pipetask_parameters_dark(self):
+        """Get necessary information to run the dark generation pipetask.
+
+        Returns
+        -------
+        cpDark.yaml : `str`
+            cp_pipe dark pipeline.
+
+        config_string : `str`
+            Dark pipetask configuration for OCPS.
+
+        exposure_ids_dark : `list`[`int`]
+            List of dark exposure IDs.
+        """
+        if self.config.generate_calibrations:
+            input_collections_dark = (f"-i {self.config.calib_collection},"
+                                      f"{self.config.input_collections_dark}")
+        else:
+            input_collections_dark = f"-i {self.config.input_collections_dark}"
+
+        return "cpBias.yaml", (
+            f"-j {self.config.n_processes} -i {input_collections_dark} "
+            f"-i {self.config.calib_collection} "
+            "--register-dataset-types "
+            f"{self.config.config_options_dark}"), self.exposure_ids['DARK']
+
+    async def get_pipetask_parameters_flat(self):
+        """Get necessary information to run the flat generation pipetask.
+
+        Returns
+        -------
+        cpFlat.yaml : `str`
+            cp_pipe flat pipeline.
+
+        config_string : `str`
+            Flat pipetask configuration for OCPS.
+
+        exposure_ids_flat : `list`[`int`]
+            List of dark exposure IDs.
+        """
+        if self.config.generate_calibrations:
+            input_collections_flat = (f"-i {self.config.calib_collection},"
+                                      f"{self.config.input_collections_flat}")
+        else:
+            input_collections_flat = f"-i {self.config.input_collections_flat}"
+
+        return "cpFlat.yaml", (
+            f"-j {self.config.n_processes} -i {input_collections_flat} "
+            f"-i {self.config.calib_collection} "
+            "--register-dataset-types "
+            f"{self.config.config_options_flat}"), self.exposure_ids['FLAT']
+
+    async def get_pipetask_parameters_defects(self):
+        """Get necessary information to run the defects generation pipetask.
+
+        Returns
+        -------
+        findDefects.yaml : `str`
+            cp_pipe defects pipeline.
+
+        config_string : `str`
+            Defects pipetask configuration for OCPS.
+
+        exposure_ids_defects : `list`[`int`]
+            List of dark exposure IDs.
+        """
+        if self.config.generate_calibrations:
+            input_collections_defects = (f"-i {self.config.calib_collection},"
+                                         f"{self.config.input_collections_defects}")
+        else:
+            input_collections_defects = f"-i {self.config.input_collections_defects}"
+
+        return "findDefects.yaml", (
+            f"-j {self.config.n_processes} -i {input_collections_defects} "
+            f"-i {self.config.calib_collection} "
+            "--register-dataset-types "
+            f"{self.config.config_options_defects}"), self.exposure_ids['DARK'] + self.exposure_ids['FLAT']
+
+    async def get_pipetask_parameters_ptc(self):
+        """Get necessary information to run the dark generation pipetask.
+
+        Parameters
+        ----------
+        do_gain_from_flat_pairs : `bool`
+            Estimate the gain from pairs of flats.
+        Returns
+        -------
+        cpPtc.yaml or cpPtc.yaml#gainFromFlatPairs : `str`
+            cp_pipe PTC or gain from pairs pipeline.
+
+        config_string : `str`
+            PTC or gain from pairs pipetask configuration for OCPS.
+
+        exposure_ids_ptc : `list`[`int`]
+            List of flat exposure IDs for PTC or gain estimation.
+        """
+        if self.config.generate_calibrations:
+            input_collections_ptc = (f"-i {self.config.calib_collection},"
+                                     f"{self.config.input_collections_ptc}")
+        else:
+            input_collections_ptc = f"-i {self.config.input_collections_ptc}"
+
+        if self.config.do_gain_from_flat_pairs:
+            pipeline_yaml_file = "cpPtc.yaml#gainFromFlatPairs"
+        else:
+            pipeline_yaml_file = "cpPtc.yaml"
+
+        return pipeline_yaml_file, (
+            f"-j {self.config.n_processes} -i {input_collections_ptc} "
+            f"-i {self.config.calib_collection} "
+            "--register-dataset-types "
+            f"{self.config.config_options_ptc}"), self.exposure_ids['FLAT']
+
+    async def call_pipetask(self, image_type):
         """Call pipetasks via the OCPS.
 
         Parameters
         ----------
         image_type : `str`
             Image or calibration type.
-        exposure_ids_dict: `dict` [`str`]
-            Dictionary with tuple with exposure IDs for "BIAS",
-            "DARK", or "FLAT".
 
         Returns
         -------
@@ -467,69 +607,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # By default, config.generate_calibrations is 'false'
         # and the necessary calibrations are assumed to be
         # in the input collections.
-
-        if image_type == "BIAS":
-            pipe_yaml = "cpBias.yaml"
-            config_string = (
-                f"-j {self.config.n_processes} -i {self.config.input_collections_bias} "
-                "--register-dataset-types  "
-                f"{self.config.config_options_bias}"
-            )
-            exposure_ids = exposure_ids_dict["BIAS"]
-        elif image_type == "DARK":
-            pipe_yaml = "cpDark.yaml"
-            # Add calib collection to input collections with bias
-            # from bias step.
-            config_string = (
-                f"-j {self.config.n_processes} -i {self.config.input_collections_dark} "
-                "--register-dataset-types "
-                f"{self.config.config_options_dark}"
-            )
-            exposure_ids = exposure_ids_dict["DARK"]
-        elif image_type == "FLAT":
-            pipe_yaml = "cpFlat.yaml"
-            # Add calib collection to input collections with bias,
-            # and dark from bias and dark steps.
-            config_string = (
-                f"-j {self.config.n_processes} -i {self.config.input_collections_flat} "
-                "--register-dataset-types "
-                f"{self.config.config_options_flat}"
-            )
-            exposure_ids = exposure_ids_dict["FLAT"]
-        elif image_type == "DEFECTS":
-            pipe_yaml = "findDefects.yaml"
-            config_string = (
-                f"-j {self.config.n_processes} -i {self.config.input_collections_defects} "
-                "--register-dataset-types "
-                f"{self.config.config_options_defects}"
-            )
-            exposure_ids = exposure_ids_dict["DARK"] + exposure_ids_dict["FLAT"]
-        elif image_type == "PTC" or image_type == "GAIN":
-            if image_type == "PTC":
-                pipe_yaml = "cpPtc.yaml"
-            else:
-                pipe_yaml = "cpPtc.yaml#gainFromFlatPairs"
-            config_string = (
-                f"-j {self.config.n_processes} -i {self.config.input_collections_ptc} "
-                "--register-dataset-types "
-                f"{self.config.config_options_ptc}"
-            )
-            exposure_ids = exposure_ids_dict["FLAT"]
+        if image_type in self.exposure_ids:
+            pipe_yaml, config_string, exposure_ids = self.pipetask_parameters[image_type]
         else:
             raise RuntimeError(
                 "Invalid image or calib type {image_type} in 'call_pipetask' function. "
-                "Valid options: ['BIAS', 'DARK', 'FLAT', 'DEFECTS', 'PTC', 'GAIN']"
+                f"Valid options: {self.config.supported_calibrations_generation}"
             )
-
-        # If we are using internal calibrations, place the
-        # calibration collection where they were certified
-        # before the input collections of each task
-        # (except for BIAS, which is the first step).
-        if self.config.generate_calibrations and image_type != "BIAS":
-            split_string = config_string.split()
-            # The third entry is where the input collections are.
-            split_string[3] = f"{self.config.calib_collection}," + split_string[3]
-            config_string = " ".join(split_string)
 
         # Use the camera-agnostic yaml file if the camera-specific
         # file does not exist.
@@ -584,7 +668,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return response
 
-    async def verify_calib(self, image_type, job_id_calib, exposure_ids_dict):
+    async def verify_calib(self, image_type, job_id_calib):
         """Verify the calibration.
 
         Parameters
@@ -596,10 +680,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             Job ID returned by OCPS during calibration generation
             pipetask call. If `None`, the calibrations will be sought
             at the input collections.
-
-        exposure_ids_dict: `dict` [`str`]
-            Dictionary with tuple with exposure IDs for "BIAS",
-            "DARK", or "FLAT".
 
         Notes
         -----
@@ -628,7 +708,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 f"{input_col_verify_bias_string} "
                 "--register-dataset-types "
             )
-            exposure_ids = exposure_ids_dict["BIAS"]
+            exposure_ids = self.exposure_ids["BIAS"]
         elif image_type == "DARK":
             pipe_yaml = "VerifyDark.yaml"
             if job_id_calib is None:
@@ -645,7 +725,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 f"{input_col_verify_dark_string} "
                 "--register-dataset-types "
             )
-            exposure_ids = exposure_ids_dict["DARK"]
+            exposure_ids = self.exposure_ids["DARK"]
         elif image_type == "FLAT":
             pipe_yaml = "VerifyFlat.yaml"
             if job_id_calib is None:
@@ -662,7 +742,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 f"{input_col_verify_flat_string} "
                 "--register-dataset-types "
             )
-            exposure_ids = exposure_ids_dict["FLAT"]
+            exposure_ids = self.exposure_ids["FLAT"]
         else:
             raise RuntimeError(
                 f"Verification is not supported in this script for {image_type}"
@@ -1163,7 +1243,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 f"{im_type} calibration failed verification and will not be certified."
             )
 
-    async def report_gains_from_flat_pairs(self, job_id_calib, exposure_ids_flat):
+    async def report_gains_from_flat_pairs(self, job_id_calib):
         """Print gains estimated form flat pairs.
 
         Parameters
@@ -1171,9 +1251,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         jod_id_calib : `str`
             Job ID returned by the OCPS after running the "GAIN" or
             "PTC" pipetasks
-
-        exposure_ids_flat : `list` [`int`]
-            List of flat exposure IDs.
 
         Notes
         -----
@@ -1186,7 +1263,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         final_report_string = "Gains estimated from flats pairs: \n "
 
         detector_ids = np.arange(0, self.n_detectors)
-        for exp_id in exposure_ids_flat:
+        for exp_id in self.exposure_ids['FLAT']:
             final_report_string += f"{exp_id}: \n"
             for det_id in detector_ids:
                 final_report_string += f"\t Detector {det_id}: \n"
@@ -1236,7 +1313,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # Basic sets of calibrations first : biases, darks, and flats.
         # After the loop is done, do defects and PTC.
-        exposure_ids_dict = {"BIAS": (), "DARK": (), "FLAT": ()}
         for im_type in image_types:
             # 1. Take images with the instrument, only for "BIAS,
             # "DARK", or "FLAT".
@@ -1251,12 +1327,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # TODO: Before taking flats with LATISS (and also
             # with LSSTComCam), check that the telescope is in
             # position to do so. See DM-31496, DM-31497.
-            exposure_ids = await self.take_images(im_type)
-            exposure_ids_dict[im_type] = exposure_ids
+            exposure_ids_list = await self.take_images(im_type)
+            self.exposure_ids[im_type] = exposure_ids_list
 
             if checkpoint:
                 # Image IDs
-                await self.checkpoint(f"Images taken: {exposure_ids}; type: {im_type}")
+                await self.checkpoint(f"Images taken: {self.exposure_ids[im_type]}; type: {im_type}")
 
             if self.config.generate_calibrations:
                 # 2. Call the calibration pipetask via the OCPS
@@ -1266,8 +1342,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     "as part of this script."
                 )
                 response_ocps_calib_pipetask = await self.call_pipetask(
-                    im_type, exposure_ids_dict
-                )
+                    im_type)
                 job_id_calib = response_ocps_calib_pipetask["jobId"]
             else:
                 self.log.info(
@@ -1293,8 +1368,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         )
                     else:
                         response_ocps_verify_pipetask = await self.verify_calib(
-                            im_type, job_id_calib, exposure_ids_dict
-                        )
+                            im_type, job_id_calib)
                         # Check that the task running cp_verify
                         # did not fail.
                         job_id_verify = response_ocps_verify_pipetask["jobId"]
@@ -1342,8 +1416,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     # job_id_calib should be None
                     assert job_id_calib is None, "'job_id_calib' is not 'None'."
                     response_ocps_verify_pipetask = await self.verify_calib(
-                        im_type, job_id_calib, exposure_ids_dict
-                    )
+                        im_type, job_id_calib)
                     # Check that the task running cp_verify
                     # did not fail.
                     job_id_verify = response_ocps_verify_pipetask["jobId"]
@@ -1397,8 +1470,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             for calib_type in calib_types:
                 # Run the pipetask
                 response_ocps_calib_pipetask = await self.call_pipetask(
-                    calib_type, exposure_ids_dict
-                )
+                    calib_type)
                 job_id_calib = response_ocps_calib_pipetask["jobId"]
                 # Check that the task to generate the combined
                 # calibration did not fail.
@@ -1423,8 +1495,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     # Report the estimated gain from each pair of flats
                     if calib_type in ["GAIN", "PTC"]:
                         await self.report_gains_from_flat_pairs(
-                            job_id_calib, exposure_ids_dict["FLAT"]
-                        )
+                            job_id_calib)
 
     @staticmethod
     def get_exposure_id(obsid):
