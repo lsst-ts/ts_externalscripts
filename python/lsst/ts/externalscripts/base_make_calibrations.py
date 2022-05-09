@@ -62,6 +62,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.current_image_type = None
 
+        # Supported calibrations types
+        self.supported_calibrations_generation = ["BIAS", "DARK", "FLAT", "DEFECTS", "PTC", "GAIN"]
+        self.supported_calibrations_verification = ["BIAS", "DARK", "FLAT"]
+        self.supported_calibrations_certification = ["BIAS", "DARK", "FLAT", "DEFECTS", "PTC"]
+
     @property
     @abc.abstractmethod
     def ocps_group(self):
@@ -443,8 +448,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Parameters
         ----------
         image_type : `str`
-            Image or calibration type. One of ["BIAS", "DARK",
-            "FLAT", "DEFECTS", "PTC", "GAIN"].
+            Image or calibration type.
         exposure_ids_dict: `dict` [`str`]
             Dictionary with tuple with exposure IDs for "BIAS",
             "DARK", or "FLAT".
@@ -453,6 +457,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         -------
         response : `dict`
              Dictionary with the final OCPS status.
+
+        Notes
+        -----
+        Suported calibrations: see `self.supported_calibrations_generation`
         """
 
         # Run the pipetasks via the OCPS.
@@ -582,8 +590,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Parameters
         ----------
         image_type : `str`
-            Image type. Verification currently only implemented for ["BIAS",
-            "DARK", "FLAT"].
+            Image type.
 
         jod_id_calib : `str`
             Job ID returned by OCPS during calibration generation
@@ -593,10 +600,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         exposure_ids_dict: `dict` [`str`]
             Dictionary with tuple with exposure IDs for "BIAS",
             "DARK", or "FLAT".
+
         Notes
         -----
         The verification step runs tests in `cp_verify`
         that check the metrics in DMTN-101.
+
+        Suported calibrations: see `self.supported_calibrations_verification`.
         """
         if image_type == "BIAS":
             pipe_yaml = "VerifyBias.yaml"
@@ -701,10 +711,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Parameters
         ----------
         image_type:
-            Image or calibration type. The general options are ["BIAS",
-            "DARK", "FLAT", "DEFECTS", and "PTC"], but at this moment,
-            verification currently only implemented for ["BIAS", "DARK",
-            "FLAT"].
+            Image or calibration type.
 
         jod_id_calib : `str`, optional
             Job ID returned by OCPS during previous calibration
@@ -746,6 +753,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         `self.config.input_collections_verify_bias`, and this script won't
         have generated any combined calibrations from the images taken.
         Therefore, `job_id_calib` can be `None`.
+
+        Suported calibrations: see `self.supported_calibrations_verification`.
         """
         if image_type == "BIAS":
             verify_stats_string = "verifyBiasStats"
@@ -842,6 +851,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         For at least one type of test, if the majority of tests fail in
         the majority of detectors and the majority of exposures,
         then don't certify the calibration.
+
+        Suported calibrations: see `self.supported_calibrations_verification`.
         """
         certify_calib = True
 
@@ -1040,7 +1051,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Parameters
         ----------
         image_type : `str`
-            Image type. One of ["BIAS", "DARK", "FLAT", "DEFECTS", "PTC"].
+            Image or calibration type.
 
         jod_id_calib : `str`
             Job ID returned by OCPS during previous calibration
@@ -1054,6 +1065,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         -----
         The calibration will certified for use with a timespan that indicates
         its validity range.
+
+        Suported calibrations: see `self.supported_calibrations_certification`.
         """
         # Certify the calibration, if the verification job
         # completed successfully
@@ -1087,9 +1100,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         Parameters
         ----------
         im_type : `str`
-            Image type. One of ["BIAS", "DARK", "FLAT"]
-            (verification is not yet implemented for "DEFECTS"
-            and "PTC").
+            Image or calibration type.
 
         report_check_verify_stats : `dict`
             Dictionary returned by `check_verification_stats`.
@@ -1102,6 +1113,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             Job ID returned by OCPS during previous calibration
             generation pipetask call. If "generate_calibrations"
             is False, this variable is "None".
+
+        Notes
+        -----
+        Suported calibrations: see `self.supported_calibrations_verification`.
         """
         if job_id_calib:
             gen_collection = f"u/ocps/{job_id_calib}"
