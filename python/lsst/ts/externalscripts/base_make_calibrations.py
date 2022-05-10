@@ -518,17 +518,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         if self.config.generate_calibrations:
             input_collections_dark = (
-                f"-i {self.config.calib_collection},"
+                f"{self.config.calib_collection},"
                 f"{self.config.input_collections_dark}"
             )
         else:
-            input_collections_dark = f"-i {self.config.input_collections_dark}"
+            input_collections_dark = f"{self.config.input_collections_dark}"
 
         return (
-            "cpBias.yaml",
+            "cpDark.yaml",
             (
                 f"-j {self.config.n_processes} -i {input_collections_dark} "
-                f"-i {self.config.calib_collection} "
                 "--register-dataset-types "
                 f"{self.config.config_options_dark}"
             ),
@@ -551,17 +550,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         if self.config.generate_calibrations:
             input_collections_flat = (
-                f"-i {self.config.calib_collection},"
+                f"{self.config.calib_collection},"
                 f"{self.config.input_collections_flat}"
             )
         else:
-            input_collections_flat = f"-i {self.config.input_collections_flat}"
+            input_collections_flat = f"{self.config.input_collections_flat}"
 
         return (
             "cpFlat.yaml",
             (
                 f"-j {self.config.n_processes} -i {input_collections_flat} "
-                f"-i {self.config.calib_collection} "
                 "--register-dataset-types "
                 f"{self.config.config_options_flat}"
             ),
@@ -584,17 +582,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         if self.config.generate_calibrations:
             input_collections_defects = (
-                f"-i {self.config.calib_collection},"
+                f"{self.config.calib_collection},"
                 f"{self.config.input_collections_defects}"
             )
         else:
-            input_collections_defects = f"-i {self.config.input_collections_defects}"
+            input_collections_defects = f"{self.config.input_collections_defects}"
 
         return (
             "findDefects.yaml",
             (
                 f"-j {self.config.n_processes} -i {input_collections_defects} "
-                f"-i {self.config.calib_collection} "
                 "--register-dataset-types "
                 f"{self.config.config_options_defects}"
             ),
@@ -617,11 +614,11 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
         if self.config.generate_calibrations:
             input_collections_ptc = (
-                f"-i {self.config.calib_collection},"
+                f"{self.config.calib_collection},"
                 f"{self.config.input_collections_ptc}"
             )
         else:
-            input_collections_ptc = f"-i {self.config.input_collections_ptc}"
+            input_collections_ptc = f"{self.config.input_collections_ptc}"
 
         if self.config.do_gain_from_flat_pairs:
             pipeline_yaml_file = "cpPtc.yaml#gainFromFlatPairs"
@@ -632,7 +629,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             pipeline_yaml_file,
             (
                 f"-j {self.config.n_processes} -i {input_collections_ptc} "
-                f"-i {self.config.calib_collection} "
                 "--register-dataset-types "
                 f"{self.config.config_options_ptc}"
             ),
