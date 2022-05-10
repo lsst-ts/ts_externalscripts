@@ -169,14 +169,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                   - type: integer
                     minimum: 1
                   - type: "null"
-                default: 1
+                default: 20
                 description: Number of biases to take.
             n_dark:
                 anyOf:
                   - type: integer
                     minimum: 1
                   - type: "null"
-                default: 1
+                default: 20
                 description: Number of darks to take.
             exp_times_dark:
                 description: The exposure time of each dark image (sec). If a single value,
@@ -189,13 +189,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                       minimum: 0
                   - type: number
                     minimum: 0
-                default: 0
+                default: 5
             n_flat:
                 anyOf:
                   - type: integer
                     minimum: 1
                   - type: "null"
-                default: 1
+                default: 20
                 description: Number of flats to take.
             exp_times_flat:
                 description: The exposure time of each flat image (sec). If a single value,
@@ -1131,7 +1131,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             final_report_string += f"{exposure}  "
 
         # verify_report
-        final_report_string += "Number of tests that failed per test type:\n"
+        final_report_string += "\n Number of tests that failed per test type:\n"
         for exposure in verify_report:
             final_report_string += f"\t Exposure ID: {exposure}\n"
             for test_type in verify_report[exposure]:

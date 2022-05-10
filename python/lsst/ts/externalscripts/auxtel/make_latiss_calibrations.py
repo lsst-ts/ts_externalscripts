@@ -83,20 +83,10 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         """Array with detector IDs"""
         return self._detectors
 
-    @detectors.setter
-    def detectors(self, value):
-        """Detector IDs array setter """
-        self._detectors = value
-
     @property
     def n_detectors(self):
         """Number of detectors"""
         return self._n_detectors
-
-    @n_detectors.setter
-    def n_detectors(self, value):
-        """Number of detectors setter """
-        self._n_detectors = value
 
     @property
     def image_in_oods(self):
