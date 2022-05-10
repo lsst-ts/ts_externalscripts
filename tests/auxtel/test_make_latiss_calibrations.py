@@ -59,7 +59,6 @@ class TestMakeLatissCalibrations(
                 n_flat=n_flat,
                 exp_times_dark=exp_times_dark,
                 exp_times_flat=exp_times_flat,
-                detectors=detectors,
                 n_processes=n_processes,
             )
 
