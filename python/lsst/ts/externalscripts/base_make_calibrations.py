@@ -477,7 +477,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return exposures
 
-    async def get_pipetask_parameters_bias(self):
+    def get_pipetask_parameters_bias(self):
         """Get necessary information to run the bias generation pipetask.
 
         Returns
@@ -502,7 +502,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             self.exposure_ids["BIAS"],
         )
 
-    async def get_pipetask_parameters_dark(self):
+    def get_pipetask_parameters_dark(self):
         """Get necessary information to run the dark generation pipetask.
 
         Returns
@@ -534,7 +534,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             self.exposure_ids["DARK"],
         )
 
-    async def get_pipetask_parameters_flat(self):
+    def get_pipetask_parameters_flat(self):
         """Get necessary information to run the flat generation pipetask.
 
         Returns
@@ -566,7 +566,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             self.exposure_ids["FLAT"],
         )
 
-    async def get_pipetask_parameters_defects(self):
+    def get_pipetask_parameters_defects(self):
         """Get necessary information to run the defects generation pipetask.
 
         Returns
@@ -598,7 +598,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             self.exposure_ids["DARK"] + self.exposure_ids["FLAT"],
         )
 
-    async def get_pipetask_parameters_ptc(self):
+    def get_pipetask_parameters_ptc(self):
         """Get necessary information to run the ptc generation pipetask.
 
         Returns
@@ -658,7 +658,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # and the necessary calibrations are assumed to be
         # in the input collections.
         if image_type in self.supported_calibrations_generation:
-            pipe_yaml, config_string, exposure_ids = await self.pipetask_parameters[
+            pipe_yaml, config_string, exposure_ids = self.pipetask_parameters[
                 image_type
             ]()
         else:
@@ -720,7 +720,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return response
 
-    async def get_pipetask_parameters_verification_bias(self, job_id_calib):
+    def get_pipetask_parameters_verification_bias(self, job_id_calib):
         """Get necessary information to run the bias verification pipetask
 
         Parameters
@@ -765,7 +765,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return pipe_yaml, config_string, exposure_ids
 
-    async def get_pipetask_parameters_verification_dark(self, job_id_calib):
+    def get_pipetask_parameters_verification_dark(self, job_id_calib):
         """Get necessary information to run the dark verification pipetask
 
         Parameters
@@ -809,7 +809,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         return pipe_yaml, config_string, exposure_ids
 
-    async def get_pipetask_parameters_verification_flat(self, job_id_calib):
+    def get_pipetask_parameters_verification_flat(self, job_id_calib):
         """Get necessary information to run the flat verification pipetask.
 
         Parameters
@@ -880,7 +880,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 pipe_yaml,
                 config_string,
                 exposure_ids,
-            ) = await self.pipetask_parameters_verification[image_type](job_id_calib)
+            ) = self.pipetask_parameters_verification[image_type](job_id_calib)
         else:
             raise RuntimeError(
                 f"Verification is not yet supported in this script for {image_type}. "
