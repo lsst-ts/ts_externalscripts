@@ -82,12 +82,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # Pipetask methods to get parameters for calibrations generation
         self.pipetask_parameters = dict(
-            BIAS=self.get_pipetask_parameters_bias(),
-            DARK=self.get_pipetask_parameters_dark(),
-            FLAT=self.get_pipetask_parameters_flat(),
-            DEFECTS=self.get_pipetask_parameters_defects(),
-            PTC=self.get_pipetask_parameters_ptc(),
-            GAIN=self.get_pipetask_parameters_ptc(),
+            BIAS=self.get_pipetask_parameters_bias,
+            DARK=self.get_pipetask_parameters_dark,
+            FLAT=self.get_pipetask_parameters_flat,
+            DEFECTS=self.get_pipetask_parameters_defects,
+            PTC=self.get_pipetask_parameters_ptc,
+            GAIN=self.get_pipetask_parameters_ptc,
         )
 
         # Pipetask methods to get parameters for calibrations verification
@@ -660,7 +660,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         if image_type in self.supported_calibrations_generation:
             pipe_yaml, config_string, exposure_ids = await self.pipetask_parameters[
                 image_type
-            ]
+            ]()
         else:
             raise RuntimeError(
                 "Invalid image or calib type {image_type} in 'call_pipetask' function. "
