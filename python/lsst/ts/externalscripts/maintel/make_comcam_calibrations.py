@@ -50,7 +50,6 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         self._ocps_group = RemoteGroup(
             domain=self.domain, components=["OCPS:2"], log=self.log
         )
-        self._n_detectors = 9
 
     @property
     def camera(self):
@@ -86,12 +85,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
     @property
     def n_detectors(self):
         """Number of detectors"""
-        return self._n_detectors
-
-    @n_detectors.setter
-    def n_detectors(self, value):
-        """Number of detectors setter """
-        self._n_detectors = value
+        return len(self.config.detectors) if self.config is not None else 9
 
     @property
     def image_in_oods(self):

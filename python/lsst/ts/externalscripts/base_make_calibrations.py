@@ -376,10 +376,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         )
 
         self.config = config
-
-        if len(self.detectors):
-            self.n_detectors = len(self.detectors)
-
         self.detectors_string = self.get_detectors_string(self.detectors)
 
     def set_metadata(self, metadata):
