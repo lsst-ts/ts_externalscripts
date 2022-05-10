@@ -662,7 +662,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # and the necessary calibrations are assumed to be
         # in the input collections.
         if image_type in self.supported_calibrations_generation:
-            pipe_yaml, config_string, exposure_ids = self.pipetask_parameters[
+            pipe_yaml, config_string, exposure_ids = await self.pipetask_parameters[
                 image_type
             ]
         else:
@@ -884,7 +884,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 pipe_yaml,
                 config_string,
                 exposure_ids,
-            ) = self.pipetask_parameters_verification[image_type](job_id_calib)
+            ) = await self.pipetask_parameters_verification[image_type](job_id_calib)
         else:
             raise RuntimeError(
                 f"Verification is not yet supported in this script for {image_type}. "
