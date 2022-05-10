@@ -50,7 +50,6 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         self._ocps_group = RemoteGroup(
             domain=self.domain, components=["OCPS:2"], log=self.log
         )
-        self._detectors = self.config.detectors if self.config is not None else []
         self._n_detectors = 9
 
     @property
@@ -82,7 +81,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
     @property
     def detectors(self):
         """Array with detector IDs"""
-        return self._detectors
+        return self.config.detectors if self.config is not None else []
 
     @property
     def n_detectors(self):

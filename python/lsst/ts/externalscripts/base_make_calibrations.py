@@ -83,6 +83,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # List of exposure IDs
         self.exposure_ids = dict(BIAS=[], DARK=[], FLAT=[])
 
+        self.config = None
+
     @property
     @abc.abstractmethod
     def ocps_group(self):
