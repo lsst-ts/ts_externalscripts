@@ -88,6 +88,11 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         """Number of detectors"""
         return self._n_detectors
 
+    @n_detectors.setter
+    def n_detectors(self, value):
+        """Number of detectors setter """
+        self._n_detectors = value
+
     @property
     def image_in_oods(self):
         """OODS imageInOODS event."""
