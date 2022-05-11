@@ -1500,7 +1500,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                         raise RuntimeError(
                             f"{im_type} generation not completed successfully: "
                             f"Status: {response_ocps_calib_pipetask['phase']}. "
-                            f"{im_type} verification could not be performed."
+                            f"{im_type} verification could not be performed. Log file: "
+                            f"/scratch/uws/jobs/{job_id_calib}/out/ocps.log "
                         )
                     else:
                         response_ocps_verify_pipetask = await self.verify_calib(
