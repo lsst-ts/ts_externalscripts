@@ -63,15 +63,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.current_image_type = None
 
         # Supported calibrations types
-        self.supported_calibrations_generation = [
-            "BIAS",
-            "DARK",
-            "FLAT",
-            "DEFECTS",
-            "PTC",
-            "GAIN",
-        ]
-        self.supported_calibrations_verification = ["BIAS", "DARK", "FLAT"]
         self.supported_calibrations_certification = [
             "BIAS",
             "DARK",
@@ -646,21 +637,21 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         Notes
         -----
-        Suported calibrations: see `self.supported_calibrations_generation`
+        Suported calibrations: see `self.pipetask_parameters`
         """
 
         # Run the pipetasks via the OCPS.
         # By default, config.generate_calibrations is 'false'
         # and the necessary calibrations are assumed to be
         # in the input collections.
-        if image_type in self.supported_calibrations_generation:
+        if image_type in self.pipetask_parameters:
             pipe_yaml, config_string, exposure_ids = self.pipetask_parameters[
                 image_type
             ]()
         else:
             raise RuntimeError(
                 "Invalid image or calib type {image_type} in 'call_pipetask' function. "
-                f"Valid options: {self.supported_calibrations_generation}"
+                f"Valid options: {self.pipetask_parameters.keys()}"
             )
 
         # Use the camera-agnostic yaml file if the camera-specific
@@ -868,10 +859,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         The verification step runs tests in `cp_verify`
         that check the metrics in DMTN-101.
 
-        Suported calibrations: see `self.supported_calibrations_verification`.
+        Suported calibrations: see `self.pipetask_parameters_verification`.
         """
 
-        if image_type in self.supported_calibrations_verification:
+        if image_type in self.pipetask_parameters_verification:
             (
                 pipe_yaml,
                 config_string,
@@ -880,7 +871,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         else:
             raise RuntimeError(
                 f"Verification is not yet supported in this script for {image_type}. "
-                f"Valid options: {self.supported_calibrations_verification}"
+                f"Valid options: {self.pipetask_parameters_verification.keys()}"
             )
 
         # Verify the master calibration
@@ -969,7 +960,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         have generated any combined calibrations from the images taken.
         Therefore, `job_id_calib` can be `None`.
 
-        Suported calibrations: see `self.supported_calibrations_verification`.
+        Suported calibrations: see `self.pipetask_parameters_verification`.
         """
         if image_type == "BIAS":
             verify_stats_string = "verifyBiasStats"
@@ -1067,7 +1058,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         the majority of detectors and the majority of exposures,
         then don't certify the calibration.
 
-        Suported calibrations: see `self.supported_calibrations_verification`.
+        Suported calibrations: see `self.pipetask_parameters_verification`.
         """
         certify_calib = True
 
@@ -1201,7 +1192,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     final_report_string += f"\t \t {info}\n"
             else:
                 final_report_string += (
-                    "No failures in 'verify_stats' for this exposure."
+                    "No failures in 'verify_stats' for this exposure. \n"
                 )
 
         # thresholds_report
@@ -1331,7 +1322,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         Notes
         -----
-        Suported calibrations: see `self.supported_calibrations_verification`.
+        Suported calibrations: see `self.pipetask_parameters_verification`.
         """
         if job_id_calib:
             gen_collection = f"u/ocps/{job_id_calib}"
@@ -1656,8 +1647,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         return int((i_prefix + i_suffix[1:]))
 
     def get_detectors_string(self, detector_array):
-        """Get a detetcor string from a detctor array.
-        Convert a detetcor array of the form [0, 1, 2, ...] into a
+        """Get a detector string from a detector array.
+        Convert a detector array of the form [0, 1, 2, ...] into a
         string of the form "(0, 1, 2, ...)" to be used by pipetasks.
 
         Parameters
