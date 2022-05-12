@@ -51,7 +51,6 @@ class TestMakeLatissCalibrations(
             exp_times_dark = 10
             n_flat = 4
             exp_times_flat = [10, 10, 50, 50]
-            detectors = "(0, 1, 2, 3, 4, 5, 6, 7, 8)"
             n_processes = 4
 
             await self.configure_script(
@@ -60,7 +59,6 @@ class TestMakeLatissCalibrations(
                 n_flat=n_flat,
                 exp_times_dark=exp_times_dark,
                 exp_times_flat=exp_times_flat,
-                detectors=detectors,
                 n_processes=n_processes,
             )
 
@@ -70,7 +68,6 @@ class TestMakeLatissCalibrations(
             assert self.script.config.exp_times_dark == exp_times_dark
             assert self.script.config.exp_times_flat == exp_times_flat
             assert self.script.config.n_processes == n_processes
-            assert self.script.config.detectors == detectors
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()

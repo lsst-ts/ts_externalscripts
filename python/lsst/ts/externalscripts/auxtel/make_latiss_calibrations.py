@@ -72,6 +72,21 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         return "LATISS"
 
     @property
+    def pipeline_instrument(self):
+        """String with instrument name for pipeline yaml file"""
+        return "Latiss"
+
+    @property
+    def detectors(self):
+        """Array with detector IDs"""
+        return [0]
+
+    @property
+    def n_detectors(self):
+        """Number of detectors"""
+        return 1
+
+    @property
     def image_in_oods(self):
         """OODS imageInOODS event."""
         return self.camera.rem.atoods.evt_imageInOODS
