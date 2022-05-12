@@ -607,7 +607,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         else:
             input_collections_ptc = f"{self.config.input_collections_ptc}"
 
-        if self.config.do_gain_from_flat_pairs:
+        if (self.config.do_ptc is False) and (
+            self.config.do_gain_from_flat_pairs is True
+        ):
             pipeline_yaml_file = "cpPtc.yaml#gainFromFlatPairs"
         else:
             pipeline_yaml_file = "cpPtc.yaml"
@@ -1584,10 +1586,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # defects and PTC if requested.
         calib_types = []
         if mode == "BIAS_DARK_FLAT":
-            if self.config.do_ptc:
-                calib_types.append("PTC")
             if self.config.do_defects:
                 calib_types.append("DEFECTS")
+            if self.config.do_ptc:
+                calib_types.append("PTC")
             if self.config.do_gain_from_flat_pairs:
                 calib_types.append("GAIN")
 
