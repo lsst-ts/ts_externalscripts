@@ -73,6 +73,21 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         return "LSSTComCam"
 
     @property
+    def pipeline_instrument(self):
+        """String with instrument name for pipeline yaml file"""
+        return "LssTComCam"
+
+    @property
+    def detectors(self):
+        """Array with detector IDs"""
+        return self.config.detectors if self.config is not None else []
+
+    @property
+    def n_detectors(self):
+        """Number of detectors"""
+        return len(self.config.detectors) if self.config is not None else 9
+
+    @property
     def image_in_oods(self):
         """OODS imageInOODS event."""
         return self.camera.rem.ccoods.evt_imageInOODS
@@ -87,6 +102,18 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         description: Configuration for making a LSSTComCam master calibrations SAL Script.
         type: object
         properties:
+            detectors:
+                description: Detector IDs. If omitted, all 9 LSSTComCam detectors \
+                    will be used.
+                type: array
+                items:
+                  - type: integer
+                minContains: 0
+                maxContains: 8
+                minItems: 0
+                maxItems: 9
+                uniqueItems: true
+                default: []
             filter:
                 description: Filter name or ID; if omitted the filter is not changed.
                 anyOf:
