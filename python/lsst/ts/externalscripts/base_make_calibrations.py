@@ -1081,8 +1081,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         total_counter_failed_tests = {}
         for exposure in [key for key in verify_stats if key != "SUCCESS"]:
             if "FAILURES" in verify_stats[exposure]:
+                # Gather the names of the types of tests that failed.
+                # 'stg' is of the form e.g., 'R22_S21 C17 NOISE' or
+                # 'R22_S22 SCATTER', so we retreive the name of the test from
+                # the last element after splitting it.
                 fail_count = [
-                    stg.split(" ")[2] for stg in verify_stats[exposure]["FAILURES"]
+                    stg.split(" ")[-1] for stg in verify_stats[exposure]["FAILURES"]
                 ]
                 counter = {}
                 for test in fail_count:
