@@ -19,6 +19,20 @@ build:
     - TS_CONFIG_OCS_DIR
     - TS_CONFIG_ATTCS_DIR
 
+test:
+  requires:
+    - ts-conda-build =0.3
+    - ts-dds
+    - ts-idl {{ idl_version }}
+    - ts-salobj {{ salobj_version }}
+  source_files:
+    - python
+    - tests
+    - setup.cfg
+    - pyproject.toml
+  commands:
+    - py.test
+
 requirements:
   host:
     - python

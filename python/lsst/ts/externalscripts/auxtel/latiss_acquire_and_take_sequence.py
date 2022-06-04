@@ -359,8 +359,10 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
     def compute_time_on_target(self):
         """Determine the amount of time spent on target so the rotator position
-        can be optimized. Assumed slew time is 3 minutes, and that the read,
-        calculation, and offset totals 20s.
+        can be optimized.
+
+        Assume it takes 3 minutes to slew and 20 seconds to read the image,
+        compute the offset, and apply it.
 
         Returns
         -------
@@ -404,11 +406,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
     async def get_next_image_data_id(self, timeout=STD_TIMEOUT, flush=True):
         """Return dataID of image that appears from the ATOODS CSC.
+
         This is meant to be called at the same time as a take image command.
         If this is called after take_image is completed, it may not receive
         the imageInOODS event.
 
-        Inputs:
+        Parameters
+        ----------
         timeout: `float`
             Amount of time to wait for image to arrive.
         """

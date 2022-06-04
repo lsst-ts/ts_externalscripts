@@ -2,20 +2,17 @@
 config.log
 .sconf_temp
 *.pyc
+*.log
 .vscode
-
-# Built by sconsUtils
 version.py
-
-# OpenSplice logs
-ospl-*.log
 
 # Pytest
 tests/.tests
 pytest_session.txt
-.cache/
+.cache
 .pytest_cache
 .coverage
+.hypothesis
 *__pycache__*
 
 # vim
