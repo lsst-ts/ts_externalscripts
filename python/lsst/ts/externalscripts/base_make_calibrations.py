@@ -410,6 +410,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.image_in_oods_samples[self.current_image_type].append(data)
         self.number_of_images_taken += 1
+        self.log.debug(
+            f"{self.number_of_images_taken} vs {self.number_of_images_expected}"
+        )
         if self.number_of_images_taken == self.number_of_images_expected:
             self.image_in_oods_received_all_expected.set()
 
