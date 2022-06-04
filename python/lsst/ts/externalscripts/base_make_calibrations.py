@@ -431,7 +431,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
 
         exp_times = await self.set_exp_times_per_im_type(image_type)
-
+        self.log.debug(f"NExps: {len(exp_times)}, NDets: {self.n_detectors}")
         self.number_of_images_expected = len(exp_times) * self.n_detectors
         self.number_of_images_taken = 0
         self.image_in_oods_received_all_expected.clear()
