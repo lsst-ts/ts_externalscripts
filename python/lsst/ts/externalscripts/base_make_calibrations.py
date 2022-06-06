@@ -456,7 +456,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
             raise RuntimeError(
                 "Timeout waiting for images to ingest in the OODS, "
-                f"expected: {len(exposures)}, received: {len(self.image_in_oods_samples[image_type])}. "
+                f"expected: {self.number_of_images_expected}, "
+                f"received: {len(self.image_in_oods_samples[image_type])}. "
                 f"Missing image ids: {missing_image_ids}"
             )
 
