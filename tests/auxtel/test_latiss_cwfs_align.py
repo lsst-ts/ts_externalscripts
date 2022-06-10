@@ -152,11 +152,22 @@ class TestLatissCWFSAlign(
         return (self.script,)
 
     async def ataos_cmd_offset_callback(self, data):
-        """Publishes event from hexapod saying movement completed"""
-        logger.debug("Sending hexapod event ")
+        """Publishes event from hexapod saying movement completed.
+        Also flips the ataos detailed state"""
+        logger.debug("Sending hexapod events and ataos events")
 
+        ss_idle = np.uint8(0)
+        ss_hexapod = np.uint8(1 << 3)  # Hexapod correction running
+        # FOCUS = np.uint8(1 << 4)  # Focus correction running
+
+        await self.ataos.evt_detailedState.set_write(
+            substate=ss_hexapod, force_output=True
+        )
         await self.athexapod.evt_positionUpdate.write()
         await self.athexapod.tel_positionStatus.write()
+        await self.ataos.evt_detailedState.set_write(
+            substate=ss_idle, force_output=True
+        )
         return
 
     async def close(self):

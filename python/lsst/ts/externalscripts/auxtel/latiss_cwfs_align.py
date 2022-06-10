@@ -27,6 +27,7 @@ import warnings
 import concurrent.futures
 import functools
 import numpy as np
+import time
 
 from pathlib import Path
 
@@ -121,7 +122,7 @@ class LatissCWFSAlign(salobj.BaseScript):
         self.timeout_get_image = 20.0
 
         # Sensitivity matrix: mm of hexapod motion for nm of wfs. To figure out
-        # the hexapod correction multiply the calculcated zernikes by this.
+        # the hexapod correction multiply the calculated zernikes by this.
         # Note that the zernikes must be derotated to
         #         self.sensitivity_matrix = [
         #         [1.0 / 161.0, 0.0, 0.0],
@@ -349,13 +350,31 @@ Pixel_size (m)			{}
             "v": 0.0,
         }
 
-        self.atcs.rem.athexapod.evt_positionUpdate.flush()
+        self.atcs.rem.ataos.evt_detailedState.flush()
         await self.atcs.rem.ataos.cmd_offset.set_start(
             **offset, timeout=self.long_timeout
         )
-        await self.atcs.rem.athexapod.evt_positionUpdate.next(
-            flush=False, timeout=self.long_timeout
-        )
+        # Wait for ataos to go through a cycle, which will apply the offset if
+        # enough error has accumulated to pass the ataos thresholds.
+        # Success means we need to see ATAOS substate bit 3 (hexapod
+        # correction) or 4 (Focus correction), then 0 (IDLE).
+        # The bit(s) will flip when the correction is being determined,
+        # regardless  of if a hexapod actually had to move
+
+        start_time = time.time()
+        check_ss2 = False
+        while time.time() < start_time + self.long_timeout:
+            state = await self.atcs.rem.ataos.evt_detailedState.next(
+                flush=False, timeout=self.long_timeout
+            )
+            if (
+                bool(state.substate & (1 << 3))
+                or bool(state.substate & (1 << 4))
+                or check_ss2 is True
+            ):
+                check_ss2 = True
+                if state.substate == 0:
+                    break
 
     async def run_cwfs(self):
         """Runs CWFS code on intra/extra focal images.
@@ -423,8 +442,8 @@ Pixel_size (m)			{}
         if not self.intra_result.success or not self.extra_result.success:
             raise RuntimeError(
                 f"Centroid finding algorithm was unsuccessful. "
-                f"Intra success is {self.intra_result.success}. "
-                f"Extra image success is {self.extra_result.success}."
+                f"Intra image ({self.intra_exposure}) success is {self.intra_result.success}. "
+                f"Extra image ({self.extra_exposure})success is {self.extra_result.success}."
             )
 
         # Verify that results are within 100 pixels of each other (basically

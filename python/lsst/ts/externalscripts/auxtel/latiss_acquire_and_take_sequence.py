@@ -586,7 +586,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                     f" of {self.target_pointing_tolerance} arcsec."
                 )
 
-            # Offset telescope, using persistent offsets
+            # Offset telescope, using only relative offsets
             self.log.info("Applying x/y offset to telescope pointing.")
 
             # Use persistent = False otherwise when we switch gratings
