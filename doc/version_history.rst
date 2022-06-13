@@ -6,6 +6,12 @@
 Version History
 ===============
 
+
+v0.1X.Y
+-------
+
+* Updated latiss_cwfs_align to handle case where the applied offsets to the ATAOS are too small for a correction to be applied.
+
 v0.16.0
 -------
 
