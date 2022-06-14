@@ -1,2 +1,2 @@
 @Library('JenkinsShared')_
-CondaPipeline(["ts_config_ocs","ts_config_attcs"], "ts-externalscripts", "lsst.ts.externalscripts")
+CondaPipeline(["ts_config_ocs","ts_config_attcs"], "ts-externalscripts", "lsst.ts.externalscripts", "noarch")
