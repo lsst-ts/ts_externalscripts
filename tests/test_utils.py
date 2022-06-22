@@ -30,5 +30,7 @@ class TestUtils(unittest.TestCase):
         assert scripts_dir.is_dir()
 
         pkg_path = pathlib.Path(__file__).resolve().parent.parent
-        predicted_path = pkg_path / "scripts"
+        predicted_path = (
+            pkg_path / "python" / "lsst" / "ts" / "externalscripts" / "data" / "scripts"
+        )
         assert scripts_dir.samefile(predicted_path)

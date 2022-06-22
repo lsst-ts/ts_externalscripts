@@ -25,6 +25,3 @@ try:
     from .version import *
 except ImportError:
     __version__ = "?"
-    __repo_version__ = "?"
-    __fingerprint__ = "? *"
-    __dependency_versions__ = {}
