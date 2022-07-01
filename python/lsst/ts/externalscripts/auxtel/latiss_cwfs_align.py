@@ -443,7 +443,7 @@ Pixel_size (m)			{}
             raise RuntimeError(
                 f"Centroid finding algorithm was unsuccessful. "
                 f"Intra image ({self.intra_exposure}) success is {self.intra_result.success}. "
-                f"Extra image ({self.extra_exposure})success is {self.extra_result.success}."
+                f"Extra image ({self.extra_exposure}) success is {self.extra_result.success}."
             )
 
         # Verify that results are within 100 pixels of each other (basically
