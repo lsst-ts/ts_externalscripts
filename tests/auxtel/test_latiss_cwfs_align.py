@@ -17,8 +17,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-
-__all__ = ["LatissCWFSAlign"]
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import unittest
 import asyncio
@@ -426,32 +425,32 @@ class TestLatissCWFSAlign(
             # Check that output values are within ~15-20nm of on-sky
             # validated values
             zern_tol = [20, 20, 20]  # [nm]
-            hex_tol = abs(np.matmul(zern_tol, self.script.sensitivity_matrix))  # [mm]
+            hex_tol = abs(np.matmul(zern_tol, self.script.matrix_sensitivity))  # [mm]
             logger.info(
-                f"Hex_tol is {np.matmul(zern_tol, self.script.sensitivity_matrix)}"
+                f"Hex_tol is {np.matmul(zern_tol, self.script.matrix_sensitivity)}"
             )
 
             tel_offset_tol = np.matmul(hex_tol, self.script.hexapod_offset_scale)
             logger.debug(f"tel_offset_tol is {tel_offset_tol}")
 
             results = self.script.calculate_results()
-            for i, z in enumerate(results["zerns"]):
+            for i, z in enumerate(results.zernikes):
                 with self.subTest(
                     msg="zern comparison", z=z, measured=meas_zerns[i], i=i
                 ):
                     assert abs(z - meas_zerns[i]) <= zern_tol[i]
-            for i, rz in enumerate(results["rot_zerns"]):
+            for i, rz in enumerate(results.zernikes_rot):
                 with self.subTest(
                     msg="rot-zern comparison", rz=rz, measured=rot_zerns[i], i=i
                 ):
                     assert abs(rz - rot_zerns[i]) <= zern_tol[i]
-            for i, h in enumerate(results["hex_offset"]):
+            for i, h in enumerate(results.offset_hex):
                 with self.subTest(
                     msg="hexapod comparison", h=h, measured=hex_offsets[i], i=i
                 ):
                     assert abs(h - hex_offsets[i]) <= hex_tol[i]
 
-            for i, t in enumerate(results["tel_offset"]):
+            for i, t in enumerate(results.offset_tel):
                 if t != 0:
                     with self.subTest(
                         msg="telescope offset comparison",
@@ -471,22 +470,22 @@ class TestLatissCWFSAlign(
             # check that total offsets are correct within the tolerance or 5%
             #
             assert (
-                abs(self.script.total_coma_x_offset - total_xcoma) / abs(total_xcoma)
+                abs(self.script.offset_total_coma_x - total_xcoma) / abs(total_xcoma)
                 <= 0.05
-            ) or (abs(self.script.total_coma_x_offset - total_xcoma) < hex_tol[0])
+            ) or (abs(self.script.offset_total_coma_x - total_xcoma) < hex_tol[0])
             assert (
-                abs(self.script.total_coma_y_offset - total_ycoma) / abs(total_ycoma)
+                abs(self.script.offset_total_coma_y - total_ycoma) / abs(total_ycoma)
                 <= 0.05
-            ) or (abs(self.script.total_coma_x_offset - total_xcoma) < hex_tol[1])
+            ) or (abs(self.script.offset_total_coma_x - total_xcoma) < hex_tol[1])
             logger.debug(
-                f"Measured total focus offset is {self.script.total_focus_offset:0.5f}"
+                f"Measured total focus offset is {self.script.offset_total_focus:0.5f}"
             )
             logger.debug(f"Reference total focus offset value is {total_focus:0.5f}")
             logger.debug(f"Tolerance is {max((0.05*total_focus, hex_tol[2])):0.5f}")
             assert (
-                abs(self.script.total_focus_offset - total_focus) / abs(total_focus)
+                abs(self.script.offset_total_focus - total_focus) / abs(total_focus)
                 <= 0.05
-            ) or (abs(self.script.total_focus_offset - total_focus) < hex_tol[2])
+            ) or (abs(self.script.offset_total_focus - total_focus) < hex_tol[2])
 
     @unittest.skipIf(
         CWFS_AVAILABLE is False or DATA_AVAILABLE is False,
@@ -543,7 +542,7 @@ class TestLatissCWFSAlign(
             # self.script._binning = 1
 
             logger.debug(f"boresight angle is {self.script.angle}")
-            await self.script.run_cwfs()
+            await self.script.run_align()
 
             # output on-sky from first pair
             centroid = [2708, 3094]  # [x,y]
@@ -597,30 +596,30 @@ class TestLatissCWFSAlign(
             # ~15nm of the expected values
             zern_tol = [15, 15, 15]  # [nm]
             # hex_tol is in mm
-            hex_tol = abs(np.matmul(zern_tol, self.script.sensitivity_matrix))
+            hex_tol = abs(np.matmul(zern_tol, self.script.matrix_sensitivity))
             logger.debug(f"Hex_tol is {hex_tol}")
 
             tel_offset_tol = np.matmul(hex_tol, self.script.hexapod_offset_scale)
             logger.debug(f"tel_offset_tol is {tel_offset_tol}")
 
             results = self.script.calculate_results()
-            for i, z in enumerate(results["zerns"]):
+            for i, z in enumerate(results.zernikes):
                 with self.subTest(
                     msg="zern comparison", z=z, measured=meas_zerns[i], i=i
                 ):
                     assert abs(z - meas_zerns[i]) <= zern_tol[i]
-            for i, rz in enumerate(results["rot_zerns"]):
+            for i, rz in enumerate(results.zernikes_rot):
                 with self.subTest(
                     msg="rot-zern comparison", rz=rz, measured=rot_zerns[i], i=i
                 ):
                     assert abs(rz - rot_zerns[i]) <= zern_tol[i]
-            for i, h in enumerate(results["hex_offset"]):
+            for i, h in enumerate(results.offset_hex):
                 with self.subTest(
                     msg="hexapod comparison", h=h, measured=hex_offsets[i], i=i
                 ):
                     assert abs(h - hex_offsets[i]) <= hex_tol[i]
 
-            for i, t in enumerate(results["tel_offset"]):
+            for i, t in enumerate(results.offset_tel):
                 if t != 0:
                     with self.subTest(
                         msg="telescope offset comparison",
@@ -665,7 +664,7 @@ class TestLatissCWFSAlign(
             # self.script._binning = 1
 
             logger.debug(f"boresight angle is {self.script.angle}")
-            await self.script.run_cwfs()
+            await self.script.run_align()
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
