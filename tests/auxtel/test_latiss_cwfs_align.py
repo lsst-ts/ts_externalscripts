@@ -20,7 +20,6 @@
 
 __all__ = ["LatissCWFSAlign"]
 
-import random
 import unittest
 import asyncio
 import numpy as np
@@ -30,7 +29,6 @@ import os
 import pytest
 
 try:
-    # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
     from lsst import cwfs
 
     CWFS_AVAILABLE = True
@@ -57,15 +55,12 @@ logging.getLogger("flake8.style_guide").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.propagate = True
 
-random.seed(47)  # for set_random_lsst_dds_partition_prefix
-# Check to see if the test data is accessible for testing at NCSA
-# Depending upon how we load test data this will change
-# for now just checking if butler is instantiated with
-# the default path used on the summit and on the NTS.
+# Check to see if the test data is accessible for testing. Depending upon how
+# we load test data this will change the tests that are executed. For now just
+# checking if butler is instantiated with the default path used on the summit
+# and on the test stands.
 
-# DATAPATH = "/readonly/repo/main" # NTS - obsolete
-DATAPATH = "/repo/LATISS"  # SUMMIT (warning!)
-# DATAPATH = "/repo/LATISS" # TTS (TBC)
+DATAPATH = "/repo/LATISS"  # Same value for SUMMIT and test stands
 
 try:
     butler = dafButler.Butler(
@@ -75,7 +70,7 @@ try:
     )
     DATA_AVAILABLE = True
 except FileNotFoundError:
-    logger.warning("Data unavailable, certain tests will be skipped")
+    warnings.warn("Data unavailable, certain tests will be skipped")
     DATA_AVAILABLE = False
     DATAPATH = os.path.join(
         getPackageDir("ts_externalscripts"),
@@ -84,7 +79,7 @@ except FileNotFoundError:
         "auxtel",
     )
 except PermissionError:
-    logger.warning(
+    warnings.warn(
         "Data unavailable due to permissions (at a minimum),"
         " certain tests will be skipped"
     )
