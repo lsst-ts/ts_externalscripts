@@ -217,7 +217,7 @@ class TestLatissWEPAlign(
 
     @unittest.skipIf(
         WEP_AVAILABLE is False,
-        f"CWFS package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
     )
     async def test_configure(self):
         async with self.make_script():
@@ -320,7 +320,7 @@ class TestLatissWEPAlign(
 
     @unittest.skipIf(
         WEP_AVAILABLE is False or DATA_AVAILABLE is False,
-        f"CWFS package availibility is {WEP_AVAILABLE}."
+        f"WEP package availibility is {WEP_AVAILABLE}."
         f"Test data availability is {DATA_AVAILABLE}."
         f"Skipping test_take_sequence.",
     )
@@ -492,7 +492,7 @@ class TestLatissWEPAlign(
 
     @unittest.skipIf(
         WEP_AVAILABLE is False or DATA_AVAILABLE is False,
-        f"CWFS package availibility is {WEP_AVAILABLE}."
+        f"WEP package availibility is {WEP_AVAILABLE}."
         f"Test data availability is {DATA_AVAILABLE}."
         f"Skipping test_analysis.",
     )
@@ -629,7 +629,7 @@ class TestLatissWEPAlign(
 
     @unittest.skipIf(
         WEP_AVAILABLE is False or DATA_AVAILABLE is False,
-        f"CWFS package availibility is {WEP_AVAILABLE}."
+        f"WEP package availibility is {WEP_AVAILABLE}."
         f"Test data availability is {DATA_AVAILABLE}."
         f"Skipping test_source_finding.",
     )
