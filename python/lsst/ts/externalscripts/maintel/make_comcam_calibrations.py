@@ -85,7 +85,11 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
     @property
     def n_detectors(self):
         """Number of detectors"""
-        return len(self.config.detectors) if self.config is not None else 9
+        return (
+            len(self.config.detectors)
+            if self.config is not None and self.config.detectors
+            else 9
+        )
 
     @property
     def image_in_oods(self):
