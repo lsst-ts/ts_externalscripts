@@ -456,7 +456,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
             raise RuntimeError(
                 "Timeout waiting for images to ingest in the OODS, "
-                f"expected: {len(exposures)}, received: {len(self.image_in_oods_samples[image_type])}. "
+                f"expected: {self.number_of_images_expected}, "
+                f"received: {len(self.image_in_oods_samples[image_type])}. "
                 f"Missing image ids: {missing_image_ids}"
             )
 
@@ -1400,15 +1401,15 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             for det_id in detector_ids:
                 final_report_string += f"\t Detector {det_id}: \n"
                 try:
-                    cpCov = butler.get(
-                        "cpCovariances",
+                    cp_ptc_extract = butler.get(
+                        "cpPtcExtract",
                         instrument=self.instrument_name,
                         detector=det_id,
                         exposure=exp_id,
                     )
-                    for amp_name in cpCov.gain:
+                    for amp_name in cp_ptc_extract.gain:
                         final_report_string += (
-                            f"\t {amp_name}: {cpCov.gain[amp_name]}\n"
+                            f"\t {amp_name}: {cp_ptc_extract.gain[amp_name]}\n"
                         )
                 except RuntimeError:
                     continue

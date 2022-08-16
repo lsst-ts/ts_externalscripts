@@ -8,7 +8,7 @@ source:
 
 build:
   noarch: generic
-  script: python -m pip install --no-deps --ignore-installed .
+  script: {{ PYTHON }} -m pip install --no-deps --ignore-installed .
 
 test:
   requires:
@@ -21,18 +21,23 @@ test:
     - tests
     - setup.cfg
     - pyproject.toml
-  commands:
-    - py.test
+  imports:
+    - lsst.ts.externalscripts
 
 requirements:
   host:
-    - python
+    - python {{ python }}
     - pip
     - setuptools_scm
     - setuptools
-    - pytest-runner
+  build:
+    - python {{ python }}
+    - pip
+    - setuptools_scm
+    - setuptools
+    - ts-conda-build =0.3
   run:
-    - python
+    - python {{ python }}
     - setuptools
     - setuptools_scm
     - ts-idl

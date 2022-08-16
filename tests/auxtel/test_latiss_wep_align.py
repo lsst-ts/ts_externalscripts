@@ -28,17 +28,17 @@ import os
 import pytest
 
 try:
-    from lsst import cwfs
+    from lsst.ts import wep
 
-    CWFS_AVAILABLE = True
+    WEP_AVAILABLE = True
 except ImportError:
-    CWFS_AVAILABLE = False
-    warnings.warn("Could not import cwfs package. Most tests will be skipped.")
+    WEP_AVAILABLE = False
+    warnings.warn("Could not import wep package. Most tests will be skipped.")
 
 from lsst.ts import salobj
 from lsst.ts import standardscripts
 from lsst.ts import externalscripts
-from lsst.ts.externalscripts.auxtel import LatissCWFSAlign
+from lsst.ts.externalscripts.auxtel import LatissWEPAlign
 import lsst.daf.butler as dafButler
 from lsst.utils import getPackageDir
 import logging
@@ -91,11 +91,11 @@ except PermissionError:
     )
 
 
-class TestLatissCWFSAlign(
+class TestLatissWEPAlign(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     async def basic_make_script(self, index):
-        self.script = LatissCWFSAlign(index=index, remotes=True)
+        self.script = LatissWEPAlign(index=index, remotes=True)
 
         self.visit_id_angles = {}
         self.end_image_tasks = []
@@ -216,13 +216,13 @@ class TestLatissCWFSAlign(
         await self.atoods.evt_imageInOODS.set_write(obsid=image_name)
 
     @unittest.skipIf(
-        CWFS_AVAILABLE is False,
-        f"CWFS package availibility is {CWFS_AVAILABLE}. Skipping test_configure.",
+        WEP_AVAILABLE is False,
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
     )
     async def test_configure(self):
         async with self.make_script():
             # First make sure the cwfs package is present
-            assert os.path.exists(cwfs.__file__)
+            assert os.path.exists(wep.__file__)
             # Try configure with minimum set of parameters declared
             grating = "test_disp1"
             filter = "test_filt1"
@@ -319,8 +319,8 @@ class TestLatissCWFSAlign(
         return bore_sight_angle
 
     @unittest.skipIf(
-        CWFS_AVAILABLE is False or DATA_AVAILABLE is False,
-        f"CWFS package availibility is {CWFS_AVAILABLE}."
+        WEP_AVAILABLE is False or DATA_AVAILABLE is False,
+        f"WEP package availibility is {WEP_AVAILABLE}."
         f"Test data availability is {DATA_AVAILABLE}."
         f"Skipping test_take_sequence.",
     )
@@ -425,7 +425,10 @@ class TestLatissCWFSAlign(
             # Check that output values are within ~15-20nm of on-sky
             # validated values
             zern_tol = [20, 20, 20]  # [nm]
-            hex_tol = abs(np.matmul(zern_tol, self.script.matrix_sensitivity))  # [mm]
+            hex_tol = [
+                np.round(value, decimals=int(-np.floor(np.log10(value))))
+                for value in abs(np.matmul(zern_tol, self.script.matrix_sensitivity))
+            ]  # [mm]
             logger.info(
                 f"Hex_tol is {np.matmul(zern_tol, self.script.matrix_sensitivity)}"
             )
@@ -488,8 +491,8 @@ class TestLatissCWFSAlign(
             ) or (abs(self.script.offset_total_focus - total_focus) < hex_tol[2])
 
     @unittest.skipIf(
-        CWFS_AVAILABLE is False or DATA_AVAILABLE is False,
-        f"CWFS package availibility is {CWFS_AVAILABLE}."
+        WEP_AVAILABLE is False or DATA_AVAILABLE is False,
+        f"WEP package availibility is {WEP_AVAILABLE}."
         f"Test data availability is {DATA_AVAILABLE}."
         f"Skipping test_analysis.",
     )
@@ -547,19 +550,12 @@ class TestLatissCWFSAlign(
             # output on-sky from first pair
             centroid = [2708, 3094]  # [x,y]
 
-            meas_zerns = [
-                -60.1,
-                30.8,
-                50.7,
-            ]
+            meas_zerns = [-60.1, 30.8, 50.7]
             # De-rotated zernike
-            rot_zerns = [
-                -52.6,
-                42.4,
-                50.7,
-            ]
-            # Hexapod offsets
-            hex_offsets = [-0.255, -0.206, 0.007]
+            rot_zerns = [-52.6, 42.4, 50.7]
+            # Hexapod offsets [-0.255, -0.206, 0.007]
+            hex_offsets = np.matmul(rot_zerns, self.script.matrix_sensitivity)
+
             # Telescope offsets
             tel_offsets = [-13.4, -10.4, 0.0]
 
@@ -593,10 +589,12 @@ class TestLatissCWFSAlign(
                 )
 
             # get dict of results from the last run and check they're within
-            # ~15nm of the expected values
-            zern_tol = [15, 15, 15]  # [nm]
-            # hex_tol is in mm
-            hex_tol = abs(np.matmul(zern_tol, self.script.matrix_sensitivity))
+            # ~20nm of the expected values
+            zern_tol = [20, 20, 20]  # [nm]
+            hex_tol = [
+                np.round(value, decimals=int(-np.floor(np.log10(value))))
+                for value in abs(np.matmul(zern_tol, self.script.matrix_sensitivity))
+            ]  # [mm]
             logger.debug(f"Hex_tol is {hex_tol}")
 
             tel_offset_tol = np.matmul(hex_tol, self.script.hexapod_offset_scale)
@@ -630,8 +628,8 @@ class TestLatissCWFSAlign(
                         assert abs(t - tel_offsets[i]) <= tel_offset_tol[i]
 
     @unittest.skipIf(
-        CWFS_AVAILABLE is False or DATA_AVAILABLE is False,
-        f"CWFS package availibility is {CWFS_AVAILABLE}."
+        WEP_AVAILABLE is False or DATA_AVAILABLE is False,
+        f"WEP package availibility is {WEP_AVAILABLE}."
         f"Test data availability is {DATA_AVAILABLE}."
         f"Skipping test_source_finding.",
     )
@@ -668,6 +666,6 @@ class TestLatissCWFSAlign(
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
-        script_path = scripts_dir / "auxtel" / "latiss_cwfs_align.py"
+        script_path = scripts_dir / "auxtel" / "latiss_wep_align.py"
         logger.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
