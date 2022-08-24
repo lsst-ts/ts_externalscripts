@@ -188,6 +188,8 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.offset_total_coma_x = 0.0
         self.offset_total_coma_y = 0.0
 
+        self.camera_playlist = None
+
     # define the method that sets the hexapod offset to create intra/extra
     # focal images
     @property
@@ -543,6 +545,15 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                   Optional name of the program this dataset belongs to.
                 type: string
                 default: CWFS
+              camera_playlist:
+                description: >-
+                  Optional name a camera playlist to load before running the script.
+                  This parameter is mostly designed to use for integration tests and is
+                  switched off by default (e.g. null).
+                anyOf:
+                  - type: string
+                  - type: "null"
+                default: null
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -617,6 +628,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.program = config.program
 
         self.take_detection_image = config.take_detection_image
+
+        self.camera_playlist = config.camera_playlist
 
     def set_metadata(self, metadata: salobj.type_hints.BaseMsgType) -> None:
         """Sets script metadata.
@@ -847,4 +860,17 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         This method simply call `arun` with `checkpoint=True`.
         """
+        if self.camera_playlist is not None:
+            await self.checkpoint(f"Loading camera playlist: {self.camera_playlist}.")
+            self.log.warning(
+                f"Running script with playlist: {self.camera_playlist}. "
+                "This is only suitable for test-type run and should not be used for "
+                "on-sky observations. If you are on sky, check your script configuration."
+            )
+            await self.latiss.rem.atcamera.cmd_play.set_start(
+                playlist=self.camera_playlist,
+                repeat=True,
+                timeout=self.latiss.fast_timeout,
+            )
+
         await self.arun(True)
