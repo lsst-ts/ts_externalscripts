@@ -471,7 +471,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                               the telescope. Rotator will not track in this mode.
                 type: string
                 enum: ["Sky", "SkyAuto", "Parallactic", "PhysicalSky", "Physical"]
-                default: SkyAuto
+                default: PhysicalSky
               filter:
                 description: Which filter to use when taking intra/extra focal images.
                 type: string
@@ -587,7 +587,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             self.cwfs_target_dec = None
 
         self.rot = config.rot
-        self.rot_strategy = getattr(RotType, self.config.rot_type)
+        self.rot_strategy = getattr(RotType, config.rot_type)
 
         self.filter = config.filter
         self.grating = config.grating
