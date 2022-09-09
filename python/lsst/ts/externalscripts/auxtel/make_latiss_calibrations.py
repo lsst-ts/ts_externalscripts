@@ -109,6 +109,14 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
                     minimum: 1
                   - type: "null"
                 default: null
+            grating:
+                description: Grating name; if omitted the grating is not changed.
+                anyOf:
+                  - type: string
+                  - type: integer
+                    minimum: 1
+                  - type: "null"
+                default: null
             input_collections_bias:
                 type: string
                 descriptor: Additional comma-separated input collections to pass to the bias pipetask.
@@ -164,4 +172,4 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         return schema_dict
 
     def get_instrument_configuration(self):
-        return dict(filter=self.config.filter)
+        return dict(filter=self.config.filter, grating=self.config.grating)
