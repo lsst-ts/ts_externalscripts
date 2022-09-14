@@ -855,6 +855,32 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             f"Reached maximum iteration ({self.max_iter}) without convergence.\n"
         )
 
+    async def assert_feasibility(self) -> None:
+        """Verify that the telescope and camera are in a feasible state to
+        execute the script.
+        """
+
+        await self.atcs.assert_all_enabled()
+        await self.latiss.assert_all_enabled()
+
+        self.log.debug("Check ATAOS corrections are enabled.")
+        ataos_corrections = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
+            timeout=self.atcs.fast_timeout
+        )
+
+        assert (
+            ataos_corrections.hexapod
+            and ataos_corrections.m1
+            and ataos_corrections.atspectrograph
+        ), (
+            "Not all required ATAOS corrections are enabled. "
+            "The following loops must all be closed (True), but are currently: "
+            f"Hexapod: {ataos_corrections.hexapod}, "
+            f"M1: {ataos_corrections.m1}, "
+            f"ATSpectrograph: {ataos_corrections.atspectrograph}. "
+            "Enable corrections with the ATAOS 'enableCorrection' command before proceeding.",
+        )
+
     async def run(self) -> None:
         """Execute script.
 
@@ -872,5 +898,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 repeat=True,
                 timeout=self.latiss.fast_timeout,
             )
+
+        await self.assert_feasibility()
 
         await self.arun(True)
