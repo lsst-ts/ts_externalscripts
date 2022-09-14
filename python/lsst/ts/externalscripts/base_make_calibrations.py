@@ -35,7 +35,7 @@ import lsst.daf.butler as dafButler
 
 class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
     """Base class for taking images, and constructing, verifying, and
-        certifying master calibrations.
+        certifying combined calibrations.
 
     Parameters
     ----------
@@ -159,7 +159,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
     def get_schema(cls):
         schema = """
         $schema: http://json-schema.org/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_externalscripts/blob/master/python/lsst/ts/\
+        $id: https://github.com/lsst-ts/ts_externalscripts/blob/main/python/lsst/ts/\
             externalscripts/maintel/make_comcam_calibrations.py
         title: BaseMakeCalibrations v1
         description: Configuration for BaseMakeCalibrations.
@@ -167,7 +167,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         properties:
             script_mode:
                 description: Type of images to make. If "BIAS", only biases will be taken \
-                        and a master bias produced, verified, and certified. If "BIAS_DARK", \
+                        and a combined bias produced, verified, and certified. If "BIAS_DARK", \
                         the process will include bias and dark images. Note that a bias is needed \
                         to produce a dark. If "BIAS_DARK_FLAT" (default), biases, darks, and flats will be
                         produced.
@@ -221,28 +221,28 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 default: 5
             generate_calibrations:
                 type: boolean
-                descriptor: Should the combined/master calibrations be generated from the images taken? \
+                descriptor: Should the combined calibrations be generated from the images taken? \
                     If False, and do_verify = True, reference calibrations should be provided in the \
                     input collections for the verification pipetasks.
                 default: False
             do_verify:
                 type: boolean
-                descriptor: Should the master calibrations be verified? (c.f., cp_verify)
+                descriptor: Should the combined calibrations be verified? (c.f., cp_verify)
                 default: true
             number_verification_tests_threshold_bias:
                 type: integer
                 descriptor: Minimum number of verification tests per detector per exposure per \
-                    test type that should pass to certify the bias master calibration.
+                    test type that should pass to certify the bias combined calibration.
                 default: 8
             number_verification_tests_threshold_dark:
                 type: integer
                 descriptor: Minimum number of verification tests per detector per exposure per \
-                    test type that should pass to certify the dark master calibration.
+                    test type that should pass to certify the dark combined calibration.
                 default: 8
             number_verification_tests_threshold_flat:
                 type: integer
                 descriptor: Minimum number of verification tests per detector per exposure per \
-                    test type that should pass to certify the flat master calibration.
+                    test type that should pass to certify the flat combined calibration.
                 default: 8
             config_options_bias:
                 type: string
@@ -733,7 +733,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
 
         pipe_yaml = "VerifyBias.yaml"
-        # If the master calibration was not generated with the images
+        # If the combined calibration was not generated with the images
         # taken at the beginning of the script, the verification
         # pipetask will use the calibrations provided as input
         # collections in the configuration file.
@@ -777,7 +777,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             List of dark exposure IDs.
         """
         pipe_yaml = "VerifyDark.yaml"
-        # If the master calibration was not generated with the images
+        # If the combined calibration was not generated with the images
         # taken at the beginning of the script, the verification
         # pipetask will use the calibrations provided as input
         # collections in the configuration file.
@@ -822,7 +822,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
 
         pipe_yaml = "VerifyFlat.yaml"
-        # If the master calibration was not generated with the images
+        # If the combined calibration was not generated with the images
         # taken at the beginning of the script, the verification
         # pipetask will use the calibrations provided as input
         # collections in the configuration file.
@@ -877,7 +877,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 f"Valid options: {self.pipetask_parameters_verification.keys()}"
             )
 
-        # Verify the master calibration
+        # Verify the combined calibration
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
             pipeline=f"${{CP_VERIFY_DIR}}/pipelines/{pipe_yaml}",
@@ -1037,7 +1037,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         max_number_failures_per_detector_per_test : `int`
             Minimum number of verification tests per detector per
             exposure per test type that should pass to certify the
-            master calibration.
+            combined calibration.
 
         Returns
         -------
@@ -1471,7 +1471,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
             if self.config.generate_calibrations:
                 # 2. Call the calibration pipetask via the OCPS
-                # to make a master
+                # to make a combined
                 self.log.info(
                     "Generating calibration from the images taken "
                     "as part of this script."

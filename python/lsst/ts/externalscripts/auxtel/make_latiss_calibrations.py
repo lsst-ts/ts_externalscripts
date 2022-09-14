@@ -29,12 +29,12 @@ from ..base_make_calibrations import BaseMakeCalibrations
 
 class MakeLatissCalibrations(BaseMakeCalibrations):
     """Class for taking images, constructing, verifying, and
-    certifying master calibrations with LATISS.
+    certifying combined calibrations with LATISS.
 
     This class takes bias, dark, and flat exposureswith Auxtel-LATISS,
-    constructs a master calibration for each image type by calling
+    constructs a combined calibration for each image type by calling
     the appropriate pipetask via OCPS, and then verifies and certifies
-    each master calibration. It also optionally produces defects and
+    each combined calibration. It also optionally produces defects and
     Photon Transfer Curves.
     """
 
@@ -42,7 +42,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         super().__init__(
             index=index,
             descr="Takes series of bias, darks and flat-field exposures with "
-            "LATISS/AuxTel, and constructs master calibrations, verify and "
+            "LATISS/AuxTel, and constructs combined calibrations, verify and "
             "certify the results.",
         )
         self._latiss = LATISS(domain=self.domain, log=self.log)
@@ -155,7 +155,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
                 default: "LATISS/calib"
             calib_collection:
                 type: string
-                descriptor: Calibration collection where master calibrations will be certified into.
+                descriptor: Calibration collection where combined calibrations will be certified into.
                 default: "LATISS/calib/daily"
             repo:
                 type: string
