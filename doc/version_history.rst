@@ -6,6 +6,70 @@
 Version History
 ===============
 
+v0.17.2
+-------
+
+* In `python/lsst/ts/externalscripts/auxtel/latiss_acquire_and_take_sequence.py`, add feasibility check before executing script.
+  This will check that all TCS and LATISS controlled CSCs are enabled and that the required ATAOS corrections are enabled.
+
+* In `python/lsst/ts/externalscripts/auxtel/latiss_base_align.py``:
+
+  * Add feasibility check before executing script.
+    This will check that all CSCs are enabled and that the required ATAOS corrections are enabled.
+  * Move the target configuration step from the ``configure`` step into the ``run`` step, to prevent the script from failing and remaining in "UNCONFIGURED" state.
+
+* In `python/lsst/ts/externalscripts/auxtel/latiss_wep_align.py` replace use of `BestEffortIsr` in type annotation with `typing.All` to support `summit_utils` as a optional package.
+
+v0.17.1
+-------
+
+* In ``auxtel/latiss_base_align.py``, add support for loading a playlist.
+  This is useful for running integration-type tests.
+
+* In LatissBaseAlign:
+
+  * Fix issue in ``configure`` method accessing ``self.config`` instead of ``config``.
+  * Change default rotator strategy from ``SkyAuto`` to ``PhysicalSky``.
+
+v0.17.0
+-------
+
+* Add new metaclass, ``LatissBaseAlign``, which contains the generic actions required to execute a curvature wavefront error measurement, abstracting the computation part.
+  The meta script performs the following actions:
+
+    * slew to a selected target,
+    * acquire intra/extra focal data by offsetting the hexapod in z,
+    * run a meta function that computes the wavefront errors,
+    * de-rotate the wavefront errors,
+    * apply a sensitivity matrix to compute hexapod and telescope offsets,
+    * apply comma and focus correction to the hexapod and pointing offsets.
+
+  Therefore child implementations are only left to implement the function that computes the wavefront errors.
+
+* In ``LatissCWFSAlign``, use new meta script ``LatissBaseAlign``.
+  This basically removes all the code that was moved from ``LatissCWFSAlign`` into ``LatissBaseAlign``.
+
+* Add unit tests for new ``LatissWEPAlign`` script.
+
+* Add new ``LatissWEPAlign`` script that implements ``LatissBaseAlign`` script by using the wavefront estimation pipeline task.
+  This is the same code we will use for the main telescope and is designed as a DM pipeline task, rather than a standalone python code as CWFS.
+  Note that the code is developed to use most of the processing done by the cwfs version using, for instance, ``BestEfforIsr`` to rapidly process the raw frames and  ``QuickFrameMeasurementTask`` to find the donuts.
+  The data is then passed along to the pipeline task for processing.
+  Also, note that the processing is done in parallel in a separate python process.
+  This guarantees that the main processing (driving the Script) is kept free of load.
+  The amount of data passed from one process to another is rather small in this case, only the pipeline task result and the quick frame measurements are returned.
+
+* In LatissCWFSAlign unit test:
+
+  * rename run_cwfs -> run_align
+  * rename sensitivity_matrix -> matrix_sensitivity
+  * rename total_coma_x_offset -> offset_total_coma_x
+  * rename total_coma_y_offset -> offset_total_coma_y
+  * rename total_focus_offset -> offset_total_focus
+  * update access to results for dict to new ``LatissAlignResults`` dataclass
+  * remove ``__all__``
+  * add missing line on license header.
+
 
 v0.16.1
 -------
