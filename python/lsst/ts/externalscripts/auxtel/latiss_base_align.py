@@ -573,29 +573,13 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             configuration.
         """
 
-        if hasattr(config, "find_target") and hasattr(config, "track_target"):
-            raise RuntimeError(
-                "find_target and track_target configuration sections cannot be specified together."
-            )
-        elif hasattr(config, "find_target"):
-            self.log.debug(f"Finding target for cwfs @ {config.find_target}")
-            self.cwfs_target = await self.atcs.find_target(**config.find_target)
-            self.cwfs_target_ra = None
-            self.cwfs_target_dec = None
-            self.log.debug(f"Using target {self.cwfs_target} for cwfs.")
-        elif hasattr(config, "track_target"):
-            self.log.debug(f"Tracking target {config.track_target} for cwfs.")
-            self.cwfs_target = config.track_target.get("target_name", "cwfs_target")
-            self.cwfs_target_ra = None
-            self.cwfs_target_dec = None
-            if "icrs" in config.track_target:
-                self.cwfs_target_ra = config.track_target["icrs"]["ra"]
-                self.cwfs_target_dec = config.track_target["icrs"]["dec"]
-        else:
-            self.log.debug("No target configured.")
-            self.cwfs_target = None
-            self.cwfs_target_ra = None
-            self.cwfs_target_dec = None
+        self.target_config = types.SimpleNamespace()
+
+        if hasattr(config, "find_target"):
+            self.target_config = config.find_target
+
+        if hasattr(config, "track_target"):
+            self.target_config = config.track_target
 
         self.rot = config.rot
         self.rot_strategy = getattr(RotType, config.rot_type)
@@ -630,6 +614,49 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.take_detection_image = config.take_detection_image
 
         self.camera_playlist = config.camera_playlist
+
+    async def _configure_target(self):
+        """Finish configuring target.
+
+        Raises
+        ------
+        `RuntimeError`
+            If both `find_target` and `track_target` are provided.
+        """
+
+        if hasattr(self.target_config, "find_target") and hasattr(
+            self.target_config, "track_target"
+        ):
+            raise RuntimeError(
+                "find_target and track_target configuration sections cannot be specified together."
+            )
+        elif hasattr(self.target_config, "find_target"):
+            self.log.debug(
+                f"Finding target for cwfs @ {self.target_config.find_target}"
+            )
+            self.cwfs_target = await self.atcs.find_target(
+                **self.target_config.find_target
+            )
+            self.cwfs_target_ra = None
+            self.cwfs_target_dec = None
+            self.log.debug(f"Using target {self.cwfs_target} for cwfs.")
+        elif hasattr(self.target_config, "track_target"):
+            self.log.debug(
+                f"Tracking target {self.target_config.track_target} for cwfs."
+            )
+            self.cwfs_target = self.target_config.track_target.get(
+                "target_name", "cwfs_target"
+            )
+            self.cwfs_target_ra = None
+            self.cwfs_target_dec = None
+            if "icrs" in self.target_config.track_target:
+                self.cwfs_target_ra = self.target_config.track_target["icrs"]["ra"]
+                self.cwfs_target_dec = self.target_config.track_target["icrs"]["dec"]
+        else:
+            self.log.debug("No target configured.")
+            self.cwfs_target = None
+            self.cwfs_target_ra = None
+            self.cwfs_target_dec = None
 
     def set_metadata(self, metadata: salobj.type_hints.BaseMsgType) -> None:
         """Sets script metadata.
@@ -677,6 +704,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         RuntimeError:
             If coordinates are malformed.
         """
+
+        await self._configure_target()
 
         if self.cwfs_target is not None and self.cwfs_target_dec is None:
             if checkpoint:
@@ -855,6 +884,32 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             f"Reached maximum iteration ({self.max_iter}) without convergence.\n"
         )
 
+    async def assert_feasibility(self) -> None:
+        """Verify that the telescope and camera are in a feasible state to
+        execute the script.
+        """
+
+        await self.atcs.assert_all_enabled()
+        await self.latiss.assert_all_enabled()
+
+        self.log.debug("Check ATAOS corrections are enabled.")
+        ataos_corrections = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
+            timeout=self.atcs.fast_timeout
+        )
+
+        assert (
+            ataos_corrections.hexapod
+            and ataos_corrections.m1
+            and ataos_corrections.atspectrograph
+        ), (
+            "Not all required ATAOS corrections are enabled. "
+            "The following loops must all be closed (True), but are currently: "
+            f"Hexapod: {ataos_corrections.hexapod}, "
+            f"M1: {ataos_corrections.m1}, "
+            f"ATSpectrograph: {ataos_corrections.atspectrograph}. "
+            "Enable corrections with the ATAOS 'enableCorrection' command before proceeding.",
+        )
+
     async def run(self) -> None:
         """Execute script.
 
@@ -872,5 +927,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 repeat=True,
                 timeout=self.latiss.fast_timeout,
             )
+
+        await self.assert_feasibility()
 
         await self.arun(True)
