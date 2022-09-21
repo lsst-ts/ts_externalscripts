@@ -249,7 +249,7 @@ def get_donut_catalog(result: Struct, wcs: SkyWcs) -> pandas.DataFrame:
 
 def get_image(
     data_id: typing.Dict[str, typing.Union[int, str]],
-    best_effort_isr: BestEffortIsr,
+    best_effort_isr: typing.Any,
     timeout: float,
     loop_time: float = 0.1,
 ) -> ExposureF:
