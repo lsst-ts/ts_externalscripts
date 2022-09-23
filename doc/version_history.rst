@@ -6,6 +6,14 @@
 Version History
 ===============
 
+v0.17.3
+-------
+
+* In `python/lsst/ts/externalscripts/auxtel/make_latiss_calibrations.py`, add option to change the grating.
+
+* In `python/lsst/ts/externalscripts/auxtel/make_latiss_calibrations.py`, `python/lsst/ts/externalscripts/maintel/make_comcam_calibrations.py`, and
+  `python/lsst/ts/externalscripts/base_make_calibrations.py`, replace ``master calibrations`` for ``combined calibrations``.
+
 v0.17.2
 -------
 
