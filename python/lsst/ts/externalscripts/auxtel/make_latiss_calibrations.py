@@ -29,12 +29,12 @@ from ..base_make_calibrations import BaseMakeCalibrations
 
 class MakeLatissCalibrations(BaseMakeCalibrations):
     """Class for taking images, constructing, verifying, and
-    certifying master calibrations with LATISS.
+    certifying combined calibrations with LATISS.
 
     This class takes bias, dark, and flat exposureswith Auxtel-LATISS,
-    constructs a master calibration for each image type by calling
+    constructs a combined calibration for each image type by calling
     the appropriate pipetask via OCPS, and then verifies and certifies
-    each master calibration. It also optionally produces defects and
+    each combined calibration. It also optionally produces defects and
     Photon Transfer Curves.
     """
 
@@ -42,7 +42,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         super().__init__(
             index=index,
             descr="Takes series of bias, darks and flat-field exposures with "
-            "LATISS/AuxTel, and constructs master calibrations, verify and "
+            "LATISS/AuxTel, and constructs combined calibrations, verify and "
             "certify the results.",
         )
         self._latiss = LATISS(domain=self.domain, log=self.log)
@@ -109,6 +109,14 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
                     minimum: 1
                   - type: "null"
                 default: null
+            grating:
+                description: Grating name; if omitted the grating is not changed.
+                anyOf:
+                  - type: string
+                  - type: integer
+                    minimum: 1
+                  - type: "null"
+                default: null
             input_collections_bias:
                 type: string
                 descriptor: Additional comma-separated input collections to pass to the bias pipetask.
@@ -147,7 +155,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
                 default: "LATISS/calib"
             calib_collection:
                 type: string
-                descriptor: Calibration collection where master calibrations will be certified into.
+                descriptor: Calibration collection where combined calibrations will be certified into.
                 default: "LATISS/calib/daily"
             repo:
                 type: string
@@ -164,4 +172,4 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         return schema_dict
 
     def get_instrument_configuration(self):
-        return dict(filter=self.config.filter)
+        return dict(filter=self.config.filter, grating=self.config.grating)

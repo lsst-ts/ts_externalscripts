@@ -29,12 +29,12 @@ from ..base_make_calibrations import BaseMakeCalibrations
 
 class MakeComCamCalibrations(BaseMakeCalibrations):
     """Class for taking images, constructing, verifying, and
-    certifying master calibrations with LSSTComCam.
+    certifying combined calibrations with LSSTComCam.
 
     This class takes bias, darks, and flat exposures with LSSTComCam,
-    constructs a master calibration for each image type by calling
+    constructs a combined calibration for each image type by calling
     the appropiate pipetask via OCPS, and then verifies and certifies
-    each master calibration. It also optionally produces defects and
+    each combined calibration. It also optionally produces defects and
     Photon Transfer Curves. "
 
     """
@@ -43,7 +43,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         super().__init__(
             index=index,
             descr="Takes series of bias, darks and flat-field exposures"
-            "with LSSTComCam, and constructs master "
+            "with LSSTComCam, and constructs combined "
             "calibrations, verify and certify the results.",
         )
         self._comcam = ComCam(domain=self.domain, log=self.log)
@@ -103,7 +103,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         $id: https://github.com/lsst-ts/ts_externalscripts/python/lsst/ts/\
                 externalscripts/maintel/make_comcam_calibrations.py
         title: MakeComCamCalibrations v1
-        description: Configuration for making a LSSTComCam master calibrations SAL Script.
+        description: Configuration for making a LSSTComCam combined calibrations SAL Script.
         type: object
         properties:
             detectors:
@@ -164,7 +164,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
                 default: "LSSTComCam/calib"
             calib_collection:
                 type: string
-                descriptor: Calibration collection where master calibrations will be certified into.
+                descriptor: Calibration collection where combined calibrations will be certified into.
                 default: "LSSTComCam/calib/daily"
             repo:
                 type: string
