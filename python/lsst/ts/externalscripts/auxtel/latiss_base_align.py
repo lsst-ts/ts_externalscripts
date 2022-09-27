@@ -576,10 +576,10 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.target_config = types.SimpleNamespace()
 
         if hasattr(config, "find_target"):
-            self.target_config = config.find_target
+            self.target_config.find_target = config.find_target
 
         if hasattr(config, "track_target"):
-            self.target_config = config.track_target
+            self.target_config.track_target = config.track_target
 
         self.rot = config.rot
         self.rot_strategy = getattr(RotType, config.rot_type)
