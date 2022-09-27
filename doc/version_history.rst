@@ -6,6 +6,12 @@
 Version History
 ===============
 
+ v0.18.0
+ -------
+
+ * Add new script `python/lsst/ts/externalscripts/maintel/warmup_hexapod.py`.
+   This new script is used to move one of the two hexapods to its maximum position in incremental steps.
+
 v0.17.3
 -------
 
