@@ -286,7 +286,7 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the
         # same position it was before running the script
-        await self.hexapod_offset(self.dz)
+        await self.hexapod_offset(self.dz + self.extra_focal_offset)
 
     async def hexapod_offset(
         self, offset: float, x: float = 0.0, y: float = 0.0
