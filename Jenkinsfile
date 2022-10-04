@@ -1,18 +1,36 @@
+properties([
+    buildDiscarder(
+        logRotator(
+            artifactDaysToKeepStr: '',
+            artifactNumToKeepStr: '',
+            daysToKeepStr: '14',
+            numToKeepStr: '10',
+        )
+    ),
+    // Make new builds terminate existing builds
+    disableConcurrentBuilds(
+        abortPrevious: true,
+    )
+])
 pipeline {
 
-    agent any
-
+    agent {
+        // Run as root to avoid permission issues when creating files.
+        // To run on a specific node, e.g. for a specific architecture, add `label '...'`.
+        docker {
+            alwaysPull true
+            image 'lsstts/develop-env:develop'
+            args "-u root --entrypoint=''"
+        }
+    }
     options {
-      disableConcurrentBuilds(
-        abortPrevious: true,
-      )
       skipDefaultCheckout()
     }
-
     environment {
-        network_name = "n_${env.BUILD_ID}_${env.JENKINS_NODE_COOKIE}"
-        container_name = "c_${env.BUILD_ID}_${env.JENKINS_NODE_COOKIE}"
+        // Python module name.
+        MODULE_NAME = "lsst.ts.mtmount"
         work_branches = "${env.GIT_BRANCH} ${env.CHANGE_BRANCH} develop"
+        XML_REPORT_PATH = 'jenkinsReport/report.xml'
     }
 
     stages {
@@ -20,12 +38,6 @@ pipeline {
             steps {
                 dir(env.WORKSPACE + '/ci/ts_externalscripts') {
                     checkout scm
-                }
-                dir(env.WORKSPACE + '/ci/Spectractor') {
-                    git branch: 'master', url: 'https://github.com/lsst/Spectractor.git'
-                }
-                dir(env.WORKSPACE + '/ci/atmospec') {
-                    git branch: 'main', url: 'https://github.com/lsst-dm/atmospec.git'
                 }
                 dir(env.WORKSPACE + '/ci/summit_utils') {
                     git branch: 'main', url: 'https://github.com/lsst-sitcom/summit_utils.git'
@@ -38,190 +50,49 @@ pipeline {
                 }
             }
         }
+        stage ('Setup and update dependencies') {
+            steps {
+                // When using the docker container, we need to change the WHOME path
+                // to WORKSPACE to have the authority to install the packages.
+                withEnv(["WHOME=${env.WORKSPACE}"]) {
+                    sh """
+                        source /home/saluser/.setup_dev.sh
 
-        stage("Pulling docker image") {
-            steps {
-                script {
-                    sh """
-                    docker pull lsstts/develop-env:develop
-                    """
-                }
-            }
-        }
-        stage("Preparing environment") {
-            steps {
-                script {
-                    sh """
-                    docker network create \${network_name}
-                    chmod -R a+rw \${WORKSPACE}
-                    container=\$(docker run -v \${WORKSPACE}:/home/saluser/repo/ -td --rm --net \${network_name} --name \${container_name} lsstts/develop-env:develop)
-                    """
-                }
-            }
-        }
-        stage("Checkout sal") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_sal && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
-        stage("Checkout salobj") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_salobj && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
-        stage("Checkout xml") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_xml && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
-        stage("Checkout IDL") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_idl && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
-        stage("Checkout ts_simactuators") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_simactuators && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
+                        for repo in \$(ls /home/saluser/repos/)
+                        do
+                            cd /home/saluser/repos/\$repo
+                            /home/saluser/.checkout_repo.sh ${env.work_branches}
+                            git pull
+                        done
 
-        stage("Checkout ts_scriptqueue") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_scriptqueue && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
+                        cd ${WHOME}/ci/summit_utils
+                        eups declare -r . -t current
+                        setup atmospec
+                        setup summit_utils -t current 
+                        scons || echo "summit_utils build failed; continuing..."
 
-        stage("Checkout ts_ATDomeTrajectory") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_ATDomeTrajectory && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
+                        cd ${WHOME}/ci/ts_observing_utilities
+                        eups declare -r . -t current
+                        setup ts_observing_utilities -t current
+                        scons || echo "ts_observing_utilities build failed; continuing..."
 
-        stage("Checkout ts_ATDome") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_ATDome && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
+                        # Make IDL files
+                        make_idl_files.py --all
                     """
                 }
             }
         }
-        stage("Checkout ts_standardscripts") {
+        stage('Run unit tests') {
             steps {
-                script {
+                withEnv(["WHOME=${env.WORKSPACE}"]) {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_standardscripts && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
-        stage("Checkout ts_ATMCSSimulator") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_atmcssimulator && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
-        stage("Checkout ts_config_attcs") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_config_attcs && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
-        stage("Checkout ts_observatory_control") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_observatory_control && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
-                }
-            }
-        }
-       stage("setup Spectractor") {
-           steps {
-               script {
-                   sh """
-                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/Spectractor && pip install -e . || echo FAILED to install Spectractor. Continuing...\"
-                   """
-               }
-           }
-       }
-       stage("setup atmospec") {
-           steps {
-               script {
-                   sh """
-                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/atmospec && eups declare -r . -t saluser && setup atmospec -t saluser && scons || echo FAILED to build atmospec. Continuing...\"
-                   """
-               }
-           }
-       }
-       stage("setup summit_utils") {
-           steps {
-               script {
-                   sh """
-                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/summit_utils && eups declare -r . -t saluser && setup atmospec -t saluser && setup summit_utils -t saluser && scons || echo FAILED to build summit_utils. Continuing...\"
-                   """
-               }
-           }
-       }
-
-       stage("setup ts_observing_utilities") {
-           steps {
-               script {
-                   sh """
-                   docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/ts_observing_utilities && eups declare -r . -t saluser && setup ts_observing_utilities -t saluser && scons || echo FAILED to build ts_observing_utilities. Continuing...\"
-                   """
-               }
-           }
-       }
-       
-        stage("Build IDL files") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && make_idl_files.py --all || echo FAILED to build IDL files.\"
-                    """
-                }
-            }
-        }
-        stage("Running tests") {
-            steps {
-                script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ci/ts_externalscripts && eups declare -r . -t saluser && setup ts_externalscripts -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && setup ts_observing_utilities -t saluser && setup atmospec -t saluser && setup summit_utils -t saluser && py.test --junitxml=tests/.tests/junit.xml\"
+                        source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."
+                        setup ts_observing_utilities -t current
+                        setup atmospec -t current
+                        setup summit_utils -t current
+                        cd ${WHOME}/ci/ts_externalscripts
+                        setup -r .
+                        pytest --cov-report html --cov=${env.MODULE_NAME} --junitxml=${env.XML_REPORT_PATH}
                     """
                 }
             }
@@ -229,26 +100,28 @@ pipeline {
     }
     post {
         always {
-            // The path of xml needed by JUnit is relative to
-            // the workspace.
-            junit 'ci/ts_externalscripts/tests/.tests/junit.xml'
+            // Change ownership of the workspace to Jenkins for clean up.
+            withEnv(["HOME=${env.WORKSPACE}"]) {
+                sh 'chown -R 1003:1003 ${HOME}/'
+            }
+            
+            // The path of xml needed by JUnit is relative to the workspace.
+            junit 'ci/ts_externalscripts/jenkinsReport/*.xml'
 
-            // Publish the HTML report
-            publishHTML (target: [
-                allowMissing: false,
-                alwaysLinkToLastBuild: false,
-                keepAll: true,
-                reportDir: 'ci/ts_externalscripts/tests/.tests/',
-                reportFiles: 'index.html',
-                reportName: "Coverage Report"
-              ])
+            // Publish the HTML report.
+            publishHTML (
+                target: [
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: false,
+                    keepAll: true,
+                    reportDir: 'ci/ts_externalscripts/jenkinsReport',
+                    reportFiles: 'index.html',
+                    reportName: "Coverage Report"
+                ]
+            )
         }
         cleanup {
-            sh """
-                docker exec -u root --privileged \${container_name} sh -c \"chmod -R a+rw /home/saluser/repo/ \"
-                docker stop \${container_name} || echo Could not stop container
-                docker network rm \${network_name} || echo Could not remove network
-            """
+            // Clean up the workspace.
             deleteDir()
         }
     }

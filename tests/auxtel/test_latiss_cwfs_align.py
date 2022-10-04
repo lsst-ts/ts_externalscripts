@@ -215,6 +215,11 @@ class TestLatissCWFSAlign(
         await asyncio.sleep(1.0)
         await self.atoods.evt_imageInOODS.set_write(obsid=image_name)
 
+    async def configure_script(self, **kwargs):
+        await super().configure_script(**kwargs)
+
+        await self.script._configure_target()
+
     @unittest.skipIf(
         CWFS_AVAILABLE is False,
         f"CWFS package availibility is {CWFS_AVAILABLE}. Skipping test_configure.",
