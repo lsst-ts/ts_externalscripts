@@ -286,7 +286,7 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the
         # same position it was before running the script
-        await self.hexapod_offset(self.dz)
+        await self.hexapod_offset(self.dz + self.extra_focal_offset)
 
     async def hexapod_offset(
         self, offset: float, x: float = 0.0, y: float = 0.0
@@ -576,10 +576,10 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.target_config = types.SimpleNamespace()
 
         if hasattr(config, "find_target"):
-            self.target_config = config.find_target
+            self.target_config.find_target = config.find_target
 
         if hasattr(config, "track_target"):
-            self.target_config = config.track_target
+            self.target_config.track_target = config.track_target
 
         self.rot = config.rot
         self.rot_strategy = getattr(RotType, config.rot_type)
