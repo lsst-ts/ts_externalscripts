@@ -22,19 +22,18 @@
 __all__ = ["LatissBaseAlign"]
 
 import abc
+import dataclasses
 import time
 import types
-import yaml
 import typing
-import dataclasses
 
 import numpy as np
-
+import yaml
 from lsst.ts import salobj
-from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.idl.enums.ATPtg import WrapStrategy
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
-from lsst.ts.idl.enums.ATPtg import WrapStrategy
+from lsst.ts.observatory.control.utils import RotType
 
 STD_TIMEOUT = 10
 

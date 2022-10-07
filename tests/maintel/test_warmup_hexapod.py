@@ -22,10 +22,9 @@ import logging
 
 # import random
 import unittest
-import numpy as np
 
-from lsst.ts import utils
-from lsst.ts import externalscripts, standardscripts
+import numpy as np
+from lsst.ts import externalscripts, standardscripts, utils
 from lsst.ts.externalscripts.maintel import WarmUpHexapod
 from lsst.ts.idl.enums import Script
 from lsst.ts.idl.enums.MTHexapod import SalIndex

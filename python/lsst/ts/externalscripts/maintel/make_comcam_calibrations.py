@@ -21,9 +21,9 @@
 __all__ = ["MakeComCamCalibrations"]
 
 import yaml
-
-from lsst.ts.observatory.control.maintel.comcam import ComCam
 from lsst.ts.observatory.control import RemoteGroup
+from lsst.ts.observatory.control.maintel.comcam import ComCam
+
 from ..base_make_calibrations import BaseMakeCalibrations
 
 

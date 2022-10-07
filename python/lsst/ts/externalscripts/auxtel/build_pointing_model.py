@@ -18,34 +18,45 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["BuildPointingModel"]
+__all__ = [
+    "BuildPointingModel",
+    "GridType",
+]
 
-import yaml
-
-import numpy as np
-import healpy as hp
+import asyncio
+import enum
 import warnings
 
+import astropy.units
+import healpy as hp
+import numpy as np
+import yaml
 from lsst.geom import PointD
+from lsst.ts import utils
 
 try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.summit.utils import BestEffortIsr
-
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
     from lsst.ts.observing.utilities.auxtel.latiss.utils import (
-        parse_visit_id,
         calculate_xy_offsets,
+        parse_visit_id,
     )
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
 
-from lsst.ts.observatory.control.constants.latiss_constants import boresight
-
-from lsst.ts.salobj import BaseScript
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
+from lsst.ts.observatory.control.constants.latiss_constants import boresight
 from lsst.ts.observatory.control.utils.enums import RotType
+from lsst.ts.salobj import BaseScript, ExpectedError
+
+
+class GridType(enum.Enum):
+    """Enumeration with different types of algorithm to build pointing grid."""
+
+    HEALPIX = "healpix"
+    RADEC = "radec"
 
 
 class BuildPointingModel(BaseScript):
@@ -56,7 +67,7 @@ class BuildPointingModel(BaseScript):
     a grid, which the user controls the overall density. For each position in
     the grid it will search for a nearby star to use as a reference.
     The Script then slews to the target, center the brightest target in the FoV
-    and register the positon.
+    and register the position.
     """
 
     def __init__(self, index: int, remotes: bool = True) -> None:
@@ -96,20 +107,96 @@ title: BuildPointingModel v1
 description: Configuration for BuildPointingModel.
 type: object
 properties:
-    nside:
-        type: integer
-        default: 3
-        minimum: 1
+    grid:
+        type: string
+        enum: ["healpix", "radec"]
+        default: healpix
         description: >-
-            Healpix nside parameter. The script uses healpix to construct an uniformly spaced grid around
-            the visible sky. This parameter defines the density of the pointing grid.
-    azimuth_origin:
-        type: number
-        default: 0.
+            Which type of spacial grid to use?
+            healpix: Provide uniformly spaced pointing grid.
+            radec: Non uniform but follow a more natural grid.
+    healpix_grid:
+        type: object
+        additionalProperties: false
+        description: Build pointing grid from healpix.
+        properties:
+            nside:
+                type: integer
+                default: 3
+                minimum: 1
+                description: >-
+                    Healpix nside parameter.
+                    The script uses healpix to construct an uniformly spaced grid around the visible sky.
+                    This parameter defines the density of the pointing grid.
+            azimuth_origin:
+                type: number
+                default: 0.
+                description: >-
+                    Origin of the azimuth grid.
+                    This allows users to rotate the entire grid in azimuth, hence allowing you to run a grid
+                    with the same density (nside) in different occasions to map different regions of the sky.
+    radec_grid:
+        type: object
+        additionalProperties: false
+        description: Build pointing grid from ra/dec grid.
+        properties:
+            dec_grid:
+                type: object
+                additionalProperties: false
+                description: Declination grid information.
+                default:
+                    min: -80.0
+                    max: 30.0
+                    n: 9
+                properties:
+                    min:
+                        type: number
+                        minimum: -90.0
+                        description: Minimum declination of the grid (in deg).
+                    max:
+                        type: number
+                        maximum: 90.0
+                        description: Maximum declination of the grid (in deg).
+                    n:
+                        type: integer
+                        minimum: 2
+                        description: Number of points in declination for the grid.
+            ha_grid:
+                type: object
+                additionalProperties: false
+                description: Hour Angle grid information.
+                default:
+                    min: -6.0
+                    max: 6.0
+                    n: [3, 5, 7, 9, 9, 9, 9, 7, 3]
+                properties:
+                    min:
+                        type: number
+                        minimum: -12.0
+                        description: Minimum hour angle of the grid (in hours).
+                    max:
+                        type: number
+                        maximum: 12.0
+                        description: Maximum hour angle of the grid (in hours).
+                    n:
+                        type: array
+                        minItems: 1
+                        items:
+                            type: integer
+                        description: >-
+                            Number of points in hour angle grid.
+                            The size must match the size of the declination grid, but this is not enforced by
+                            schema validation.
+    rotator_sequence:
+        type: array
         description: >-
-            Origin of the azimuth grid. This allows users to rotate the entire grid in azimuth,
-            hence allowing you to run a grid with the same density (nside) in different occasions
-            to map different regions of the sky.
+            An array of arrays with the desired sequence of rotator values to
+            sequence through.
+        items:
+            type: array
+            items:
+                type: number
+        default: [[0],[-90, 90],[0]]
     elevation_minimum:
         type: number
         default: 20.
@@ -134,6 +221,11 @@ properties:
         type: number
         default: 1.
         description: Exposure time for the acquisition images used to center the target in the FoV.
+    skip:
+        type: integer
+        default: 0
+        minimum: 0
+        description: Skip the initial given points in the grid.
     reason:
         description: Optional reason for taking the data.
         anyOf:
@@ -174,6 +266,10 @@ additionalProperties: false
 
         self.configure_grid()
 
+        self.rotator_sequence_gen = generate_rotator_sequence(
+            self.config.rotator_sequence
+        )
+
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
         # in unit tests
@@ -181,18 +277,33 @@ additionalProperties: false
 
     def configure_grid(self):
         """Configure the observation grid."""
-        self.log.debug("Configuring grid.")
+        self.log.info(f"Configuring {self.config.grid} grid.")
 
-        npix = hp.nside2npix(self.config.nside)
+        grid_type = GridType(self.config.grid)
+
+        if grid_type == GridType.HEALPIX:
+            self._configure_grid_healpix()
+        elif grid_type == GridType.RADEC:
+            self._configure_grid_radec()
+        else:
+            raise RuntimeError(f"Unexpected grid type: {grid_type!r}")
+
+        self.log.debug(f"Grid size: {self.grid_size}.")
+
+    def _configure_grid_healpix(self):
+        """Configure pointing grid using healpix algorithm."""
+        npix = hp.nside2npix(self.config.healpix_grid["nside"])
 
         healpy_indices = np.arange(npix)
 
         azimuth, elevation = hp.pix2ang(
-            nside=self.config.nside, ipix=healpy_indices, lonlat=True
+            nside=self.config.healpix_grid["nside"],
+            ipix=healpy_indices,
+            lonlat=True,
         )
 
         elevation += (np.random.rand(npix) - 0.5) * np.degrees(
-            hp.nside2resol(self.config.nside)
+            hp.nside2resol(self.config.healpix_grid["nside"])
         )
 
         position_in_search_area_mask = np.bitwise_and(
@@ -202,7 +313,8 @@ additionalProperties: false
 
         self.elevation_grid = np.array(elevation[position_in_search_area_mask])
         self.azimuth_grid = (
-            np.array(azimuth[position_in_search_area_mask]) + self.config.azimuth_origin
+            np.array(azimuth[position_in_search_area_mask])
+            + self.config.healpix_grid["azimuth_origin"]
         )
 
         self.log.debug("Sorting data in azimuth.")
@@ -212,7 +324,55 @@ additionalProperties: false
         self.elevation_grid = self.elevation_grid[azimuth_sort]
         self.azimuth_grid = self.azimuth_grid[azimuth_sort]
 
-        self.log.debug(f"Grid size: {self.grid_size}.")
+    def _configure_grid_radec(self):
+        """Configure pointing grid using radec algorithm."""
+
+        dec_grid_size = self.config.radec_grid["dec_grid"]["n"]
+        ha_grid_size = len(self.config.radec_grid["ha_grid"]["n"])
+        if dec_grid_size != ha_grid_size:
+            raise ExpectedError(
+                f"Size of declination grid ({dec_grid_size}) must match ha grid definition ({ha_grid_size})."
+            )
+
+        elevation_grid = []
+        azimuth_grid = []
+
+        reverse_ha = False
+        dec_values = np.linspace(
+            self.config.radec_grid["dec_grid"]["min"],
+            self.config.radec_grid["dec_grid"]["max"],
+            dec_grid_size,
+        )
+
+        for dec, n_ha in zip(dec_values, self.config.radec_grid["ha_grid"]["n"]):
+
+            ha_values = np.linspace(
+                self.config.radec_grid["ha_grid"]["min"],
+                self.config.radec_grid["ha_grid"]["max"],
+                n_ha,
+            )
+
+            if reverse_ha:
+                ha_values = ha_values[::-1]
+
+            reverse_ha = not reverse_ha
+
+            for ha in ha_values:
+                time = utils.astropy_time_from_tai_unix(utils.current_tai())
+                time.location = self.atcs.location
+                sidereal_time = time.sidereal_time("mean")
+                ra = sidereal_time - ha * astropy.units.hourangle
+                azel = self.atcs.azel_from_radec(ra, dec)
+                if (
+                    self.config.elevation_minimum
+                    < azel.alt.to(astropy.units.degree).value
+                    < self.config.elevation_maximum
+                ):
+                    elevation_grid.append(azel.alt.to(astropy.units.degree).value)
+                    azimuth_grid.append(azel.az.to(astropy.units.degree).value)
+
+        self.elevation_grid = np.array(elevation_grid)
+        self.azimuth_grid = np.array(azimuth_grid)
 
     @property
     def grid_size(self):
@@ -231,10 +391,59 @@ additionalProperties: false
         """The estimated average slew time considers a slew speed of 1 deg/sec.
         With that in mind, it returns the resolution of the grid in degrees.
         """
-        return hp.nside2resol(self.config.nside, arcmin=True) / 60.0
+        return hp.nside2resol(self.config.healpix_grid["nside"], arcmin=True) / 60.0
 
     async def arun(self, checkpoint_active=False):
 
+        await self.handle_checkpoint(
+            checkpoint_active=checkpoint_active,
+            checkpoint_message="Setting up.",
+        )
+
+        await asyncio.gather(
+            self._setup_atcs(),
+            self._setup_latiss(),
+        )
+
+        if self.config.skip > 0:
+            self.log.info(
+                f"Skipping the initial {self.config.skip} points in the grid."
+            )
+
+        for grid_index, azimuth, elevation, rotator_sequence in zip(
+            range(self.grid_size),
+            self.azimuth_grid,
+            self.elevation_grid,
+            self.rotator_sequence_gen,
+        ):
+
+            if grid_index < self.config.skip:
+                continue
+
+            checkpoint_message = (
+                f"[{grid_index+1}/{self.grid_size}]:: "
+                f"az={azimuth:0.2f}, el={elevation:0.2f}, rot_seq={rotator_sequence}."
+            )
+
+            await self.handle_checkpoint(checkpoint_active, checkpoint_message)
+            for rotator in rotator_sequence:
+                await self.execute_grid(azimuth, elevation, rotator)
+
+    async def _setup_latiss(self):
+        """Setup latiss.
+
+        Set filter and grating to empty_1.
+        """
+        await self.latiss.setup_instrument(
+            filter="empty_1",
+            grating="empty_1",
+        )
+
+    async def _setup_atcs(self):
+        """Setup ATCS.
+
+        This method will reset the ATAOS and pointing offsets.
+        """
         self.log.info("Resetting pointing and hexapod x and y offsets.")
 
         await self.atcs.rem.ataos.cmd_resetOffset.set_start(
@@ -247,18 +456,6 @@ additionalProperties: false
         )
         await self.atcs.reset_offsets()
 
-        for grid_index, azimuth, elevation in zip(
-            range(self.grid_size), self.azimuth_grid, self.elevation_grid
-        ):
-
-            checkpoint_message = (
-                f"Execute grid position {grid_index+1} of {self.grid_size}: "
-                f"az={azimuth:0.2f}, el={elevation:0.2f}."
-            )
-
-            await self.handle_checkpoint(checkpoint_active, checkpoint_message)
-            await self.execute_grid(azimuth, elevation)
-
     async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
 
         if checkpoint_active:
@@ -266,7 +463,7 @@ additionalProperties: false
         else:
             self.log.info(checkpoint_message)
 
-    async def execute_grid(self, azimuth, elevation):
+    async def execute_grid(self, azimuth, elevation, rotator):
         """Performs target selection, acquisition, and pointing registration
         for a single grid position.
 
@@ -276,6 +473,10 @@ additionalProperties: false
             Azimuth of the grid position (in degrees).
         elevation : `float`
             Elevation of the grid position (in degrees).
+        rotator : `float`
+            Rotator (physical) position at the start of the slew. Rotator will
+            follow sky from an initial physical position (e.g.
+            rot_type=PhysicalSky).
         """
 
         try:
@@ -293,7 +494,9 @@ additionalProperties: false
             self.iterations["failed"] += 1
             return
 
-        await self.atcs.slew_object(name=target, rot_type=RotType.PhysicalSky)
+        await self.atcs.slew_object(
+            name=target, rot=rotator, rot_type=RotType.PhysicalSky
+        )
 
         await self.center_on_brightest_source()
 
@@ -354,3 +557,52 @@ additionalProperties: false
     async def run(self):
 
         await self.arun(checkpoint_active=True)
+
+
+def generate_rotator_sequence(sequence):
+    """A generator that cicles through the input sequence forward and
+    backwards.
+
+    Parameters
+    ----------
+    sequence : `list` [`list` [`float`]]
+        A sequence of values to cicle through
+
+    Yields
+    ------
+    `list`
+        Values from the sequence.
+
+    Notes
+    -----
+    This generator is designed to generate sequence of values cicling through
+    the input forward and backwards. It will also reverse the list when moving
+    backwards.
+
+    Use it as follows:
+
+    >>> sequence = [[0], [0, 180], [180]]
+    >>> seq_gen = generate_rotator_sequence(sequence)
+    >>> next(seq_gen)
+    [0]
+    >>> next(seq_gen)
+    [0, 180]
+    >>> next(seq_gen)
+    [180]
+    >>> next(seq_gen)
+    [180, 0]
+    >>> next(seq_gen)
+    [0]
+    """
+    for s in sequence:
+        yield s
+
+    if len(sequence) > 1:
+        while True:
+            for s in sequence[:-1:][::-1]:
+                yield s[::-1]
+            for s in sequence[1::]:
+                yield s
+    else:
+        for s in sequence:
+            yield s

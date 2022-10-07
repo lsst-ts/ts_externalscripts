@@ -6,12 +6,27 @@
 Version History
 ===============
 
+v0.19.0
+-------
+
+* In ``python/lsst/ts/externalscripts/auxtel/build_pointing_model.py``:
+
+  * Add new feature that allow users to select different types of grids; healpy (original) or radec (new).
+
+  * Add rotator sequence feature.
+
+  * Allow users to skip a number of points at the beginning of the sequence.
+
+* Run `isort`.
+
 v0.18.1
 -------
 
 * In ``python/lsst/ts/externalscripts/auxtel/latiss_base_align.py``:
+
   * Fix bug in configure method.
   * Fix small bug so the hexapod goes back to the proper position after the intra/extra movement.
+
 * Update ``test_latiss_cwfs_align.py`` to test configuration.
 * Modernize Jenkinsfile for CI job.
 

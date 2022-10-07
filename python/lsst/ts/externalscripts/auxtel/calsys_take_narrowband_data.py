@@ -21,19 +21,18 @@
 __all__ = ["CalSysTakeNarrowbandData"]
 
 import asyncio
-
-import numpy as np
-import yaml
-
-from lsst.ts import salobj
-from .calsys_takedata import is_sequence, as_array
-
-from lsst.ts.idl.enums import ATMonochromator
 import csv
 import datetime
 import os
 import pathlib
+
+import numpy as np
 import requests
+import yaml
+from lsst.ts import salobj
+from lsst.ts.idl.enums import ATMonochromator
+
+from .calsys_takedata import as_array, is_sequence
 
 
 class CalSysTakeNarrowbandData(salobj.BaseScript):

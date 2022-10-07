@@ -22,29 +22,27 @@ __all__ = ["LatissAcquireAndTakeSequence"]
 
 import asyncio
 import collections
+import concurrent.futures
 import warnings
 
 import numpy as np
 import yaml
-import concurrent.futures
-
 from lsst.geom import PointD
 from lsst.ts import salobj
+from lsst.ts.idl.enums.ATPtg import WrapStrategy
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.utils import format_as_list
-from lsst.ts.idl.enums.ATPtg import WrapStrategy
 
 try:
+    from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
+    from lsst.summit.utils import BestEffortIsr
+    from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
     from lsst.ts.observing.utilities.auxtel.latiss.utils import (
         calculate_xy_offsets,
         parse_obs_id,
     )
-    from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
-    from lsst.summit.utils import BestEffortIsr
-
-    from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 

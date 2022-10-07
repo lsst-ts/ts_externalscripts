@@ -21,9 +21,9 @@
 __all__ = ["MakeLatissCalibrations"]
 
 import yaml
-
-from lsst.ts.observatory.control.auxtel.latiss import LATISS
 from lsst.ts.observatory.control import RemoteGroup
+from lsst.ts.observatory.control.auxtel.latiss import LATISS
+
 from ..base_make_calibrations import BaseMakeCalibrations
 
 
