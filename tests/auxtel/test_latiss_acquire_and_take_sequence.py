@@ -20,23 +20,18 @@
 
 __all__ = ["LatissAcquireAndTakeSequence"]
 
-import random
-import unittest
 import asyncio
-import tempfile
-import os
-
-import pytest
-
-from lsst.ts import salobj
-
-from lsst.ts import standardscripts
-from lsst.ts import externalscripts
-from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
-import lsst.daf.butler as dafButler
-from lsst.utils import getPackageDir
-
 import logging
+import os
+import random
+import tempfile
+import unittest
+
+import lsst.daf.butler as dafButler
+import pytest
+from lsst.ts import externalscripts, salobj, standardscripts
+from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
+from lsst.utils import getPackageDir
 
 # Make matplotlib less chatty
 logging.getLogger("matplotlib").setLevel(logging.WARNING)

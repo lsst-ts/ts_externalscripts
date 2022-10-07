@@ -19,12 +19,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import unittest
 import asyncio
-import numpy as np
-import warnings
 import os
+import unittest
+import warnings
 
+import numpy as np
 import pytest
 
 try:
@@ -35,13 +35,12 @@ except ImportError:
     WEP_AVAILABLE = False
     warnings.warn("Could not import wep package. Most tests will be skipped.")
 
-from lsst.ts import salobj
-from lsst.ts import standardscripts
-from lsst.ts import externalscripts
-from lsst.ts.externalscripts.auxtel import LatissWEPAlign
-import lsst.daf.butler as dafButler
-from lsst.utils import getPackageDir
 import logging
+
+import lsst.daf.butler as dafButler
+from lsst.ts import externalscripts, salobj, standardscripts
+from lsst.ts.externalscripts.auxtel import LatissWEPAlign
+from lsst.utils import getPackageDir
 
 # Make matplotlib less chatty
 logging.getLogger("matplotlib").setLevel(logging.WARNING)

@@ -21,26 +21,23 @@
 
 __all__ = ["LatissWEPAlign"]
 
+import asyncio
+import concurrent.futures
+import functools
 import time
 import typing
-import pandas
-import asyncio
 import warnings
-import functools
-import concurrent.futures
 
 import numpy as np
-
-from lsst.pipe.base.struct import Struct
+import pandas
 from lsst.afw.geom import SkyWcs
 from lsst.afw.image import ExposureF
+from lsst.pipe.base.struct import Struct
 
 try:
-    from lsst.ts.observing.utilities.auxtel.latiss.utils import (
-        parse_visit_id,
-    )
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.summit.utils import BestEffortIsr
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
     from lsst.ts.wep.task.EstimateZernikesLatissTask import (
         EstimateZernikesLatissTask,
         EstimateZernikesLatissTaskConfig,
@@ -49,7 +46,7 @@ except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
 
-from .latiss_base_align import LatissBaseAlign, LatissAlignResults
+from .latiss_base_align import LatissAlignResults, LatissBaseAlign
 
 
 class LatissWEPAlign(LatissBaseAlign):

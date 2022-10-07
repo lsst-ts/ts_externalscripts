@@ -20,12 +20,13 @@
 
 __all__ = ["LaserCoordination"]
 
-from lsst.ts import salobj
-import os
 import asyncio
 import datetime
 import logging
+import os
+
 import yaml
+from lsst.ts import salobj
 
 
 class LaserCoordination(salobj.BaseScript):

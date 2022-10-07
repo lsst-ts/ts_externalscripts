@@ -19,11 +19,10 @@
 # You should have received a copy of the GNU General Public License
 
 
-import unittest
 import logging
+import unittest
 
-from lsst.ts import standardscripts
-from lsst.ts import externalscripts
+from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.auxtel import MakeLatissCalibrations
 
 logger = logging.getLogger(__name__)

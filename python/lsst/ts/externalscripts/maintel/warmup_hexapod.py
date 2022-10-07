@@ -21,11 +21,10 @@
 __all__ = ["WarmUpHexapod"]
 
 import asyncio
-import numpy as np
-import yaml
-
 from collections.abc import Iterable
 
+import numpy as np
+import yaml
 from lsst.ts import salobj
 from lsst.ts.idl.enums.MTHexapod import SalIndex
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages

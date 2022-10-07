@@ -23,9 +23,7 @@ import unittest
 
 import numpy as np
 import yaml
-
-from lsst.ts import salobj
-from lsst.ts import utils
+from lsst.ts import salobj, utils
 from lsst.ts.externalscripts.coordination.laser_coordination import LaserCoordination
 
 np.random.seed(71)

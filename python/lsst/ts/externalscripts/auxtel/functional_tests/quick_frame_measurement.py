@@ -22,16 +22,16 @@
 __all__ = ["QuickFrameMeasurement"]
 
 import asyncio
+import concurrent.futures
 import warnings
+
 import yaml
 
-import concurrent.futures
-
 try:
-    from lsst.summit.utils import BestEffortIsr
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
-    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_obs_id
+    from lsst.summit.utils import BestEffortIsr
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_obs_id
 
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
