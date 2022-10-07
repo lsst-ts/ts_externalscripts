@@ -20,17 +20,17 @@
 
 __all__ = ["BaseMakeCalibrations"]
 
-import yaml
 import abc
-import json
 import asyncio
 import collections
+import json
 import os
 
-import numpy as np
-from lsst.utils import getPackageDir
-from lsst.ts import salobj
 import lsst.daf.butler as dafButler
+import numpy as np
+import yaml
+from lsst.ts import salobj
+from lsst.utils import getPackageDir
 
 
 class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):

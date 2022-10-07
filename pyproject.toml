@@ -31,5 +31,9 @@ flake8-max-line-length = 110
 flake8-max-doc-length = 79
 asyncio_mode = "auto"
 
+[tool.isort]
+profile = "black"
+skip = ["__init__.py"]
+
 [project.optional-dependencies]
 dev = ["documenteer[pipelines]"]

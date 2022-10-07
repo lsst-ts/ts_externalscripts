@@ -20,25 +20,23 @@
 
 __all__ = ["LatissCWFSAlign"]
 
+import asyncio
+import concurrent.futures
+import functools
 import os
 import typing
-import asyncio
 import warnings
-import functools
-import concurrent.futures
-import numpy as np
-
 from pathlib import Path
 
-from .latiss_base_align import LatissBaseAlign, LatissAlignResults
+import numpy as np
+
+from .latiss_base_align import LatissAlignResults, LatissBaseAlign
 
 try:
-    from lsst.ts.observing.utilities.auxtel.latiss.utils import (
-        parse_visit_id,
-    )
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.summit.utils import BestEffortIsr
     from lsst.ts.observing.utilities.auxtel.latiss.getters import get_image
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
@@ -46,9 +44,9 @@ except ImportError:
 try:
     # TODO: (DM-24904) Remove this try/except clause when WEP is adopted
     from lsst import cwfs
-    from lsst.cwfs.instrument import Instrument
     from lsst.cwfs.algorithm import Algorithm
     from lsst.cwfs.image import Image
+    from lsst.cwfs.instrument import Instrument
 except ImportError:
     warnings.warn("Could not import cwfs code.")
 
