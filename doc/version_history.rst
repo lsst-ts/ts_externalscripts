@@ -6,6 +6,11 @@
 Version History
 ===============
 
+v0.19.1
+-------
+
+* Update unit tests for compatibility with ts_salobj 7.2.
+
 v0.19.0
 -------
 
