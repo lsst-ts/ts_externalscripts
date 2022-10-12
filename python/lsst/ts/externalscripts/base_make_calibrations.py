@@ -91,6 +91,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # List of exposure IDs
         self.exposure_ids = dict(BIAS=[], DARK=[], FLAT=[])
 
+        # Number of first exposures taken to skip in pipetasks
+        self.n_images_skip = dict(
+            BIAS=self.config.n_skip_bias,
+            DARK=self.config.n_skip_dark,
+            FLAT=self.config.n_skip_flat,
+        )
+
         self.config = None
 
     @property
@@ -180,14 +187,28 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of biases to take.
+                description: Number of biases taken that will be used in pipetasks.
+            n_skip_bias:
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                  - type: "null"
+                default: 1
+                description: Number of first biases taken to be discarded.
             n_dark:
                 anyOf:
                   - type: integer
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of darks to take.
+                description: Number of darks taken that will be used in pipetasks.
+            n_skip_dark:
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                  - type: "null"
+                default: 1
+                description: Number of first darks taken to be discarded.
             exp_times_dark:
                 description: The exposure time of each dark image (sec). If a single value,
                   then the same exposure time is used for each exposure.
@@ -206,7 +227,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of flats to take.
+                description: Number of flats taken that will be used in pipetasks.
+            n_skip_flat:
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                  - type: "null"
+                default: 1
+                description: Number of first flats taken to be discarded.
             exp_times_flat:
                 description: The exposure time of each flat image (sec). If a single value,
                   then the same exposure time is used for each exposure.
@@ -316,13 +344,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
 
         if image_type == "BIAS":
-            n_images = self.config.n_bias
+            n_images = self.config.n_bias + self.config.n_skip_bias
             exp_times = 0.0
         elif image_type == "DARK":
-            n_images = self.config.n_dark
+            n_images = self.config.n_dark + self.config.n_skip_dark
             exp_times = self.config.exp_times_dark
         else:
-            n_images = self.config.n_flat
+            n_images = self.config.n_flat + self.config.n_skip_flat
             exp_times = self.config.exp_times_flat
 
         if isinstance(exp_times, collections.abc.Iterable):
@@ -1461,7 +1489,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # with LSSTComCam), check that the telescope is in
             # position to do so. See DM-31496, DM-31497.
             exposure_ids_list = await self.take_images(im_type)
-            self.exposure_ids[im_type] = exposure_ids_list
+
+            # Skip the first N exposures taken (DM-36422)
+            n_skip = self.n_images_skip[im_type]
+            self.exposure_ids[im_type] = exposure_ids_list[n_skip:]
 
             if checkpoint:
                 # Image IDs
