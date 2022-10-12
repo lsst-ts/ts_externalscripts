@@ -162,22 +162,20 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
     async def test_configure_fails(self):
 
         self.remotes_needed = False
-        async with self.make_script():
-            bad_config = [
-                dict(grid="this_is_a_typo"),
-                dict(healpix_grid=dict(nside=0)),
-                dict(radec_grid=dict(dec_grid=dict(min=-100))),
-                dict(radec_grid=dict(dec_grid=dict(max=100))),
-                dict(radec_grid=dict(dec_grid=dict(n=1))),
-                dict(radec_grid=dict(ha_grid=dict(min=-14))),
-                dict(radec_grid=dict(ha_grid=dict(max=14))),
-                dict(radec_grid=dict(ha_grid=dict(n=[]))),
-                dict(grid="radec", radec_grid=dict(ha_grid=dict(n=[3, 5, 6]))),
-            ]
-            for config in bad_config:
-                with self.subTest(config=config), self.assertRaises(
-                    salobj.ExpectedError
-                ):
+        bad_config = [
+            dict(grid="this_is_a_typo"),
+            dict(healpix_grid=dict(nside=0)),
+            dict(radec_grid=dict(dec_grid=dict(min=-100))),
+            dict(radec_grid=dict(dec_grid=dict(max=100))),
+            dict(radec_grid=dict(dec_grid=dict(n=1))),
+            dict(radec_grid=dict(ha_grid=dict(min=-14))),
+            dict(radec_grid=dict(ha_grid=dict(max=14))),
+            dict(radec_grid=dict(ha_grid=dict(n=[]))),
+            dict(grid="radec", radec_grid=dict(ha_grid=dict(n=[3, 5, 6]))),
+        ]
+        for config in bad_config:
+            with self.subTest(config=config), self.assertRaises(salobj.ExpectedError):
+                async with self.make_script():
                     await self.configure_script(**config)
 
     async def test_metadata(self):
