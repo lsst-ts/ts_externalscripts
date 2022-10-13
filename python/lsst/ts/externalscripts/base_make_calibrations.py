@@ -91,8 +91,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # List of exposure IDs
         self.exposure_ids = dict(BIAS=[], DARK=[], FLAT=[])
 
-        # Number of first exposures taken to skip in pipetasks
-        self.n_images_skip = dict(
+        # Number of first exposures taken to discard in pipetasks
+        self.n_images_discard = dict(
             BIAS=0,
             DARK=0,
             FLAT=0,
@@ -187,8 +187,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of biases taken that will be used in pipetasks.
-            n_skip_bias:
+                description: Number of biases taken that will be used in pipetasks, after
+                    discarding the first n_discard_bias biases taken.
+            n_discard_bias:
                 anyOf:
                   - type: integer
                     minimum: 0
@@ -201,8 +202,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of darks taken that will be used in pipetasks.
-            n_skip_dark:
+                description: Number of darks taken that will be used in pipetasks, after
+                    discarding the first n_discard_dark darks taken.
+            n_discard_dark:
                 anyOf:
                   - type: integer
                     minimum: 0
@@ -227,8 +229,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of flats taken that will be used in pipetasks.
-            n_skip_flat:
+                description: Number of flats taken that will be used in pipetasks, after
+                    discarding the first n_discard_flats taken.
+            n_discard_flat:
                 anyOf:
                   - type: integer
                     minimum: 0
@@ -344,13 +347,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
 
         if image_type == "BIAS":
-            n_images = self.config.n_bias + self.config.n_skip_bias
+            n_images = self.config.n_bias + self.config.n_discard_bias
             exp_times = 0.0
         elif image_type == "DARK":
-            n_images = self.config.n_dark + self.config.n_skip_dark
+            n_images = self.config.n_dark + self.config.n_discard_dark
             exp_times = self.config.exp_times_dark
         else:
-            n_images = self.config.n_flat + self.config.n_skip_flat
+            n_images = self.config.n_flat + self.config.n_discard_flat
             exp_times = self.config.exp_times_flat
 
         if isinstance(exp_times, collections.abc.Iterable):
@@ -396,9 +399,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.config = config
         self.detectors_string = self.get_detectors_string(self.detectors)
-        self.n_images_skip["BIAS"] = config.n_skip_bias
-        self.n_images_skip["DARK"] = config.n_skip_dark
-        self.n_images_skip["FLAT"] = config.n_skip_flat
+        self.n_images_discard["BIAS"] = config.n_discard_bias
+        self.n_images_discard["DARK"] = config.n_discard_dark
+        self.n_images_discard["FLAT"] = config.n_discard_flat
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
@@ -1493,9 +1496,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # position to do so. See DM-31496, DM-31497.
             exposure_ids_list = await self.take_images(im_type)
 
-            # Skip the first N exposures taken (DM-36422)
-            n_skip = self.n_images_skip[im_type]
-            self.exposure_ids[im_type] = exposure_ids_list[n_skip:]
+            # Discard the first N exposures taken (DM-36422)
+            n_discard = self.n_images_discard[im_type]
+            self.exposure_ids[im_type] = exposure_ids_list[n_discard:]
 
             if checkpoint:
                 # Image IDs
