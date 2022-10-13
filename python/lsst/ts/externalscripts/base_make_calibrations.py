@@ -93,9 +93,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         # Number of first exposures taken to skip in pipetasks
         self.n_images_skip = dict(
-            BIAS=self.config.n_skip_bias,
-            DARK=self.config.n_skip_dark,
-            FLAT=self.config.n_skip_flat,
+            BIAS=0,
+            DARK=0,
+            FLAT=0,
         )
 
         self.config = None
@@ -396,6 +396,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.config = config
         self.detectors_string = self.get_detectors_string(self.detectors)
+        self.n_images_skip["BIAS"] = config.n_skip_bias
+        self.n_images_skip["DARK"] = config.n_skip_dark
+        self.n_images_skip["FLAT"] = config.n_skip_flat
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
