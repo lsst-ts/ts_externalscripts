@@ -221,7 +221,6 @@ class TestLatissAcquireAndTakeSequence(
 
     async def test_configure(self):
         async with self.make_script():
-
             # Try configure with minimum set of parameters declared
             # Also skip acquisition
             # Note that all are scalars and should be converted to arrays
@@ -257,6 +256,7 @@ class TestLatissAcquireAndTakeSequence(
             # Try configure with minimum set and multiple exposures
             exposure_time_sequence = [1.0, 2.0]
 
+        async with self.make_script():
             await self.configure_script(
                 object_name=object_name,
                 grating_sequence=grating_sequence,
@@ -279,6 +279,7 @@ class TestLatissAcquireAndTakeSequence(
             assert self.script.do_take_sequence is True
             assert self.script.do_acquire is False
 
+        async with self.make_script():
             # Try configure mis-matched array sizes. This should fail
             object_name = "HR8799"
             grating_sequence = ["test_disp1", "test_disp2"]
@@ -301,6 +302,7 @@ class TestLatissAcquireAndTakeSequence(
             grating_sequence = "test_disp1"
             exposure_time_sequence = [20.0, 60.0]
 
+        async with self.make_script():
             # Try configure will all parameters declared
             await self.configure_script(
                 do_acquire=True,
