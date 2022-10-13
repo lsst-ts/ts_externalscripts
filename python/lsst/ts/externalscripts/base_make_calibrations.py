@@ -399,9 +399,26 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.config = config
         self.detectors_string = self.get_detectors_string(self.detectors)
-        self.n_images_discard["BIAS"] = config.n_discard_bias
-        self.n_images_discard["DARK"] = config.n_discard_dark
-        self.n_images_discard["FLAT"] = config.n_discard_flat
+        if config.n_discard_bias >= config.n_bias:
+            self.log.warning(f"n_discard_bias({config.n_discard_bias}) >= n_bias ({config.n_bias}). No biases"
+                             " will be discarded.")
+            self.n_images_discard["BIAS"] = 0
+        else:
+            self.n_images_discard["BIAS"] = config.n_discard_bias
+
+        if config.n_discard_dark >= config.n_dark:
+            self.log.warning(f"n_discard_dark({config.n_discard_dark}) >= n_dark ({config.n_dark}). No darks"
+                             " will be discarded.")
+            self.n_images_discard["DARK"] = 0
+        else:
+            self.n_images_discard["DARK"] = config.n_discard_dark
+
+        if config.n_discard_flat >= config.n_flat:
+            self.log.warning(f"n_discard_flat({config.n_discard_flat}) >= n_flat ({config.n_flat}). No flats"
+                             " will be discarded.")
+            self.n_images_discard["FLAT"] = 0
+        else:
+            self.n_images_discard["FLAT"] = config.n_discard_flat
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
