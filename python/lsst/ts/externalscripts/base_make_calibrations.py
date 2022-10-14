@@ -400,22 +400,28 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.config = config
         self.detectors_string = self.get_detectors_string(self.detectors)
         if config.n_discard_bias >= config.n_bias:
-            self.log.warning(f"n_discard_bias({config.n_discard_bias}) >= n_bias ({config.n_bias}). No biases"
-                             " will be discarded.")
+            self.log.warning(
+                f"n_discard_bias ({config.n_discard_bias}) >= n_bias ({config.n_bias}). No"
+                " biases will be discarded."
+            )
             self.n_images_discard["BIAS"] = 0
         else:
             self.n_images_discard["BIAS"] = config.n_discard_bias
 
         if config.n_discard_dark >= config.n_dark:
-            self.log.warning(f"n_discard_dark({config.n_discard_dark}) >= n_dark ({config.n_dark}). No darks"
-                             " will be discarded.")
+            self.log.warning(
+                f"n_discard_dark ({config.n_discard_dark}) >= n_dark ({config.n_dark}). No darks"
+                " will be discarded."
+            )
             self.n_images_discard["DARK"] = 0
         else:
             self.n_images_discard["DARK"] = config.n_discard_dark
 
         if config.n_discard_flat >= config.n_flat:
-            self.log.warning(f"n_discard_flat({config.n_discard_flat}) >= n_flat ({config.n_flat}). No flats"
-                             " will be discarded.")
+            self.log.warning(
+                f"n_discard_flat ({config.n_discard_flat}) >= n_flat ({config.n_flat}). No flats"
+                " will be discarded."
+            )
             self.n_images_discard["FLAT"] = 0
         else:
             self.n_images_discard["FLAT"] = config.n_discard_flat
@@ -423,6 +429,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
         n_images = self.config.n_bias + self.config.n_dark + self.config.n_flat
+        n_discarded = (
+            self.n_images_discard["BIAS"]
+            + self.n_images_discard["DARK"]
+            + self.n_images_discard["FLAT"]
+        )
+        n_images += n_discarded
+
         metadata.duration = n_images * (
             self.camera.read_out_time + self.estimated_process_time
         )
