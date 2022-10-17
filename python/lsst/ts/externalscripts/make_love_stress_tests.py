@@ -301,7 +301,7 @@ class StressLOVE(salobj.BaseScript):
                 new_count += len(client.msg_traces)
             msg_count += new_count
         mean_latency = round(self.get_mean_latency(), 2)
-        self.log.info(f"Mean latency after {msg_count} messages is: {mean_latency}")
+        self.log.info(f"Mean latency after {msg_count} messages is: {mean_latency} ms")
 
     async def cleanup(self):
         """Return the system to its default status."""
