@@ -261,12 +261,7 @@ class StressLOVE(salobj.BaseScript):
 
         # Enable all CSCs
         for csc, remote in self.remotes.items():
-            evt = await remote.evt_summaryState.aget()
-            state = salobj.State(evt.summaryState)
-
-            if state == salobj.State.STANDBY:
-                await remote.cmd_start.start(timeout=self.cmd_timeout)
-                await remote.cmd_enable.start(timeout=self.cmd_timeout)
+            await salobj.set_summary_state(remote=remote, state=salobj.State.ENABLED)
 
         event_streams = dict()
         telemetry_streams = dict()
@@ -300,6 +295,7 @@ class StressLOVE(salobj.BaseScript):
 
         msg_count = 0
         while msg_count < self.number_of_messages:
+            await asyncio.sleep(1)
             new_count = 0
             for client in self.clients:
                 new_count += len(client.msg_traces)
