@@ -132,6 +132,10 @@ class StressLOVE(salobj.BaseScript):
         # number of clients to simulate on the stress test
         self.number_of_clients = 10
 
+        # number of messages to store
+        # before calculating the latency
+        self.number_of_messages = 1000
+
         # list to store clients connections,
         # each one an instance of ManagerClient
         self.clients = []
@@ -142,9 +146,6 @@ class StressLOVE(salobj.BaseScript):
 
         # commands timeout
         self.cmd_timeout = 10
-
-        # number of messages to store
-        self.max_msgs = 1000
 
     @classmethod
     def get_schema(cls):
@@ -161,13 +162,17 @@ class StressLOVE(salobj.BaseScript):
               number_of_clients:
                 description: The number of clients to create
                 type: number
+              number_of_messages:
+                description: The number of messages to store
+                before calculating the mean latency
+                type: number
               data:
                 description: List of CSC_name[:index]
                 type: array
                 minItems: 1
                 items:
                     type: string
-            required: [location, user, password, data]
+            required: [location, number_of_clients,data]
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -188,6 +193,7 @@ class StressLOVE(salobj.BaseScript):
         Specify the Stress test configurations:
         - LOVE host location
         - Number of clients
+        - Number of messages to store
         - CSCs
 
         Parameters
@@ -199,6 +205,8 @@ class StressLOVE(salobj.BaseScript):
                 LOVE instance to stress
             * number_of_clients : a number that indicates the number
                 of clients to create
+            * number_of_messages : a number that indicates the number
+                of messages to store before calculating the mean latency
             * data : a list, where each element is a string in the form:
 
                 * CSC name and optional index as ``csc_name:index`` (a `str`).
@@ -209,6 +217,7 @@ class StressLOVE(salobj.BaseScript):
 
         * location : a string, with the location of the LOVE instance to stress
         * number_of_clients : a number, with the number of clients to create
+        * number_of_messages : a number, with the number of messages to store
         * remotes : a dict of (csc_name, index): remote,
             an `lsst.ts.salobj.Remote`
 
@@ -220,13 +229,13 @@ class StressLOVE(salobj.BaseScript):
         # set configurations
         self.location = config.location
         self.number_of_clients = config.number_of_clients
+        self.number_of_messages = config.number_of_messages
 
         # get credentials
         self.username = "user"
         self.password = os.environ.get("USER_USER_PASS")
 
         if self.password is None:
-            self.log.error("Configure failed")
             raise Exception("Configuration failed")
 
         # construct remotes
@@ -288,13 +297,13 @@ class StressLOVE(salobj.BaseScript):
             loop.create_task(client.start_ws_client())
 
         msg_count = 0
-        while msg_count < self.max_msgs:
+        while msg_count < self.number_of_messages:
             new_count = 0
             for client in self.clients:
                 new_count += len(client.msg_traces)
             msg_count = new_count
-        # mean_latency = self.get_mean_latency()
-        # TODO: publish logMessage event
+        mean_latency = self.get_mean_latency()
+        self.log.info(f"Mean latency after {msg_count} messages is: {mean_latency}")
 
     async def cleanup(self):
         """Return the system to its default status."""
