@@ -163,8 +163,7 @@ class StressLOVE(salobj.BaseScript):
                 description: The number of clients to create
                 type: number
               number_of_messages:
-                description: The number of messages to store
-                before calculating the mean latency
+                description: The number of messages to store before calculating the mean latency
                 type: number
               data:
                 description: List of CSC_name[:index]
@@ -280,6 +279,9 @@ class StressLOVE(salobj.BaseScript):
             ).__getattribute__("telemetry_names")
 
         # Create clients and listen to ws messages
+        self.log.info(
+            f"Waiting for {self.number_of_clients} Manager Clients to be ready"
+        )
         loop = asyncio.get_event_loop()
         for i in range(self.number_of_clients):
             self.clients.append(
@@ -301,16 +303,16 @@ class StressLOVE(salobj.BaseScript):
             new_count = 0
             for client in self.clients:
                 new_count += len(client.msg_traces)
-            msg_count = new_count
-        mean_latency = self.get_mean_latency()
+            msg_count += new_count
+        mean_latency = round(self.get_mean_latency(), 2)
         self.log.info(f"Mean latency after {msg_count} messages is: {mean_latency}")
 
     async def cleanup(self):
         """Return the system to its default status."""
 
         for client in self.clients:
-            client.close()
-        self.close()
+            await client.websocket.close()
+        await self.close()
 
     def get_mean_latency(self):
         """Calculate the mean latency of all received messages."""
