@@ -25,7 +25,6 @@ import json
 import os
 
 import aiohttp
-import requests
 import yaml
 from lsst.ts import salobj, utils
 
@@ -43,51 +42,62 @@ class ManagerClient:
     """
 
     def __init__(self, location, username, password, event_streams, telemetry_streams):
-        self.location = location
         self.username = username
-        self.password = password
         self.event_streams = event_streams
         self.telemetry_streams = telemetry_streams
 
-        self.websocket_url = ""
-        self.received_messages = 0
+        self.websocket_url = None
+        self.num_received_messages = 0
         self.msg_traces = []
 
-    def request_token(self):
-        """Authenticate on the LOVE-manager instance
-        to get an authorization token."""
+        self.__location = location
+        self.__password = password
+        self.__websocket = None
 
-        url = f"http://{self.location}/manager/api/get-token/"
+    async def __request_token(self):
+        """Authenticate on the LOVE-manager instance
+        to get an authorization token.
+
+        Raises
+        ------
+        RuntimeError
+             If the token cannot be retrieved.
+        """
+
+        url = f"http://{self.__location}/manager/api/get-token/"
         data = {
             "username": self.username,
-            "password": self.password,
+            "password": self.__password,
         }
-        resp = requests.post(url, data=data)
-        try:
-            token = resp.json()["token"]
-        except Exception:
-            raise Exception("Authentication failed")
-        self.websocket_url = (
-            f"ws://{self.location}/manager/ws/subscription?token={token}"
-        )
 
-    async def handle_message_reception(self):
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url, data=data) as resp:
+                    json_data = await resp.json()
+                    token = json_data["token"]
+                    self.websocket_url = (
+                        f"ws://{self.__location}/manager/ws/subscription?token={token}"
+                    )
+            except Exception as e:
+                raise RuntimeError("Authentication failed.") from e
+
+    async def __handle_message_reception(self):
         """Handles the reception of messages."""
 
-        if self.websocket:
-            async for message in self.websocket:
+        if self.__websocket:
+            async for message in self.__websocket:
                 if message.type == aiohttp.WSMsgType.TEXT:
                     msg = json.loads(message.data)
                     if "category" not in msg or (
                         "option" in msg and msg["option"] == "subscribe"
                     ):
                         continue
-                    self.received_messages = self.received_messages + 1
+                    self.num_received_messages = self.num_received_messages + 1
                     tracing = msg["tracing"]
                     tracing["client_rcv"] = utils.current_tai()
                     self.msg_traces.append(tracing)
 
-    async def subscribe_to(self, csc, salindex, stream, topic_type):
+    async def __subscribe_to(self, csc, salindex, stream, topic_type):
         """Subscribes to the specified stream"""
 
         subscribe_msg = {
@@ -97,22 +107,33 @@ class ManagerClient:
             "salindex": salindex,
             "stream": stream,
         }
-        await self.websocket.send_str(json.dumps(subscribe_msg))
+        await self.__websocket.send_str(json.dumps(subscribe_msg))
 
     async def start_ws_client(self):
         """Start client websocket connection"""
 
-        async with aiohttp.ClientSession() as session:
-            self.websocket = await session.ws_connect(self.websocket_url)
-            for name in self.event_streams:
-                csc, salindex = salobj.name_to_name_index(name)
-                for stream in self.event_streams[name]:
-                    await self.subscribe_to(csc, salindex, stream, "event")
-            for name in self.telemetry_streams:
-                csc, salindex = salobj.name_to_name_index(name)
-                for stream in self.telemetry_streams[name]:
-                    await self.subscribe_to(csc, salindex, stream, "telemetry")
-            await self.handle_message_reception()
+        try:
+            await self.__request_token()
+            if self.websocket_url is not None:
+                async with aiohttp.ClientSession() as session:
+                    self.__websocket = await session.ws_connect(self.websocket_url)
+                    for name in self.event_streams:
+                        csc, salindex = salobj.name_to_name_index(name)
+                        for stream in self.event_streams[name]:
+                            await self.__subscribe_to(csc, salindex, stream, "event")
+                    for name in self.telemetry_streams:
+                        csc, salindex = salobj.name_to_name_index(name)
+                        for stream in self.telemetry_streams[name]:
+                            await self.__subscribe_to(
+                                csc, salindex, stream, "telemetry"
+                            )
+                    await self.__handle_message_reception()
+        except Exception as e:
+            raise RuntimeError("ManagerClient connection failed.") from e
+
+    async def close(self):
+        if self.__websocket:
+            await self.__websocket.close()
 
 
 class StressLOVE(salobj.BaseScript):
@@ -129,20 +150,21 @@ class StressLOVE(salobj.BaseScript):
     def __init__(self, index):
         super().__init__(index=index, descr="Run a stress test for one or more CSCs")
 
-        # number of clients to simulate on the stress test
-        self.number_of_clients = 10
+        # url of the running LOVE instance
+        # must be the same deployment this script is run
+        self.location = None
 
-        # number of messages to store
-        # before calculating the latency
-        self.number_of_messages = 1000
+        # dict with stress test configurations
+        self.config = None
 
         # list to store clients connections,
         # each one an instance of ManagerClient
         self.clients = []
 
-        # list to store remote connections,
-        # each one an instance of salobj.Remote
-        self.remotes = []
+        # dict to store remote connections,
+        # with each item in the form of
+        # `CSC_name[:index]`: `lsst.ts.salobj.Remote`
+        self.remotes = {}
 
         # commands timeout
         self.cmd_timeout = 10
@@ -171,7 +193,7 @@ class StressLOVE(salobj.BaseScript):
                 minItems: 1
                 items:
                     type: string
-            required: [location, number_of_clients,data]
+            required: [location, number_of_clients, number_of_messages, data]
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -198,27 +220,17 @@ class StressLOVE(salobj.BaseScript):
         Parameters
         ----------
         config : `types.SimpleNamespace`
-            Configuration with several attributes:
-
-            * location : a string, with the location of the
-                LOVE instance to stress
-            * number_of_clients : a number that indicates the number
-                of clients to create
-            * number_of_messages : a number that indicates the number
-                of messages to store before calculating the mean latency
-            * data : a list, where each element is a string in the form:
-
-                * CSC name and optional index as ``csc_name:index`` (a `str`).
+            Configuration with several attributes, defined in `get_schema`:
 
         Notes
         -----
         Saves the results on several attributes:
 
         * location : a string, with the location of the LOVE instance to stress
-        * number_of_clients : a number, with the number of clients to create
-        * number_of_messages : a number, with the number of messages to store
-        * remotes : a dict of (csc_name, index): remote,
-            an `lsst.ts.salobj.Remote`
+        * config : a dict, with the number_of_clients and number
+            of_messages configurations
+        * remotes : a dict, with each item as
+            CSC_name[:index]: `lsst.ts.salobj.Remote`
 
         Constructing a `salobj.Remote` is slow (DM-17904), so configuration
         may take a 10s or 100s of seconds per CSC.
@@ -227,25 +239,27 @@ class StressLOVE(salobj.BaseScript):
 
         # set configurations
         self.location = config.location
-        self.number_of_clients = config.number_of_clients
-        self.number_of_messages = config.number_of_messages
+        self.config = {
+            "number_of_clients": config.number_of_clients,
+            "number_of_messages": config.number_of_messages,
+        }
 
         # get credentials
         self.username = "user"
         self.password = os.environ.get("USER_USER_PASS")
-
         if self.password is None:
-            raise Exception("Configuration failed")
+            raise RuntimeError(
+                "Configuration failed: environment variable USER_USER_PASS not defined"
+            )
 
         # construct remotes
         remotes = dict()
-        for elt in config.data:
-            name, index = salobj.name_to_name_index(elt)
+        for name_index in config.data:
+            name, index = salobj.name_to_name_index(name_index)
             self.log.debug(f"Create remote {name}:{index}")
-            if elt not in remotes:
+            if name_index not in remotes:
                 remote = salobj.Remote(domain=self.domain, name=name, index=index)
-                remotes[elt] = remote
-
+                remotes[name_index] = remote
         self.remotes = remotes
 
     async def run(self):
@@ -255,30 +269,34 @@ class StressLOVE(salobj.BaseScript):
             for remote in self.remotes.values()
             if not remote.start_task.done()
         ]
+
         if tasks:
-            self.log.info(f"Waiting for {len(tasks)} remotes to be ready")
+            self.log.info(
+                f"Waiting for {len(self.remotes.values())} remotes to be ready"
+            )
             await asyncio.gather(*tasks)
 
         # Enable all CSCs
-        for csc, remote in self.remotes.items():
+        for remote in self.remotes.values():
             await salobj.set_summary_state(remote=remote, state=salobj.State.ENABLED)
 
         event_streams = dict()
         telemetry_streams = dict()
-        for producer in self.remotes.keys():
-            event_streams[producer] = salobj.SalInfo(
-                self.domain, producer.split(":")[0]
-            ).__getattribute__("event_names")
-            telemetry_streams[producer] = salobj.SalInfo(
-                self.domain, producer.split(":")[0]
-            ).__getattribute__("telemetry_names")
+        for name_index in self.remotes:
+            name, index = salobj.name_to_name_index(name_index)
+            salinfo = salobj.SalInfo(self.domain, name)
+            try:
+                event_streams[name_index] = salinfo.event_names
+                telemetry_streams[name_index] = salinfo.telemetry_names
+            finally:
+                await salinfo.close()
 
         # Create clients and listen to ws messages
         self.log.info(
-            f"Waiting for {self.number_of_clients} Manager Clients to be ready"
+            f"Waiting for {self.config['number_of_clients']} Manager Clients to be ready"
         )
         loop = asyncio.get_event_loop()
-        for i in range(self.number_of_clients):
+        for i in range(self.config["number_of_clients"]):
             self.clients.append(
                 ManagerClient(
                     self.location,
@@ -290,24 +308,29 @@ class StressLOVE(salobj.BaseScript):
             )
 
         for client in self.clients:
-            client.request_token()
             loop.create_task(client.start_ws_client())
 
         msg_count = 0
-        while msg_count < self.number_of_messages:
+        while msg_count < self.config["number_of_messages"]:
             await asyncio.sleep(1)
             new_count = 0
             for client in self.clients:
                 new_count += len(client.msg_traces)
             msg_count += new_count
         mean_latency = round(self.get_mean_latency(), 2)
-        self.log.info(f"Mean latency after {msg_count} messages is: {mean_latency} ms")
+        self.log.info(f"mean_latency_ms={mean_latency} num_messages={msg_count}")
 
     async def cleanup(self):
         """Return the system to its default status."""
 
+        # Close all ManagerClients
         for client in self.clients:
-            await client.websocket.close()
+            await client.close()
+
+        # Send all CSCs to Standby
+        for remote in self.remotes.values():
+            await salobj.set_summary_state(remote=remote, state=salobj.State.STANDBY)
+
         await self.close()
 
     def get_mean_latency(self):
