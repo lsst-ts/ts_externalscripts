@@ -220,7 +220,7 @@ class StressLOVE(salobj.BaseScript):
         Parameters
         ----------
         config : `types.SimpleNamespace`
-            Configuration with several attributes, defined in `get_schema`:
+            Configuration with several attributes, defined in `get_schema`
 
         Notes
         -----
