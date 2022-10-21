@@ -129,7 +129,7 @@ class ManagerClient:
                             )
                     await self.__handle_message_reception()
         except Exception as e:
-            raise RuntimeError("ManagerClient connection failed.") from e
+            raise RuntimeError("Manager Client connection failed.") from e
 
     async def close(self):
         if self.__websocket:
@@ -150,11 +150,8 @@ class StressLOVE(salobj.BaseScript):
     def __init__(self, index):
         super().__init__(index=index, descr="Run a stress test for one or more CSCs")
 
-        # url of the running LOVE instance
-        # must be the same deployment this script is run
-        self.location = None
-
-        # dict with stress test configurations
+        # SimpleNamespace to store stress test configurations
+        # params described on `get_schema`
         self.config = None
 
         # list to store clients connections,
@@ -226,10 +223,8 @@ class StressLOVE(salobj.BaseScript):
         -----
         Saves the results on several attributes:
 
-        * location : a string, with the location of the LOVE instance to stress
-        * config : a dict, with the number_of_clients and number
-            of_messages configurations
-        * remotes : a dict, with each item as
+        * config    : `types.SimpleNamespace`, same as config param
+        * remotes   : a dict, with each item as
             CSC_name[:index]: `lsst.ts.salobj.Remote`
 
         Constructing a `salobj.Remote` is slow (DM-17904), so configuration
@@ -238,11 +233,7 @@ class StressLOVE(salobj.BaseScript):
         self.log.info("Configure started")
 
         # set configurations
-        self.location = config.location
-        self.config = {
-            "number_of_clients": config.number_of_clients,
-            "number_of_messages": config.number_of_messages,
-        }
+        self.config = config
 
         # get credentials
         self.username = "user"
@@ -264,17 +255,9 @@ class StressLOVE(salobj.BaseScript):
 
     async def run(self):
         """Run script."""
-        tasks = [
-            remote.start_task
-            for remote in self.remotes.values()
-            if not remote.start_task.done()
-        ]
 
-        if tasks:
-            self.log.info(
-                f"Waiting for {len(self.remotes.values())} remotes to be ready"
-            )
-            await asyncio.gather(*tasks)
+        self.log.info(f"Waiting for {len(self.remotes)} remotes to be ready")
+        await asyncio.gather(*[remote.start_task for remote in self.remotes.values()])
 
         # Enable all CSCs
         for remote in self.remotes.values():
@@ -293,13 +276,13 @@ class StressLOVE(salobj.BaseScript):
 
         # Create clients and listen to ws messages
         self.log.info(
-            f"Waiting for {self.config['number_of_clients']} Manager Clients to be ready"
+            f"Waiting for {self.config.number_of_clients} Manager Clients to be ready"
         )
         loop = asyncio.get_event_loop()
-        for i in range(self.config["number_of_clients"]):
+        for i in range(self.config.number_of_clients):
             self.clients.append(
                 ManagerClient(
-                    self.location,
+                    self.config.location,
                     self.username,
                     self.password,
                     event_streams,
@@ -311,7 +294,7 @@ class StressLOVE(salobj.BaseScript):
             loop.create_task(client.start_ws_client())
 
         msg_count = 0
-        while msg_count < self.config["number_of_messages"]:
+        while msg_count < self.config.number_of_messages:
             await asyncio.sleep(1)
             new_count = 0
             for client in self.clients:
