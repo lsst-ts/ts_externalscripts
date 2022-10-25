@@ -194,21 +194,23 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 0
                   - type: "null"
                 default: 1
-                description: Additional number of bias images to take and discard before starting the sequence.
+                description: Additional number of bias images to take and discard before starting
+                    the sequence.
             n_dark:
                 anyOf:
                   - type: integer
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of darks to take. 
+                description: Number of darks to take.
             n_discard_dark:
                 anyOf:
                   - type: integer
                     minimum: 0
                   - type: "null"
                 default: 1
-                description: Additional number of dark images to take and discard before starting the sequence.
+                description: Additional number of dark images to take and discard before starting
+                    the sequence.
             exp_times_dark:
                 description: The exposure time of each dark image (sec). If a single value,
                   then the same exposure time is used for each exposure.
@@ -234,7 +236,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 0
                   - type: "null"
                 default: 1
-                description: Additional number of flat images to take and discard before starting the sequence.
+                description: Additional number of flat images to take and discard before starting
+                    the sequence.
             exp_times_flat:
                 description: The exposure time of each flat image (sec). If a single value,
                   then the same exposure time is used for each exposure.
@@ -396,32 +399,9 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.config = config
         self.detectors_string = self.get_detectors_string(self.detectors)
-        if config.n_discard_bias >= config.n_bias:
-            self.log.warning(
-                f"n_discard_bias ({config.n_discard_bias}) >= n_bias ({config.n_bias}). No"
-                " biases will be discarded."
-            )
-            self.n_images_discard["BIAS"] = 0
-        else:
-            self.n_images_discard["BIAS"] = config.n_discard_bias
-
-        if config.n_discard_dark >= config.n_dark:
-            self.log.warning(
-                f"n_discard_dark ({config.n_discard_dark}) >= n_dark ({config.n_dark}). No darks"
-                " will be discarded."
-            )
-            self.n_images_discard["DARK"] = 0
-        else:
-            self.n_images_discard["DARK"] = config.n_discard_dark
-
-        if config.n_discard_flat >= config.n_flat:
-            self.log.warning(
-                f"n_discard_flat ({config.n_discard_flat}) >= n_flat ({config.n_flat}). No flats"
-                " will be discarded."
-            )
-            self.n_images_discard["FLAT"] = 0
-        else:
-            self.n_images_discard["FLAT"] = config.n_discard_flat
+        self.n_images_discard["BIAS"] = config.n_discard_bias
+        self.n_images_discard["DARK"] = config.n_discard_dark
+        self.n_images_discard["FLAT"] = config.n_discard_flat
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
