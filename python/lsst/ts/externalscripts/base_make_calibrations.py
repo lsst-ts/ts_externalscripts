@@ -187,30 +187,28 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of biases taken that will be used in pipetasks, after
-                    discarding the first n_discard_bias biases taken.
+                description: Number of biases to take.
             n_discard_bias:
                 anyOf:
                   - type: integer
                     minimum: 0
                   - type: "null"
                 default: 1
-                description: Number of first biases taken to be discarded.
+                description: Additional number of bias images to take and discard before starting the sequence.
             n_dark:
                 anyOf:
                   - type: integer
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of darks taken that will be used in pipetasks, after
-                    discarding the first n_discard_dark darks taken.
+                description: Number of darks to take. 
             n_discard_dark:
                 anyOf:
                   - type: integer
                     minimum: 0
                   - type: "null"
                 default: 1
-                description: Number of first darks taken to be discarded.
+                description: Additional number of dark images to take and discard before starting the sequence.
             exp_times_dark:
                 description: The exposure time of each dark image (sec). If a single value,
                   then the same exposure time is used for each exposure.
@@ -229,15 +227,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     minimum: 1
                   - type: "null"
                 default: 20
-                description: Number of flats taken that will be used in pipetasks, after
-                    discarding the first n_discard_flats taken.
+                description: Number of flats to take.
             n_discard_flat:
                 anyOf:
                   - type: integer
                     minimum: 0
                   - type: "null"
                 default: 1
-                description: Number of first flats taken to be discarded.
+                description: Additional number of flat images to take and discard before starting the sequence.
             exp_times_flat:
                 description: The exposure time of each flat image (sec). If a single value,
                   then the same exposure time is used for each exposure.
