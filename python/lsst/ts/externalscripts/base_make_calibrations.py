@@ -91,6 +91,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         # List of exposure IDs
         self.exposure_ids = dict(BIAS=[], DARK=[], FLAT=[])
 
+        # Number of first exposures taken to discard in pipetasks
+        self.n_images_discard = dict(
+            BIAS=0,
+            DARK=0,
+            FLAT=0,
+        )
+
         self.config = None
 
     @property
@@ -181,6 +188,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                   - type: "null"
                 default: 20
                 description: Number of biases to take.
+            n_discard_bias:
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                  - type: "null"
+                default: 1
+                description: Additional number of bias images to take and discard before starting
+                    the sequence.
             n_dark:
                 anyOf:
                   - type: integer
@@ -188,6 +203,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                   - type: "null"
                 default: 20
                 description: Number of darks to take.
+            n_discard_dark:
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                  - type: "null"
+                default: 1
+                description: Additional number of dark images to take and discard before starting
+                    the sequence.
             exp_times_dark:
                 description: The exposure time of each dark image (sec). If a single value,
                   then the same exposure time is used for each exposure.
@@ -207,6 +230,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                   - type: "null"
                 default: 20
                 description: Number of flats to take.
+            n_discard_flat:
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                  - type: "null"
+                default: 1
+                description: Additional number of flat images to take and discard before starting
+                    the sequence.
             exp_times_flat:
                 description: The exposure time of each flat image (sec). If a single value,
                   then the same exposure time is used for each exposure.
@@ -316,13 +347,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         """
 
         if image_type == "BIAS":
-            n_images = self.config.n_bias
+            n_images = self.config.n_bias + self.config.n_discard_bias
             exp_times = 0.0
         elif image_type == "DARK":
-            n_images = self.config.n_dark
+            n_images = self.config.n_dark + self.config.n_discard_dark
             exp_times = self.config.exp_times_dark
         else:
-            n_images = self.config.n_flat
+            n_images = self.config.n_flat + self.config.n_discard_flat
             exp_times = self.config.exp_times_flat
 
         if isinstance(exp_times, collections.abc.Iterable):
@@ -368,10 +399,20 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.config = config
         self.detectors_string = self.get_detectors_string(self.detectors)
+        self.n_images_discard["BIAS"] = config.n_discard_bias
+        self.n_images_discard["DARK"] = config.n_discard_dark
+        self.n_images_discard["FLAT"] = config.n_discard_flat
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
         n_images = self.config.n_bias + self.config.n_dark + self.config.n_flat
+        n_discarded = (
+            self.n_images_discard["BIAS"]
+            + self.n_images_discard["DARK"]
+            + self.n_images_discard["FLAT"]
+        )
+        n_images += n_discarded
+
         metadata.duration = n_images * (
             self.camera.read_out_time + self.estimated_process_time
         )
@@ -1461,7 +1502,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             # with LSSTComCam), check that the telescope is in
             # position to do so. See DM-31496, DM-31497.
             exposure_ids_list = await self.take_images(im_type)
-            self.exposure_ids[im_type] = exposure_ids_list
+
+            # Discard the first N exposures taken (DM-36422)
+            n_discard = self.n_images_discard[im_type]
+            self.exposure_ids[im_type] = exposure_ids_list[n_discard:]
 
             if checkpoint:
                 # Image IDs

@@ -219,10 +219,10 @@ class TestLatissWEPAlign(
         f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
     )
     async def test_configure(self):
+        # First make sure the cwfs package is present
+        assert os.path.exists(wep.__file__)
+        # Try configure with minimum set of parameters declared
         async with self.make_script():
-            # First make sure the cwfs package is present
-            assert os.path.exists(wep.__file__)
-            # Try configure with minimum set of parameters declared
             grating = "test_disp1"
             filter = "test_filt1"
             exposure_time = 1.0
@@ -239,10 +239,11 @@ class TestLatissWEPAlign(
             assert self.script.cwfs_target_ra is None
             assert self.script.cwfs_target_dec is None
 
-            # Test with find_target
-            # this can fail occasionally if you're unlucky and
-            # don't get a target so the mag_range is large to
-            # prevent this
+        # Test with find_target
+        # this can fail occasionally if you're unlucky and
+        # don't get a target so the mag_range is large to
+        # prevent this
+        async with self.make_script():
             find_target = dict(az=-180.0, el=60.0, mag_limit=6.0, mag_range=14)
             await self.configure_script(find_target=find_target)
 
@@ -250,22 +251,26 @@ class TestLatissWEPAlign(
             assert self.script.cwfs_target_ra is None
             assert self.script.cwfs_target_dec is None
 
-            # Test with find_target; fail if only az is provided
+        # Test with find_target; fail if only az is provided
+        async with self.make_script():
             find_target = dict(az=0.0)
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
-            # Test with find_target; fail if only el is provided
+        # Test with find_target; fail if only el is provided
+        async with self.make_script():
             find_target = dict(el=60.0)
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
-            # Test with find_target; fail if only az and el is provided
+        # Test with find_target; fail if only az and el is provided
+        async with self.make_script():
             find_target = dict(az=0.0, el=60.0)
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
-            # Test with track_target; give target name only
+        # Test with track_target; give target name only
+        async with self.make_script():
             track_target = dict(target_name="HD 185975")
             await self.configure_script(track_target=track_target)
 
@@ -273,7 +278,8 @@ class TestLatissWEPAlign(
             assert self.script.cwfs_target_ra is None
             assert self.script.cwfs_target_dec is None
 
-            # Test with track_target; give target name and ra/dec
+        # Test with track_target; give target name and ra/dec
+        async with self.make_script():
             track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5, dec=-87.5))
             await self.configure_script(track_target=track_target)
 
@@ -281,17 +287,20 @@ class TestLatissWEPAlign(
             assert self.script.cwfs_target_ra == track_target["icrs"]["ra"]
             assert self.script.cwfs_target_dec == track_target["icrs"]["dec"]
 
-            # Test with track_target; fail if name is not provided ra/dec
+        # Test with track_target; fail if name is not provided ra/dec
+        async with self.make_script():
             track_target = dict(icrs=dict(ra=20.5, dec=-87.5))
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
 
-            # Test with track_target; fail if only ra is provided
+        # Test with track_target; fail if only ra is provided
+        async with self.make_script():
             track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5))
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
 
-            # Test with track_target; fail if only dec is provided
+        # Test with track_target; fail if only dec is provided
+        async with self.make_script():
             track_target = dict(target_name="HD 185975", icrs=dict(dec=-87.5))
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
