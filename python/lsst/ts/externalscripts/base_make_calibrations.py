@@ -292,7 +292,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 default: "-c isr:doDefect=False "
             do_defects:
                 type: boolean
-                descriptor: Should defects be built using darks and flats?
+                descriptor: Should defects be built using darks and flats?. If true, script mode should \
+                    be"BIAS_DARK_FLAT".
                 default: false
             config_options_defects:
                 type: string
@@ -301,7 +302,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 default: "-c isr:doDefect=False "
             do_ptc:
                 type: boolean
-                descriptor: Should a Photon Transfer Curve be constructed from the flats taken?
+                descriptor: Should a Photon Transfer Curve be constructed from the flats taken? If True, the \
+                script mode should be "BIAS_DARK_FLAT".
                 default: false
             config_options_ptc:
                 type: string
@@ -313,8 +315,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 descriptor: Should the gain be estimated from each pair of flats
                     taken at the same exposure time? Runs the cpPtc.yaml# generateGainFromFlatPairs \
                     pipeline. Use the 'config_options_ptc' parameter to pass options to the ISR and \
-                    cpExtract tasks.
-                default: false
+                    cpExtract tasks. If True, the script mode should be "BIAS_DARK_FLAT".
+                default: true
             n_processes:
                 type: integer
                 default: 8
