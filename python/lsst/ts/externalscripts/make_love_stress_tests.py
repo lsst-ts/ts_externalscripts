@@ -54,6 +54,8 @@ class ManagerClient:
         self.__password = password
         self.__websocket = None
 
+        self.start_task = utils.make_done_future()
+
     async def __request_token(self):
         """Authenticate on the LOVE-manager instance
         to get an authorization token.
@@ -131,6 +133,9 @@ class ManagerClient:
         except Exception as e:
             raise RuntimeError("Manager Client connection failed.") from e
 
+    def create_start_task(self):
+        self.start_task = asyncio.create_task(self.start_ws_client())
+
     async def close(self):
         if self.__websocket:
             await self.__websocket.close()
@@ -166,6 +171,12 @@ class StressLOVE(salobj.BaseScript):
         # commands timeout
         self.cmd_timeout = 10
 
+        # time to wait for each message collection
+        self.loop_time_message_collection = 1
+
+        # message frequency
+        self.expected_message_frequency = 100
+
     @classmethod
     def get_schema(cls):
         schema_yaml = """
@@ -200,10 +211,12 @@ class StressLOVE(salobj.BaseScript):
 
         Parameters
         ----------
-        metadata : SAPY_Script.Script_logevent_metadataC
+        metadata : SAPY_Script.Script_logevent_metadata
         """
         # a crude estimate;
-        metadata.duration = len(self.clients) * 5
+        metadata.duration = (
+            self.config.number_of_messages / self.expected_message_frequency
+        )
 
     async def configure(self, config):
         """Configure the script.
@@ -236,7 +249,7 @@ class StressLOVE(salobj.BaseScript):
         self.config = config
 
         # get credentials
-        self.username = "user"
+        self.username = os.environ.get("USER_USERNAME")
         self.password = os.environ.get("USER_USER_PASS")
         if self.password is None:
             raise RuntimeError(
@@ -278,30 +291,26 @@ class StressLOVE(salobj.BaseScript):
         self.log.info(
             f"Waiting for {self.config.number_of_clients} Manager Clients to be ready"
         )
-        loop = asyncio.get_event_loop()
         for i in range(self.config.number_of_clients):
-            self.clients.append(
-                ManagerClient(
-                    self.config.location,
-                    self.username,
-                    self.password,
-                    event_streams,
-                    telemetry_streams,
-                )
+            client = ManagerClient(
+                self.config.location,
+                self.username,
+                self.password,
+                event_streams,
+                telemetry_streams,
             )
-
-        for client in self.clients:
-            loop.create_task(client.start_ws_client())
+            self.clients.append(client)
+            client.create_start_task()
 
         msg_count = 0
         while msg_count < self.config.number_of_messages:
-            await asyncio.sleep(1)
-            new_count = 0
+            await asyncio.sleep(self.loop_time_message_collection)
             for client in self.clients:
-                new_count += len(client.msg_traces)
-            msg_count += new_count
+                msg_count += len(client.msg_traces)
         mean_latency = round(self.get_mean_latency(), 2)
-        self.log.info(f"mean_latency_ms={mean_latency} num_messages={msg_count}")
+        self.log.info(
+            f"LOVE stress test result: mean_latency_ms={mean_latency} num_messages={msg_count}"
+        )
 
     async def cleanup(self):
         """Return the system to its default status."""
