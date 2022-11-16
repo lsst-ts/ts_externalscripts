@@ -32,6 +32,22 @@ from lsst.ts import salobj, utils
 class ManagerClient:
     """Connect to a LOVE-manager instance.
 
+    Parameters
+    ----------
+    location : `string`
+        Host of the running LOVE-manager instance
+    username: `string`
+        LOVE username to use as authenticator
+    password: `string`
+        Password of the choosen LOVE user
+    event_streams: `dict`
+        Dictionary whith each item as <CSC:salindex>: <events_names_tuple>
+        e.g. {"ATDome:0": ('allAxesInPosition', 'authList',
+        'azimuthCommandedState', 'azimuthInPosition', ...)
+    telemetry_streams: `dict`
+        Dictionary whith each item as <CSC:salindex>: <telemetries_names_tuple>
+        e.g. {"ATDome:0": ('position', ...)
+
     Notes
     -----
     **Details**
@@ -58,7 +74,8 @@ class ManagerClient:
 
     async def __request_token(self):
         """Authenticate on the LOVE-manager instance
-        to get an authorization token.
+        to get an authorization token and set the
+        corresponding websocket_url.
 
         Raises
         ------
@@ -99,15 +116,28 @@ class ManagerClient:
                     tracing["client_rcv"] = utils.current_tai()
                     self.msg_traces.append(tracing)
 
-    async def __subscribe_to(self, csc, salindex, stream, topic_type):
-        """Subscribes to the specified stream"""
+    async def __subscribe_to(self, csc, salindex, topic, topic_type):
+        """Subscribes to the specified CSC stream in order to
+        receive LOVE-producer(s) data
+
+        Parameters
+        ----------
+        csc : `string`
+            Name of the CSC stream
+        salindex: `int`
+            Salindex of the CSC stream
+        topic: `string`
+            Topic of the CSC stream
+        topic_type: `string`
+            Type of topic: `event` or `telemetry`
+        """
 
         subscribe_msg = {
             "option": "subscribe",
             "category": topic_type,
             "csc": csc,
             "salindex": salindex,
-            "stream": stream,
+            "stream": topic,
         }
         await self.__websocket.send_str(json.dumps(subscribe_msg))
 
@@ -187,7 +217,7 @@ class StressLOVE(salobj.BaseScript):
             type: object
             properties:
               location:
-                description: Domain of the running LOVE instance to stress
+                description: Host of the running LOVE instance (web server) to stress
                 type: string
               number_of_clients:
                 description: The number of clients to create
@@ -211,7 +241,8 @@ class StressLOVE(salobj.BaseScript):
 
         Parameters
         ----------
-        metadata : SAPY_Script.Script_logevent_metadata
+        metadata : `lsst.ts.salobj.BaseMsgType`
+            Script ``metadata`` event data.
         """
         # a crude estimate;
         metadata.duration = (
@@ -307,9 +338,9 @@ class StressLOVE(salobj.BaseScript):
             await asyncio.sleep(self.loop_time_message_collection)
             for client in self.clients:
                 msg_count += len(client.msg_traces)
-        mean_latency = round(self.get_mean_latency(), 2)
         self.log.info(
-            f"LOVE stress test result: mean_latency_ms={mean_latency} num_messages={msg_count}"
+            "LOVE stress test result: "
+            f"mean_latency_ms={self.get_mean_latency():0.2f} num_messages={msg_count}"
         )
 
     async def cleanup(self):
