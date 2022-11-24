@@ -34,11 +34,11 @@ class ManagerClient:
 
     Parameters
     ----------
-    location : `string`
+    location : `str`
         Host of the running LOVE-manager instance
-    username: `string`
+    username: `str`
         LOVE username to use as authenticator
-    password: `string`
+    password: `str`
         Password of the choosen LOVE user
     event_streams: `dict`
         Dictionary whith each item as <CSC:salindex>: <events_names_tuple>
@@ -122,13 +122,13 @@ class ManagerClient:
 
         Parameters
         ----------
-        csc : `string`
+        csc : `str`
             Name of the CSC stream
         salindex: `int`
             Salindex of the CSC stream
-        topic: `string`
+        topic: `str`
             Topic of the CSC stream
-        topic_type: `string`
+        topic_type: `str`
             Type of topic: `event` or `telemetry`
         """
 
@@ -353,8 +353,6 @@ class StressLOVE(salobj.BaseScript):
         # Send all CSCs to Standby
         for remote in self.remotes.values():
             await salobj.set_summary_state(remote=remote, state=salobj.State.STANDBY)
-
-        await self.close()
 
     def get_mean_latency(self):
         """Calculate the mean latency of all received messages."""
