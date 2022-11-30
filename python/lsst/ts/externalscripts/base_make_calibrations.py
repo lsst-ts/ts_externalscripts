@@ -495,7 +495,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             )
             missing_image_ids = expected_ids - received_ids
 
-            raise RuntimeError(
+            self.log.error(
                 "Timeout waiting for images to ingest in the OODS, "
                 f"expected: {self.number_of_images_expected}, "
                 f"received: {len(self.image_in_oods_samples[image_type])}. "
@@ -693,7 +693,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 image_type
             ]()
         else:
-            raise RuntimeError(
+            self.log.error(
                 "Invalid image or calib type {image_type} in 'call_pipetask' function. "
                 f"Valid options: {self.pipetask_parameters.keys()}"
             )
@@ -913,7 +913,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 exposure_ids,
             ) = self.pipetask_parameters_verification[image_type](job_id_calib)
         else:
-            raise RuntimeError(
+            self.log.error(
                 f"Verification is not yet supported in this script for {image_type}. "
                 f"Valid options: {self.pipetask_parameters_verification.keys()}"
             )
@@ -1022,7 +1022,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 self.config.number_verification_tests_threshold_flat
             )
         else:
-            raise RuntimeError(
+            self.log.error(
                 f"Verification is not currently implemented for {image_type}."
             )
 
