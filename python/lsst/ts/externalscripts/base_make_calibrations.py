@@ -1626,23 +1626,26 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         if len(calib_types):
             for calib_type in calib_types:
-                # Run the pipetask
-                response_ocps_calib_pipetask = await self.call_pipetask(calib_type)
-                job_id_calib = response_ocps_calib_pipetask["jobId"]
-                # Certify the calibrations in self.config.calib_collection
-                # The quick gain estimation does not need to be certified.
-                self.log.info(
-                    f"Verification for {calib_type} is not implemented yet "
-                    f"in this script. {calib_type} will be automatically certified."
-                )
-                if calib_type != "GAIN":
-                    await self.certify_calib(calib_type, job_id_calib)
+                try:
+                    # Run the pipetask
+                    response_ocps_calib_pipetask = await self.call_pipetask(calib_type)
+                    job_id_calib = response_ocps_calib_pipetask["jobId"]
+                    # Certify the calibrations in self.config.calib_collection
+                    # The quick gain estimation does not need to be certified.
+                    self.log.info(
+                        f"Verification for {calib_type} is not implemented yet "
+                        f"in this script. {calib_type} will be automatically certified."
+                    )
+                    if calib_type != "GAIN":
+                        await self.certify_calib(calib_type, job_id_calib)
 
-                self.log.info(f"{calib_type} generation job ID: {job_id_calib}")
+                    self.log.info(f"{calib_type} generation job ID: {job_id_calib}")
 
-                # Report the estimated gain from each pair of flats
-                if calib_type in ["GAIN", "PTC"]:
-                    await self.report_gains_from_flat_pairs(job_id_calib)
+                    # Report the estimated gain from each pair of flats
+                    if calib_type in ["GAIN", "PTC"]:
+                        await self.report_gains_from_flat_pairs(job_id_calib)
+                except Exception:
+                    self.log.exception(f"Error processing {calib_type}. Ignoring...")
 
     @staticmethod
     def get_exposure_id(obsid):
