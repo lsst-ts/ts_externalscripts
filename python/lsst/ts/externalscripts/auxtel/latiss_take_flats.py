@@ -23,13 +23,11 @@ __all__ = [
 ]
 
 import asyncio
-import enum
-import pathlib
-from datetime import datetime
 
-import astropy
-import numpy as np
+# import pathlib
+import json
 import yaml
+
 from lsst.ts import salobj, utils
 from lsst.ts.idl import enums
 from lsst.ts.observatory.control.auxtel import LATISS, LATISSUsages
@@ -48,7 +46,7 @@ class LatissTakeFlats(BaseScript):
         self, index: int, remotes: bool = True, simulation_mode: int = 0
     ) -> None:
 
-        valid_simulation_modes = (0, 1)
+        # valid_simulation_modes = (0, 1)
 
         super().__init__(
             index=index,
@@ -78,7 +76,7 @@ class LatissTakeFlats(BaseScript):
         self.bucket = None
         self.s3instance = None
         self.simulation_mode = simulation_mode
-        self.filename = None
+        # self.filename = None
 
         self.image_in_oods_timeout = 15.0
         self.get_image_timeout = 10.0
@@ -138,8 +136,8 @@ additionalProperties: false
             self.log.info(checkpoint_message)
 
     def get_flat_sequence(self, latiss_filter: str, latiss_grating: str):
-        """Return the pre-determined flat field sequences for a given LATISS filter
-        and grating.
+        """Return the pre-determined flat field sequences for a given
+        LATISS filter and grating.
 
                Parameters:
                -----------
@@ -312,7 +310,7 @@ additionalProperties: false
         lfa_objs = []
         for i in range(n):
             self.fiberspectrograph.evt_largeFileObjectAvailable.flush()
-            tmp1 = await self.fiberspectrograph.cmd_expose.set_start(
+            await self.fiberspectrograph.cmd_expose.set_start(
                 duration=exp_time, numExposures=1
             )
             lfa_obj = await self.fiberspectrograph.evt_largeFileObjectAvailable.next(
@@ -347,15 +345,13 @@ additionalProperties: false
         self.log.debug("Starting Electrometer exposures")
         lfa_objs = []
         for i in range(n):
-            tmp = await self.electrometer.cmd_startScanDt.set_start(
-                scanDuration=exp_time
-            )
-            lfa_objs = await self.electrometer1.evt_largeFileObjectAvailable.next(
+            await self.electrometer.cmd_startScanDt.set_start(scanDuration=exp_time)
+            lfa_obj = await self.electrometer1.evt_largeFileObjectAvailable.next(
                 flush=False, timeout=30
             )
             lfa_objs.append(lfa_obj)
 
-        return lfa_urls
+        return lfa_objs
 
         # @property
         # def estimated_monochromator_setup_time(self):
@@ -368,10 +364,11 @@ additionalProperties: false
         Checks writing is possible and that s3 bucket can be made
         """
 
-        file_output_dir = "/tmp/LatissTakeFlats/"
+        # file_output_dir = "/tmp/LatissTakeFlats/"
         # write folder if required
-        pathlib.Path().mkdir(parents=True, exist_ok=True)
-        self.filename = f"LatissTakeFlats_sequence_summary_{self.group_id}.json"
+        # pathlib.Path().mkdir(parents=True, exist_ok=True)
+        # self.filename =
+        # f"LatissTakeFlats_sequence_summary_{self.group_id}.json"
 
         # Take a copy as the starting point for the summary
         self.sequence_summary = {}
@@ -446,8 +443,8 @@ additionalProperties: false
                         self.step["exp_time"],
                         group_id=self.group_id,
                         program="AT_flats",
-                        reason="flats_{self.config.latiss_filter}_{self.config.latiss_grating}",
-                        obs_note="sequence_lfa_key={s3_key_name}",
+                        reason=f"flats_{self.config.latiss_filter}_{self.config.latiss_grating}",
+                        obs_note=f"sequence_lfa_key={self.s3_key_name}",
                     )
                 )
 
@@ -463,8 +460,9 @@ additionalProperties: false
                     )
                 )
 
-                # task2 = asyncio.sleep(1)  # Placeholder for Fiber spectrograph
-                # task3 = asyncio.sleep(2)  # Placeholder for electrometer
+                # Placeholders for fiberspectrograph and electrometer
+                # task2 = asyncio.sleep(1)
+                # task3 = asyncio.sleep(2)
 
                 latiss_results, fs_results, em_results = await asyncio.gather(
                     task1, task2, task3
@@ -479,7 +477,7 @@ additionalProperties: false
                 # Augment sequence dictionary
             await self.handle_checkpoint(
                 checkpoint_active=checkpoint_active,
-                checkpoint_message=f"Writing script summary to LFA.",
+                checkpoint_message="Writing script summary to LFA.",
             )
 
             # write the final result to the LFA
@@ -505,9 +503,11 @@ additionalProperties: false
 
         #     with open(self.filename, "w") as fp:
         #         json.dump(self.sequence_summary, fp)
-        #     self.log.info(f"Sequence Summary file written: {self.filename}\n")
+        #     self.log.info(f"Sequence Summary file
+        # written: {self.filename}\n")
         # except Exception as e:
-        #     msg = f"Writing sequence summary file to local disk failed: {repr(e)}"
+        #     msg = f"Writing sequence summary file to local
+        #  disk failed: {repr(e)}"
         #     self.log.error(msg)
         #     raise RuntimeError(msg)
 
@@ -518,7 +518,7 @@ additionalProperties: false
 
             url = (
                 f"{self.bucket.service_resource.meta.client.meta.endpoint_url}/"
-                f"{self.bucket.name}/{key_name}"
+                f"{self.bucket.name}/{self.s3_key_name}"
             )
 
             await self.csc.evt_largeFileObjectAvailable.set_write(
