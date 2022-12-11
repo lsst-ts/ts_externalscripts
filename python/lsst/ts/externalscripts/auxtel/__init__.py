@@ -27,3 +27,4 @@ from .latiss_cwfs_align import *
 from .latiss_intra_extra_focal_data import *
 from .latiss_wep_align import *
 from .make_latiss_calibrations import *
+from .latiss_take_flats import *
