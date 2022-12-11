@@ -25,9 +25,10 @@ import logging
 import os
 import random
 import unittest
+import shutil
 
 import pytest
-from lsst.ts import externalscripts, salobj, standardscripts
+from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.auxtel import LatissTakeFlats
 
 random.seed(47)  # for set_random_lsst_dds_partition_prefix
@@ -187,5 +188,3 @@ class LfaObj:
     def __init__(self, url, salindex):
         self.url = url
         self.salindex = salindex
-
-        # salIndex: 1, private_revCode: c5f1d885, private_sndStamp: 1670694827.5129433, private_rcvStamp: 1670694827.5136666, private_seqNum: 2, private_identity: Electrometer:1, private_origin: 174653, url: https://s3.cp.lsst.org/rubinobs-lfa-cp/Electrometer:1/fits/2022/12/10/Electrometer:1_fits_2022-12-10T17:53:34.794.fits, generator: Electrometer:1, version: 0.0, byteSize: 0, checkSum: , mimeType: , id:
