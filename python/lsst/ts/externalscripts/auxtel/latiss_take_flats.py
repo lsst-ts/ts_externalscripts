@@ -29,12 +29,9 @@ import warnings
 import numpy as np
 import yaml
 from lsst.geom import PointD
-from lsst.ts import utils
+from lsst.ts import salobj, utils
 from lsst.ts.idl import enums
-from lsst.ts import salobj
-
-
-from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
+from lsst.ts.observatory.control.auxtel import LATISS, LATISSUsages
 from lsst.ts.observatory.control.utils.enums import RotType
 from lsst.ts.salobj import BaseScript, ExpectedError
 
@@ -55,23 +52,20 @@ class LatissTakeFlats(BaseScript):
         )
 
         if remotes:
-            self.atcs = ATCS(domain=self.domain, log=self.log)
             self.latiss = LATISS(domain=self.domain, log=self.log)
-        else:
-            self.atcs = ATCS(
-                domain=self.domain, log=self.log, intended_usage=ATCSUsages.DryTest
+            self.electrometer = salobj.Remote(
+                domain=self.domain, name="Electrometer", index=201
             )
+            self.monochromator = salobj.Remote(
+                domain=self.domain, name="ATMonochromator"
+            )
+            self.fiber_spectrograph = salobj.Remote(
+                domain=self.domain, name="FiberSpectrograph", index=3
+            )
+        else:
             self.latiss = LATISS(
                 domain=self.domain, log=self.log, intended_usage=LATISSUsages.DryTest
             )
-
-        self.electrometer = salobj.Remote(
-            domain=self.domain, name="Electrometer", index=201
-        )
-        self.monochromator = salobj.Remote(domain=self.domain, name="ATMonochromator")
-        self.fiber_spectrograph = salobj.Remote(
-            domain=self.domain, name="FiberSpectrograph", index=3
-        )
 
         self.config = None
         self.step = None
@@ -123,6 +117,13 @@ additionalProperties: false
         self.log.debug(f"Configuration: {config}")
 
         self.config = config
+
+    async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
+
+        if checkpoint_active:
+            await self.checkpoint(checkpoint_message)
+        else:
+            self.log.info(checkpoint_message)
 
     def get_flat_sequence(self, latiss_filter: str, latiss_grating: str):
         """Return the pre-determined flat field sequences for a given LATISS filter
@@ -200,7 +201,7 @@ additionalProperties: false
             sequence = [step1, step2]  # , step3]
         else:
             raise RuntimeError(
-                f"Either Filter {filt} or gratint {grating} are not currently available in LATISS"
+                f"The combination of {latiss_filter} and grating {latiss_grating} do not have an established flat sequence. Exiting."
             )
 
         return sequence
@@ -264,12 +265,12 @@ additionalProperties: false
             slit=2, slitWidth=exit_slit_width
         )
 
-    async def setup_electrometer():
+    async def setup_electrometer(self):
         """Makes sure electrometer is configured correctly"""
 
         # Need to set mode and integration time etc, using defaults for now.
-        await electrometer.cmd_performZeroCalib.set_start(timeout=10)
-        await electrometer.cmd_setDigitalFilter.set_start(
+        await self.electrometer.cmd_performZeroCalib.set_start(timeout=10)
+        await self.electrometer.cmd_setDigitalFilter.set_start(
             activateFilter=False,
             activateAvgFilter=False,
             activateMedFilter=False,
@@ -444,48 +445,41 @@ additionalProperties: false
 
         await self.publish_sequence_summary()
 
-        async def _setup_latiss(self):
-            """Setup latiss.
+    async def _setup_latiss(self):
+        """Setup latiss.
 
-            Set filter and grating to empty_1.
-            """
-            await self.latiss.setup_instrument(
-                filter=self.config.latiss_filter,
-                grating=self.config.latiss_grating,
+        Set filter and grating to empty_1.
+        """
+        await self.latiss.setup_instrument(
+            filter=self.config.latiss_filter,
+            grating=self.config.latiss_grating,
+        )
+
+    async def publish_sequence_summary(self):
+        """Write sequence summary to LFA as a json file"""
+
+        # Test writing a file early on to verify perms
+        try:
+
+            with open(filename, "w") as fp:
+                json.dump(self.sequence_summary, fp)
+            self.log.info(f"Sequence Summary file written: {filename}\n")
+        except Exception as e:
+            msg = "Writing sequence summary file to local disk failed."
+            raise RuntimeError(msg)
+
+        try:
+            file_upload = json.dump(self.sequence_summary)
+
+            await self.bucket.upload(fileobj=file_upload, key=self.s3_key_name)
+
+            url = (
+                f"{self.bucket.service_resource.meta.client.meta.endpoint_url}/"
+                f"{self.bucket.name}/{key_name}"
             )
 
-        async def publish_sequence_summary(self):
-            """Write sequence summary to LFA as a json file"""
-
-            # Test writing a file early on to verify perms
-            try:
-
-                with open(filename, "w") as fp:
-                    json.dump(self.sequence_summary, fp)
-                self.log.info(f"Sequence Summary file written: {filename}\n")
-            except Exception as e:
-                msg = "Writing sequence summary file to local disk failed."
-                raise RuntimeError(msg)
-
-            try:
-                file_upload = json.dump(self.sequence_summary)
-
-                await self.bucket.upload(fileobj=file_upload, key=self.s3_key_name)
-
-                url = (
-                    f"{self.bucket.service_resource.meta.client.meta.endpoint_url}/"
-                    f"{self.bucket.name}/{key_name}"
-                )
-
-                await self.csc.evt_largeFileObjectAvailable.set_write(
-                    url=url, generator=f"{self.salinfo.name}:{self.salinfo.index}"
-                )
-            except Exception:
-                self.log.exception("File upload to s3 bucket failed.")
-
-        async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
-
-            if checkpoint_active:
-                await self.checkpoint(checkpoint_message)
-            else:
-                self.log.info(checkpoint_message)
+            await self.csc.evt_largeFileObjectAvailable.set_write(
+                url=url, generator=f"{self.salinfo.name}:{self.salinfo.index}"
+            )
+        except Exception:
+            self.log.exception("File upload to s3 bucket failed.")
