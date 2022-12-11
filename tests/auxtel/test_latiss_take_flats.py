@@ -53,41 +53,27 @@ class TestLatissTakeFlats(
 
     async def basic_make_script(self, index):
         logger.debug("Starting basic_make_script")
-        self.script = LatissTakeFlats(index=index)
+        self.script = LatissTakeFlats(index=index, remotes=False)
 
         # Mock the latiss instrument setups
-        self.script.latiss.setup_atspec = unittest.mock.AsyncMock(
-            wraps=self.cmd_setup_atspec_callback
+        self.script.latiss.setup_atspec = unittest.mock.AsyncMock()
+
+        # Mock setup of electrometer
+        self.script.setup_electrometer = unittest.mock.AsyncMock()
+
+        # Mock setup of atmonochromator
+        self.script.setup_monochromator_axes = unittest.mock.AsyncMock()
+
+        # Mock Latiss.take_flats
+        self.script.latiss.take_flats = unittest.mock.AsyncMock(
+            side_effect=self.take_flats_callback
         )
-
-        # Load controllers and required callbacks to simulate
-        # telescope/instrument behaviour
-        self.atcamera = salobj.Controller(name="ATCamera")
-        self.atcamera.cmd_takeImages.callback = unittest.mock.AsyncMock(
-            wraps=self.cmd_take_flats_callback
-        )
-
-        self.atheaderservice = salobj.Controller(name="ATHeaderService")
-        self.atoods = salobj.Controller(name="ATOODS")
-
-        self.atspectrograph = salobj.Controller(name="ATSpectrograph")
-        self.fiberspectrograph = salobj.Controller(name="FiberSpectrograph")
-        self.atmonochromator = salobj.Controller(name="ATMonochromator")
-        self.electrometer = salobj.Controller(name="Electrometer")
-
-        # Mock electrometer functionality
-        self.electrometer.cmd_performZeroCalib.callback = unittest.mock.AsyncMock()
-        self.electrometer.cmd_setDigitalFilter.callback = unittest.mock.AsyncMock()
-
-        # Mock atmonochromator functionality
-        self.atmonochromator.cmd_selectGrating.callback = unittest.mock.AsyncMock()
-        self.atmonochromator.cmd_changeWavelength.callback = unittest.mock.AsyncMock()
-        self.atmonochromator.cmd_changeSlitWidth.callback = unittest.mock.AsyncMock()
 
         self.end_image_tasks = []
 
         # things to track
         self.nimages = 0
+        self.counter = 0
         self.date = None  # Used to fake dataId output from takeImages
         self.seq_num_start = None  # Used to fake proper dataId from takeImages
 
@@ -95,94 +81,24 @@ class TestLatissTakeFlats(
         # Return a single element tuple
         return (self.script,)
 
-    async def cmd_setup_atspec_callback(
-        self, grating=None, filter=None, linear_stage=None
-    ):
+    async def take_flats_callback():
+        """
+        Mocks the take_flats, which is only ever called with a single image.
+        Returns a list of ids (ints)
+        """
 
-        list_to_be_returned = []
-        if filter:
-            list_to_be_returned.append(filter)
-            await self.atspectrograph.evt_reportedFilterPosition.set_write(name=filter)
-            self.atspectrograph.evt_filterInPosition.set()
-            await self.ataos.evt_atspectrographCorrectionStarted.write()
-            await asyncio.sleep(0.2)
-
-        if grating:
-            list_to_be_returned.append(filter)
-            await self.atspectrograph.evt_reportedDisperserPosition.set_write(
-                name=grating
-            )
-            self.atspectrograph.evt_disperserInPosition.set()
-            await self.ataos.evt_atspectrographCorrectionStarted.write()
-            await asyncio.sleep(0.2)
-
-    async def cmd_setup_monochoromator_axes(
-        self, grating=None, filter=None, linear_stage=None
-    ):
-
-        list_to_be_returned = []
-        if filter:
-            list_to_be_returned.append(filter)
-            await self.atspectrograph.evt_reportedFilterPosition.set_write(name=filter)
-            self.atspectrograph.evt_filterInPosition.set()
-            await self.ataos.evt_atspectrographCorrectionStarted.write()
-            await asyncio.sleep(0.2)
-
-        if grating:
-            list_to_be_returned.append(filter)
-            await self.atspectrograph.evt_reportedDisperserPosition.set_write(
-                name=grating
-            )
-            self.atspectrograph.evt_disperserInPosition.set()
-            await self.ataos.evt_atspectrographCorrectionStarted.write()
-            await asyncio.sleep(0.2)
-
-        # need to return a list with how many parameters were provided
-
-        return list_to_be_returned
+        self.counter += 1
+        return [self.counter]
 
     async def close(self):
         """Optional cleanup before closing the scripts and etc."""
         logger.debug("Closing end_image_tasks")
         await asyncio.gather(*self.end_image_tasks, return_exceptions=True)
         logger.debug("Closing remotes")
-        await asyncio.gather(
-            self.atoods.close(),
-            self.atcamera.close(),
-            self.atspectrograph.close(),
-            self.atmonochromator.close(),
-            self.fiberspectrograph.close(),
-            self.atheaderservice.close(),
-        )
+        # await asyncio.gather(
+        #     self.atcamera.close(),
+        # )
         logger.debug("Remotes closed")
-
-    async def cmd_take_flats_callback(self, data):
-
-        logger.debug(f"cmd_take_images callback came with data of {data}")
-        one_exp_time = (
-            data.expTime
-            + self.script.latiss.read_out_time
-            + self.script.latiss.shutter_time
-        )
-        logger.debug(
-            f"Exposing for {one_exp_time} seconds for each exposure, total exposures is {data.numImages}"
-        )
-        await asyncio.sleep(one_exp_time * data.numImages)
-        self.nimages += 1
-        logger.debug("Scheduling finish_take_images before returning from take_images")
-        self.end_image_tasks.append(asyncio.create_task(self.finish_take_images()))
-
-    async def finish_take_images(self):
-
-        # Give result that the telescope is ready
-        await asyncio.sleep(0.5)
-        imgNum = self.atcamera.cmd_takeImages.callback.await_count - 1
-        image_name = f"AT_O_{self.date}_{(imgNum + self.seq_num_start):06d}"
-        await self.atcamera.evt_endReadout.set_write(imageName=image_name)
-        await asyncio.sleep(0.5)
-        await self.atheaderservice.evt_largeFileObjectAvailable.write()
-        await asyncio.sleep(1.0)
-        await self.atoods.evt_imageInOODS.set_write(obsid=image_name)
 
     async def test_configure(self):
         async with self.make_script():
@@ -195,7 +111,10 @@ class TestLatissTakeFlats(
             )
 
     async def test_invalid_sequence(self):
-        # invalid filters, script should configure but die
+        # invalid filters, script should configure and hardware will get
+        # setup but fail.
+        # Note that in the real case and error will be thrown when an invalid
+        #  filter is declared to setup LATISS
 
         async with self.make_script():
             # Try configure with invalid sequence data. This should fail
@@ -207,7 +126,7 @@ class TestLatissTakeFlats(
                 latiss_grating=latiss_grating,
             )
 
-            with pytest.raises(salobj.ExpectedError):
+            with pytest.raises(RuntimeError):
                 await self.script.arun()
 
     async def test_executable(self):
