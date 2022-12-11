@@ -24,16 +24,16 @@ __all__ = [
 
 import asyncio
 import enum
-import warnings
+import pathlib
+from datetime import datetime
 
+import astropy
 import numpy as np
 import yaml
-from lsst.geom import PointD
 from lsst.ts import salobj, utils
 from lsst.ts.idl import enums
 from lsst.ts.observatory.control.auxtel import LATISS, LATISSUsages
-from lsst.ts.observatory.control.utils.enums import RotType
-from lsst.ts.salobj import BaseScript, ExpectedError
+from lsst.ts.salobj import BaseScript
 
 
 class LatissTakeFlats(BaseScript):
@@ -44,7 +44,11 @@ class LatissTakeFlats(BaseScript):
     proper way to determine instrument setup.
     """
 
-    def __init__(self, index: int, remotes: bool = True) -> None:
+    def __init__(
+        self, index: int, remotes: bool = True, simulation_mode: int = 0
+    ) -> None:
+
+        valid_simulation_modes = (0, 1)
 
         super().__init__(
             index=index,
@@ -59,7 +63,7 @@ class LatissTakeFlats(BaseScript):
             self.monochromator = salobj.Remote(
                 domain=self.domain, name="ATMonochromator"
             )
-            self.fiber_spectrograph = salobj.Remote(
+            self.fiberspectrograph = salobj.Remote(
                 domain=self.domain, name="FiberSpectrograph", index=3
             )
         else:
@@ -71,13 +75,17 @@ class LatissTakeFlats(BaseScript):
         self.step = None
         self.sequence = None
         self.sequence_summary = None
+        self.bucket = None
+        self.s3instance = None
+        self.simulation_mode = simulation_mode
+        self.filename = None
 
         self.image_in_oods_timeout = 15.0
         self.get_image_timeout = 10.0
 
-    async def run(self):
+    async def run(self, simulation_mode: int = 0):
 
-        await self.arun(checkpoint_active=True)
+        await self.arun(checkpoint_active=True, simulation_mode=simulation_mode)
 
     @classmethod
     def get_schema(cls):
@@ -90,10 +98,13 @@ type: object
 properties:
     latiss_filter:
         type: string
-        default: ['empty_1']
+        default: 'empty_1'
     latiss_grating:
         type: string
-        default: ['empty_1']
+        default: 'empty_1'
+    s3instance:
+        type: string
+        default: 'cp'
 
 required: []
 additionalProperties: false
@@ -117,6 +128,7 @@ additionalProperties: false
         self.log.debug(f"Configuration: {config}")
 
         self.config = config
+        self.s3instance = config.s3instance
 
     async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
 
@@ -162,11 +174,11 @@ additionalProperties: false
                 "exit_slit_width": [4.5],
                 "entrance_slit_width": [4.5],
                 "exp_time": [3],
-                "n_exp": [3],
+                "n_exp": 3,
                 "fs_exp_time": [1],
-                "fs_n_exp": [1],
-                "el_exp_time": [5],
-                "el_n_exp": [1],
+                "fs_n_exp": 1,
+                "em_exp_time": [5],
+                "em_n_exp": 1,
             }
             step2 = {
                 "wavelength": [620],
@@ -178,11 +190,11 @@ additionalProperties: false
                 "exit_slit_width": [4.5],
                 "entrance_slit_width": [4.5],
                 "exp_time": [4],
-                "n_exp": [3],
+                "n_exp": 3,
                 "fs_exp_time": [1],
-                "fs_n_exp": [1],
-                "el_exp_time": [5],
-                "el_n_exp": [1],
+                "fs_n_exp": 1,
+                "em_exp_time": [5],
+                "em_n_exp": 1,
             }
             # step3 = {
             #     "wavelength": [660],
@@ -251,9 +263,9 @@ additionalProperties: false
 
         """
 
-        # this method should go in an atcalsys class?
+        # this method will go in an atcalsys class?
 
-        # Can be made asyncronous later once more robust
+        # Can be made asynchronous later once more robust
         await self.atmonochromator.cmd_selectGrating.set_start(
             gratingType=grating, timeout=180
         )
@@ -300,17 +312,17 @@ additionalProperties: false
         lfa_objs = []
         for i in range(n):
             self.fiberspectrograph.evt_largeFileObjectAvailable.flush()
-            tmp1 = await fiberspectrograph.cmd_expose.set_start(
+            tmp1 = await self.fiberspectrograph.cmd_expose.set_start(
                 duration=exp_time, numExposures=1
             )
-            lfa_obj = await fiberspectrograph.evt_largeFileObjectAvailable.next(
+            lfa_obj = await self.fiberspectrograph.evt_largeFileObjectAvailable.next(
                 flush=False, timeout=10
             )
             lfa_objs.append(lfa_obj)
 
         return lfa_objs
 
-    async def take_EM_exposures(self, exp_time: float, n: int):
+    async def take_em_exposures(self, exp_time: float, n: int):
         """Takes exposure with the electrometer
 
         The readout time must be included in determining the number
@@ -335,8 +347,10 @@ additionalProperties: false
         self.log.debug("Starting Electrometer exposures")
         lfa_objs = []
         for i in range(n):
-            tmp = await electrometer.cmd_startScanDt.set_start(scanDuration=exp_time)
-            lfa_objs = await electrometer1.evt_largeFileObjectAvailable.next(
+            tmp = await self.electrometer.cmd_startScanDt.set_start(
+                scanDuration=exp_time
+            )
+            lfa_objs = await self.electrometer1.evt_largeFileObjectAvailable.next(
                 flush=False, timeout=30
             )
             lfa_objs.append(lfa_obj)
@@ -349,7 +363,7 @@ additionalProperties: false
         #     """
         #     return 50
 
-    async def prepare_summary_table():
+    async def prepare_summary_table(self):
         """Prepares final summary table.
         Checks writing is possible and that s3 bucket can be made
         """
@@ -357,21 +371,36 @@ additionalProperties: false
         file_output_dir = "/tmp/LatissTakeFlats/"
         # write folder if required
         pathlib.Path().mkdir(parents=True, exist_ok=True)
-        filename = f"LatissTakeFlats_sequence_summary_{self.group_id}.json"
+        self.filename = f"LatissTakeFlats_sequence_summary_{self.group_id}.json"
+
+        # Take a copy as the starting point for the summary
+        self.sequence_summary = {}
+
+        # Add metadata from this script
+        date_begin = utils.astropy_time_from_tai_unix(utils.current_tai())
+        self.sequence_summary["date_begin_tai"] = date_begin
+        self.sequence_summary["script_index"] = self.salinfo.index
+        # Create and empty list for the steps
+        self.sequence_summary["steps"] = []
+
+        # Check to see if in simulations mode, if so provide a mock.
+        if self.bucket is None and self.simulation_mode != 0:
+            self.bucket = salobj.AsyncS3Bucket(
+                salobj.AsyncS3Bucket.make_bucket_name(s3instance=self.s3instance),
+                create=True,
+                domock=True,
+            )
 
         # Generate a bucket key
         self.s3_key_name = self.bucket.make_key(
             salname="LatissTakeFlats",
             salindexname=self.salinfo.index,
             generator="json",
-            date=astropy.time.Time(self.manual_end_time, format="unix_tai"),
+            date=date_begin,
             suffix=".json",
         )
 
-        # Take a copy as the starting point for the summary
-        self.sequence_summary = self.sequence.copy()
-
-    async def arun(self, checkpoint_active=False):
+    async def arun(self, checkpoint_active=False, simulation_mode: bool = 0):
 
         await self.handle_checkpoint(
             checkpoint_active=checkpoint_active,
@@ -389,17 +418,17 @@ additionalProperties: false
         )
 
         # Prepare summary table for writing
-        self.prepare_summary_table()
+        await self.prepare_summary_table()
 
-        for i, self.step in enumerate(sequence):
+        for i, self.step in enumerate(self.sequence):
 
             await self.handle_checkpoint(
                 checkpoint_active=checkpoint_active,
-                checkpoint_message=f"Setting up Monochromator for sequence {i} of {len(sequence)}.",
+                checkpoint_message=f"Setting up Monochromator for sequence {i} of {len(self.sequence)}.",
             )
 
             # will be replaced by setup_monochromator in the future?
-            await setup_monochromator_axes(
+            await self.setup_monochromator_axes(
                 self.step["wavelength"],
                 self.step["grating"],
                 self.step["exit_slit_width"],
@@ -408,42 +437,56 @@ additionalProperties: false
 
             await self.handle_checkpoint(
                 checkpoint_active=checkpoint_active,
-                checkpoint_message=f"Performing {step['n_exp']} exposures of {step['exp_time']}.",
+                checkpoint_message=f"Performing {self.step['n_exp']} exposures of {self.step['exp_time']}.",
             )
 
-            for n in self.step["n_exp"]:
+            for n in range(self.step["n_exp"]):
                 task1 = asyncio.create_task(
-                    latiss.take_flats(
+                    self.latiss.take_flats(
                         self.step["exp_time"],
                         group_id=self.group_id,
                         program="AT_flats",
                         reason="flats_{self.config.latiss_filter}_{self.config.latiss_grating}",
-                        obs_note=self.bucket_name,
+                        obs_note="sequence_lfa_key={s3_key_name}",
                     )
                 )
 
-                # task2 = asyncio.create_task (
-                #     self.take_fs_exposures(self.step["fs_exp_time"], self.steo"fs_n_exp")
-                # )
+                task2 = asyncio.create_task(
+                    self.take_fs_exposures(
+                        self.step["fs_exp_time"], self.step["fs_n_exp"]
+                    )
+                )
 
-                # task2 = asyncio.create_task (
-                #     self.take_EM_exposures(self.step["EM_exp_time"], self.steo"EM_n_exp")
-                # )
+                task3 = asyncio.create_task(
+                    self.take_em_exposures(
+                        self.step["em_exp_time"], self.step["fs_n_exp"]
+                    )
+                )
 
-                task2 = asyncio.sleep(1)  # Placeholder for Fiber spectrograph
-                task3 = asyncio.sleep(2)  # Placeholder for electrometer
+                # task2 = asyncio.sleep(1)  # Placeholder for Fiber spectrograph
+                # task3 = asyncio.sleep(2)  # Placeholder for electrometer
 
                 latiss_results, fs_results, em_results = await asyncio.gather(
                     task1, task2, task3
                 )
+                self.step["electrometer_lfa_objs"] = em_results
+                self.step["fiberspectrograph_lfa_objs"] = fs_results
+                self.step["latiss_ids"] = latiss_results
+
+                # Add info to the sequence summary
+                (self.sequence_summary["steps"]).append(self.step)
 
                 # Augment sequence dictionary
             await self.handle_checkpoint(
                 checkpoint_active=checkpoint_active,
-                checkpoint_message=f"Writing Summary to LFA.",
+                checkpoint_message=f"Writing script summary to LFA.",
             )
 
-        await self.publish_sequence_summary()
+            # write the final result to the LFA
+            date_end = utils.astropy_time_from_tai_unix(utils.current_tai())
+            self.sequence_summary["date_end_tai"] = date_end
+
+            await self.publish_sequence_summary()
 
     async def _setup_latiss(self):
         """Setup latiss.
@@ -458,15 +501,15 @@ additionalProperties: false
     async def publish_sequence_summary(self):
         """Write sequence summary to LFA as a json file"""
 
-        # Test writing a file early on to verify perms
-        try:
+        # try:
 
-            with open(filename, "w") as fp:
-                json.dump(self.sequence_summary, fp)
-            self.log.info(f"Sequence Summary file written: {filename}\n")
-        except Exception as e:
-            msg = "Writing sequence summary file to local disk failed."
-            raise RuntimeError(msg)
+        #     with open(self.filename, "w") as fp:
+        #         json.dump(self.sequence_summary, fp)
+        #     self.log.info(f"Sequence Summary file written: {self.filename}\n")
+        # except Exception as e:
+        #     msg = f"Writing sequence summary file to local disk failed: {repr(e)}"
+        #     self.log.error(msg)
+        #     raise RuntimeError(msg)
 
         try:
             file_upload = json.dump(self.sequence_summary)
