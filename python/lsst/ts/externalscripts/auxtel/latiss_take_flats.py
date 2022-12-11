@@ -31,6 +31,7 @@ import yaml
 from lsst.geom import PointD
 from lsst.ts import utils
 from lsst.ts.idl import enums
+from lsst.ts import salobj
 
 
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
@@ -80,27 +81,25 @@ class LatissTakeFlats(BaseScript):
         self.image_in_oods_timeout = 15.0
         self.get_image_timeout = 10.0
 
+    async def run(self):
+
+        await self.arun(checkpoint_active=True)
+
     @classmethod
     def get_schema(cls):
         yaml_schema = """
 $schema: http://json-schema/draft-07/schema#
-$id: https://github.com/lsst-ts/ts_standardscripts/auxtel/BuildPointingModel.yaml
-title: BuildPointingModel v1
+$id: https://github.com/lsst-ts/ts_externalscripts/auxtel/LatissTakeFlats.yaml
+title: LatissTakeFlats v1
 description: Configuration for LatissTakeFlats.
 type: object
 properties:
     latiss_filter:
-        type: array
-        items:
-            type: string
-            minItems: 1
-            default: ['empty_1']
+        type: string
+        default: ['empty_1']
     latiss_grating:
-        type: array
-        items:
-            type: string
-            minItems: 1
-            default: ['empty_1']
+        type: string
+        default: ['empty_1']
 
 required: []
 additionalProperties: false
@@ -108,6 +107,8 @@ additionalProperties: false
         return yaml.safe_load(yaml_schema)
 
     def set_metadata(self, metadata):
+
+        self.log.debug("In set_metadata")
         metadata.nimages = 3
         metadata.duration = 600  # set arbitrarily
 
@@ -123,7 +124,7 @@ additionalProperties: false
 
         self.config = config
 
-    def get_flat_sequence(self, filt: str, grating: str):
+    def get_flat_sequence(self, latiss_filter: str, latiss_grating: str):
         """Return the pre-determined flat field sequences for a given LATISS filter
         and grating.
 
@@ -144,9 +145,12 @@ additionalProperties: false
                   and grating combination.
 
         """
+        self.log.debug(
+            f"Running get_flat_sequence with {latiss_filter=} and {latiss_grating=}"
+        )
 
         # Check that the LATISS filter/grating combination is valid
-        if filt == "SDSSr_65mm" and grating == "empty_1":
+        if latiss_filter == "SDSSr_65mm" and latiss_grating == "empty_1":
             # Returns a dictionary of sequences
             step1 = {
                 "wavelength": [
@@ -158,10 +162,10 @@ additionalProperties: false
                 "entrance_slit_width": [4.5],
                 "exp_time": [3],
                 "n_exp": [3],
-                "FS_exp_time": [1],
-                "FS_n_exp": [1],
-                "EL_exp_time": [5],
-                "EL_n_exp": [1],
+                "fs_exp_time": [1],
+                "fs_n_exp": [1],
+                "el_exp_time": [5],
+                "el_n_exp": [1],
             }
             step2 = {
                 "wavelength": [620],
@@ -174,10 +178,10 @@ additionalProperties: false
                 "entrance_slit_width": [4.5],
                 "exp_time": [4],
                 "n_exp": [3],
-                "FS_exp_time": [1],
-                "FS_n_exp": [1],
-                "EL_exp_time": [5],
-                "EL_n_exp": [1],
+                "fs_exp_time": [1],
+                "fs_n_exp": [1],
+                "el_exp_time": [5],
+                "el_n_exp": [1],
             }
             # step3 = {
             #     "wavelength": [660],
@@ -187,10 +191,10 @@ additionalProperties: false
             #     "entrance_slit_width": [4.5],
             #     "exp_time": [5],
             #     "n_exp": [3],
-            #     "FS_exp_time": [1],
-            #     "FS_n_exp": [1],
-            #     "EL_exp_time": [5],
-            #     "EL_n_exp": [1],
+            #     "fs_exp_time": [1],
+            #     "fs_n_exp": [1],
+            #     "el_exp_time": [5],
+            #     "el_n_exp": [1],
             # }
 
             sequence = [step1, step2]  # , step3]
@@ -260,92 +264,89 @@ additionalProperties: false
             slit=2, slitWidth=exit_slit_width
         )
 
+    async def setup_electrometer():
+        """Makes sure electrometer is configured correctly"""
 
-async def setup_electrometer():
-    """Makes sure electrometer is configured correctly"""
-
-    # Need to set mode and integration time etc, using defaults for now.
-    await electrometer.cmd_performZeroCalib.set_start(timeout=10)
-    await electrometer.cmd_setDigitalFilter.set_start(
-        activateFilter=False,
-        activateAvgFilter=False,
-        activateMedFilter=False,
-        timeout=10,
-    )
-
-
-async def take_FS_exposures(self, exp_time, n):
-    """Takes exposures with the fiber spectrograph
-
-    Parameters
-    ----------
-
-    exp_time : `float`
-        Exposure time in seconds
-
-    n : `int`
-        Number of exposures
-
-    Returns
-    -------
-
-    lfa_objs : `list`
-        List of LF objects
-
-    """
-    self.log.debug("Starting FS exposures")
-    lfa_objs = []
-    for i in range(n):
-        self.fiberspectrograph.evt_largeFileObjectAvailable.flush()
-        tmp1 = await fiberspectrograph.cmd_expose.set_start(
-            duration=exp_time, numExposures=1
+        # Need to set mode and integration time etc, using defaults for now.
+        await electrometer.cmd_performZeroCalib.set_start(timeout=10)
+        await electrometer.cmd_setDigitalFilter.set_start(
+            activateFilter=False,
+            activateAvgFilter=False,
+            activateMedFilter=False,
+            timeout=10,
         )
-        lfa_obj = await fiberspectrograph.evt_largeFileObjectAvailable.next(
-            flush=False, timeout=10
-        )
-        lfa_objs.append(lfa_obj)
 
-    return lfa_objs
+    async def take_fs_exposures(self, exp_time, n):
+        """Takes exposures with the fiber spectrograph
 
+        Parameters
+        ----------
 
-async def take_EM_exposures(self, exp_time: float, n: int):
-    """Takes exposure with the electrometer
+        exp_time : `float`
+            Exposure time in seconds
 
-    The readout time must be included in determining the number
-    of exposures. Using n=1 is recommended when possible.
+        n : `int`
+            Number of exposures
 
-    Parameters
-    ----------
+        Returns
+        -------
 
-    exp_time : `float`
-        Exposure time in seconds
+        lfa_objs : `list`
+            List of LF objects
 
-    n : `int`
-        Number of exposures
+        """
+        self.log.debug("Starting FS exposures")
+        lfa_objs = []
+        for i in range(n):
+            self.fiberspectrograph.evt_largeFileObjectAvailable.flush()
+            tmp1 = await fiberspectrograph.cmd_expose.set_start(
+                duration=exp_time, numExposures=1
+            )
+            lfa_obj = await fiberspectrograph.evt_largeFileObjectAvailable.next(
+                flush=False, timeout=10
+            )
+            lfa_objs.append(lfa_obj)
 
-    Returns
-    -------
+        return lfa_objs
 
-    lfa_objs : `list`
-        List of LFA objects to get files in the LFA
+    async def take_EM_exposures(self, exp_time: float, n: int):
+        """Takes exposure with the electrometer
 
-    """
-    self.log.debug("Starting Electrometer exposures")
-    lfa_objs = []
-    for i in range(n):
-        tmp = await electrometer.cmd_startScanDt.set_start(scanDuration=exp_time)
-        lfa_objs = await electrometer1.evt_largeFileObjectAvailable.next(
-            flush=False, timeout=30
-        )
-        lfa_objs.append(lfa_obj)
+        The readout time must be included in determining the number
+        of exposures. Using n=1 is recommended when possible.
 
-    return lfa_urls
+        Parameters
+        ----------
 
-    # @property
-    # def estimated_monochromator_setup_time(self):
-    #     """The estimated time to setup the monochromator
-    #     """
-    #     return 50
+        exp_time : `float`
+            Exposure time in seconds
+
+        n : `int`
+            Number of exposures
+
+        Returns
+        -------
+
+        lfa_objs : `list`
+            List of LFA objects to get files in the LFA
+
+        """
+        self.log.debug("Starting Electrometer exposures")
+        lfa_objs = []
+        for i in range(n):
+            tmp = await electrometer.cmd_startScanDt.set_start(scanDuration=exp_time)
+            lfa_objs = await electrometer1.evt_largeFileObjectAvailable.next(
+                flush=False, timeout=30
+            )
+            lfa_objs.append(lfa_obj)
+
+        return lfa_urls
+
+        # @property
+        # def estimated_monochromator_setup_time(self):
+        #     """The estimated time to setup the monochromator
+        #     """
+        #     return 50
 
     async def prepare_summary_table():
         """Prepares final summary table.
@@ -382,7 +383,9 @@ async def take_EM_exposures(self, exp_time: float, n: int):
         await self.setup_electrometer()
 
         # Get sequences for the given setup
-        self.sequence = self.get_flat_sequence(self.config.filter, self.config.grating)
+        self.sequence = self.get_flat_sequence(
+            self.config.latiss_filter, self.config.latiss_grating
+        )
 
         # Prepare summary table for writing
         self.prepare_summary_table()
@@ -413,13 +416,13 @@ async def take_EM_exposures(self, exp_time: float, n: int):
                         self.step["exp_time"],
                         group_id=self.group_id,
                         program="AT_flats",
-                        reason="flats_{self.config.filter}_{self.config.grating}",
+                        reason="flats_{self.config.latiss_filter}_{self.config.latiss_grating}",
                         obs_note=self.bucket_name,
                     )
                 )
 
                 # task2 = asyncio.create_task (
-                #     self.take_FS_exposures(self.step["FS_exp_time"], self.steo"FS_n_exp")
+                #     self.take_fs_exposures(self.step["fs_exp_time"], self.steo"fs_n_exp")
                 # )
 
                 # task2 = asyncio.create_task (
@@ -429,7 +432,9 @@ async def take_EM_exposures(self, exp_time: float, n: int):
                 task2 = asyncio.sleep(1)  # Placeholder for Fiber spectrograph
                 task3 = asyncio.sleep(2)  # Placeholder for electrometer
 
-                await asyncio.gather(task1, task2, task3)
+                latiss_results, fs_results, em_results = await asyncio.gather(
+                    task1, task2, task3
+                )
 
                 # Augment sequence dictionary
             await self.handle_checkpoint(
@@ -439,52 +444,48 @@ async def take_EM_exposures(self, exp_time: float, n: int):
 
         await self.publish_sequence_summary()
 
-    async def _setup_latiss(self):
-        """Setup latiss.
+        async def _setup_latiss(self):
+            """Setup latiss.
 
-        Set filter and grating to empty_1.
-        """
-        await self.latiss.setup_instrument(
-            filter=self.config.filter,
-            grating=self.config.grating,
-        )
-
-    async def publish_sequence_summary(self):
-        """Write sequence summary to LFA as a json file"""
-
-        # Test writing a file early on to verify perms
-        try:
-
-            with open(filename, "w") as fp:
-                json.dump(self.sequence_summary, fp)
-            self.log.info(f"Sequence Summary file written: {filename}\n")
-        except Exception as e:
-            msg = "Writing sequence summary file to local disk failed."
-            raise RuntimeError(msg)
-
-        try:
-            file_upload = json.dump(self.sequence_summary)
-
-            await self.bucket.upload(fileobj=file_upload, key=self.s3_key_name)
-
-            url = (
-                f"{self.bucket.service_resource.meta.client.meta.endpoint_url}/"
-                f"{self.bucket.name}/{key_name}"
+            Set filter and grating to empty_1.
+            """
+            await self.latiss.setup_instrument(
+                filter=self.config.latiss_filter,
+                grating=self.config.latiss_grating,
             )
 
-            await self.csc.evt_largeFileObjectAvailable.set_write(
-                url=url, generator=f"{self.salinfo.name}:{self.salinfo.index}"
-            )
-        except Exception:
-            self.log.exception("File upload to s3 bucket failed.")
+        async def publish_sequence_summary(self):
+            """Write sequence summary to LFA as a json file"""
 
-    async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
+            # Test writing a file early on to verify perms
+            try:
 
-        if checkpoint_active:
-            await self.checkpoint(checkpoint_message)
-        else:
-            self.log.info(checkpoint_message)
+                with open(filename, "w") as fp:
+                    json.dump(self.sequence_summary, fp)
+                self.log.info(f"Sequence Summary file written: {filename}\n")
+            except Exception as e:
+                msg = "Writing sequence summary file to local disk failed."
+                raise RuntimeError(msg)
 
-    async def run(self):
+            try:
+                file_upload = json.dump(self.sequence_summary)
 
-        await self.arun(checkpoint_active=True)
+                await self.bucket.upload(fileobj=file_upload, key=self.s3_key_name)
+
+                url = (
+                    f"{self.bucket.service_resource.meta.client.meta.endpoint_url}/"
+                    f"{self.bucket.name}/{key_name}"
+                )
+
+                await self.csc.evt_largeFileObjectAvailable.set_write(
+                    url=url, generator=f"{self.salinfo.name}:{self.salinfo.index}"
+                )
+            except Exception:
+                self.log.exception("File upload to s3 bucket failed.")
+
+        async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
+
+            if checkpoint_active:
+                await self.checkpoint(checkpoint_message)
+            else:
+                self.log.info(checkpoint_message)

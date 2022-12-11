@@ -1,4 +1,4 @@
-# This file is part of ts_standardscripts
+# This file is part of ts_scripts
 #
 # Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -30,7 +30,7 @@ import unittest
 import lsst.daf.butler as dafButler
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
+from lsst.ts.externalscripts.auxtel import LatissTakeFlats
 from lsst.utils import getPackageDir
 
 # Make matplotlib less chatty

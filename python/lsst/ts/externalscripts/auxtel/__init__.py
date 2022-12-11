@@ -25,3 +25,4 @@ from .latiss_acquire_and_take_sequence import *
 from .latiss_cwfs_align import *
 from .latiss_wep_align import *
 from .make_latiss_calibrations import *
+from .latiss_take_flats import *
