@@ -24,13 +24,11 @@ import asyncio
 import logging
 import os
 import random
-import tempfile
 import unittest
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.auxtel import LatissTakeFlats
-from lsst.utils import getPackageDir
 
 random.seed(47)  # for set_random_lsst_dds_partition_prefix
 
@@ -53,7 +51,7 @@ class TestLatissTakeFlats(
 
     async def basic_make_script(self, index):
         logger.debug("Starting basic_make_script")
-        self.script = LatissTakeFlats(index=index, remotes=False)
+        self.script = LatissTakeFlats(index=index, remotes=False, simulation_mode=True)
 
         # Mock the latiss instrument setups
         self.script.latiss.setup_atspec = unittest.mock.AsyncMock()
@@ -63,6 +61,16 @@ class TestLatissTakeFlats(
 
         # Mock setup of atmonochromator
         self.script.setup_monochromator_axes = unittest.mock.AsyncMock()
+
+        # mock fiber spectrograph exposures
+        self.script.take_fs_exposures = unittest.mock.AsyncMock(
+            side_effect=self.take_fs_exposures_callback
+        )
+
+        # mock electrometer exposures
+        self.script.take_em_exposures = unittest.mock.AsyncMock(
+            side_effect=self.take_em_exposures_callback
+        )
 
         # Mock Latiss.take_flats
         self.script.latiss.take_flats = unittest.mock.AsyncMock(
@@ -81,7 +89,31 @@ class TestLatissTakeFlats(
         # Return a single element tuple
         return (self.script,)
 
-    async def take_flats_callback():
+    async def take_fs_exposures_callback(self, expTime, n):
+        """
+        Mocks the taking of fiber spectrograph images
+        """
+
+        # FIXME TO SUPPORT MULTIPLE IMAGES
+
+        self.counter += 1
+        lfa_obj1 = LfaObj(f"FS_url_to_json_file_{self.counter}", 123)
+        return [lfa_obj1]
+
+    async def take_em_exposures_callback(self, expTime, n):
+        """
+        Mocks the taking of fiber spectrograph images
+        """
+        # FIXME TO SUPPORT MULTIPLE LFA objects
+        # For now just use 1
+
+        self.counter += 1
+        lfa_obj1 = LfaObj(f"EM_url_to_json_file_{self.counter}", 456)
+        return [lfa_obj1]
+
+    async def take_flats_callback(
+        self, exptime: float, group_id: str, program: str, reason: str, obs_note: str
+    ):
         """
         Mocks the take_flats, which is only ever called with a single image.
         Returns a list of ids (ints)
@@ -129,8 +161,31 @@ class TestLatissTakeFlats(
             with pytest.raises(RuntimeError):
                 await self.script.arun()
 
+    async def test_sequence(self):
+        # valid sequence
+
+        async with self.make_script():
+            # Try configure with invalid sequence data. This should fail
+            latiss_filter = "SDSSr_65mm"
+            latiss_grating = "empty_1"
+
+            await self.configure_script(
+                latiss_filter=latiss_filter,
+                latiss_grating=latiss_grating,
+            )
+            # indication simulation for s3 bucket.
+            await self.script.arun(simulation_mode=1)
+
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "auxtel" / "latiss_take_flats.py"
         logger.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
+
+
+class LfaObj:
+    def __init__(self, url, salindex):
+        self.url = url
+        self.salindex = salindex
+
+        # salIndex: 1, private_revCode: c5f1d885, private_sndStamp: 1670694827.5129433, private_rcvStamp: 1670694827.5136666, private_seqNum: 2, private_identity: Electrometer:1, private_origin: 174653, url: https://s3.cp.lsst.org/rubinobs-lfa-cp/Electrometer:1/fits/2022/12/10/Electrometer:1_fits_2022-12-10T17:53:34.794.fits, generator: Electrometer:1, version: 0.0, byteSize: 0, checkSum: , mimeType: , id:
