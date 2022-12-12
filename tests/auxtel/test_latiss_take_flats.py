@@ -61,7 +61,7 @@ class TestLatissTakeFlats(
         self.script.setup_electrometer = unittest.mock.AsyncMock()
 
         # Mock setup of atmonochromator
-        self.script.setup_monochromator_axes = unittest.mock.AsyncMock()
+        self.script.setup_atmonochromator_axes = unittest.mock.AsyncMock()
 
         # mock fiber spectrograph exposures
         self.script.take_fs_exposures = unittest.mock.AsyncMock(
@@ -98,22 +98,26 @@ class TestLatissTakeFlats(
         # FIXME TO SUPPORT MULTIPLE IMAGES
 
         self.counter += 1
-        lfa_obj1 = LfaObj(f"FS_url_to_json_file_{self.counter}", 123)
-        return [lfa_obj1]
+        return [f"FS_LFA_url{self.counter}"]
 
     async def take_em_exposures_callback(self, expTime, n):
         """
         Mocks the taking of fiber spectrograph images
         """
-        # FIXME TO SUPPORT MULTIPLE LFA objects
+        # FIXME TO SUPPORT MULTIPLE images
         # For now just use 1
 
         self.counter += 1
-        lfa_obj1 = LfaObj(f"EM_url_to_json_file_{self.counter}", 456)
-        return [lfa_obj1]
+        return [f"EM_LFA_url{self.counter}"]
 
     async def take_flats_callback(
-        self, exptime: float, group_id: str, program: str, reason: str, obs_note: str
+        self,
+        exptime: float,
+        n_flats: int,
+        group_id: str,
+        program: str,
+        reason: str,
+        note: str,
     ):
         """
         Mocks the take_flats, which is only ever called with a single image.
@@ -182,9 +186,3 @@ class TestLatissTakeFlats(
         script_path = scripts_dir / "auxtel" / "latiss_take_flats.py"
         logger.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
-
-
-class LfaObj:
-    def __init__(self, url, salindex):
-        self.url = url
-        self.salindex = salindex
