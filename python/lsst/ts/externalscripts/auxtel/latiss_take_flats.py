@@ -25,6 +25,7 @@ __all__ = [
 import asyncio
 
 # import pathlib
+import io
 import json
 import yaml
 
@@ -58,7 +59,7 @@ class LatissTakeFlats(BaseScript):
             self.electrometer = salobj.Remote(
                 domain=self.domain, name="Electrometer", index=201
             )
-            self.monochromator = salobj.Remote(
+            self.atmonochromator = salobj.Remote(
                 domain=self.domain, name="ATMonochromator"
             )
             self.fiberspectrograph = salobj.Remote(
@@ -164,34 +165,29 @@ additionalProperties: false
         if latiss_filter == "SDSSr_65mm" and latiss_grating == "empty_1":
             # Returns a dictionary of sequences
             step1 = {
-                "wavelength": [
-                    580,
-                ],
-                "grating": [enums.ATMonochromator.Grating.RED],
-                "spec_res": [7],
-                "exit_slit_width": [4.5],
-                "entrance_slit_width": [4.5],
-                "exp_time": [3],
+                "wavelength": 580,
+                "grating": 1,  # enums.ATMonochromator.Grating.RED,
+                "spec_res": 7,
+                "exit_slit_width": 4.5,
+                "entrance_slit_width": 4.5,
+                "exp_time": 3,
                 "n_exp": 3,
-                "fs_exp_time": [1],
+                "fs_exp_time": 1,
                 "fs_n_exp": 1,
-                "em_exp_time": [5],
+                "em_exp_time": 5,
                 "em_n_exp": 1,
             }
             step2 = {
-                "wavelength": [620],
-                "grating": [
-                    enums.ATMonochromator.Grating.RED,
-                    enums.ATMonochromator.Grating.RED,
-                ],
-                "spec_res": [8],
-                "exit_slit_width": [4.5],
-                "entrance_slit_width": [4.5],
-                "exp_time": [4],
+                "wavelength": 620,
+                "grating": 1,  # enums.ATMonochromator.Grating.RED,
+                "spec_res": 8,
+                "exit_slit_width": 4.5,
+                "entrance_slit_width": 4.5,
+                "exp_time": 4,
                 "n_exp": 3,
-                "fs_exp_time": [1],
+                "fs_exp_time": 1,
                 "fs_n_exp": 1,
-                "em_exp_time": [5],
+                "em_exp_time": 5,
                 "em_n_exp": 1,
             }
             # step3 = {
@@ -216,8 +212,8 @@ additionalProperties: false
 
         return sequence
 
-    def get_monochromator_setup(self, wavelength: float, spec_res: float):
-        """Derive the monochromator based on the desired wavelength and
+    def get_atmonochromator_setup(self, wavelength: float, spec_res: float):
+        """Derive the atmonochromator based on the desired wavelength and
         spectral resolution.
         Slit width values, grating, and relative throughput with
         respect to 700 nm is returned.
@@ -243,14 +239,14 @@ additionalProperties: false
 
         return NotImplementedError
 
-    async def setup_monochromator_axes(
+    async def setup_atmonochromator_axes(
         self,
         wavelength: float,
         grating: str,
         entrance_slit_width: float,
         exit_slit_width: float,
     ):
-        """Setup the monochromator based on the desired wavelength and
+        """Setup the atmonochromator based on the desired wavelength and
         spectral resolution.
 
         Parameters
@@ -265,7 +261,7 @@ additionalProperties: false
 
         # Can be made asynchronous later once more robust
         await self.atmonochromator.cmd_selectGrating.set_start(
-            gratingType=grating, timeout=180
+            gratingType=int(grating), timeout=180
         )
         await self.atmonochromator.cmd_changeWavelength.set_start(wavelength=wavelength)
         await self.atmonochromator.cmd_changeSlitWidth.set_start(
@@ -302,12 +298,12 @@ additionalProperties: false
         Returns
         -------
 
-        lfa_objs : `list`
-            List of LF objects
+        lfa_urls : `list`
+            List of LF urls
 
         """
         self.log.debug("Starting FS exposures")
-        lfa_objs = []
+        lfa_urls = []
         for i in range(n):
             self.fiberspectrograph.evt_largeFileObjectAvailable.flush()
             await self.fiberspectrograph.cmd_expose.set_start(
@@ -316,9 +312,9 @@ additionalProperties: false
             lfa_obj = await self.fiberspectrograph.evt_largeFileObjectAvailable.next(
                 flush=False, timeout=10
             )
-            lfa_objs.append(lfa_obj)
+            lfa_urls.append(lfa_obj.url)
 
-        return lfa_objs
+        return lfa_urls
 
     async def take_em_exposures(self, exp_time: float, n: int):
         """Takes exposure with the electrometer
@@ -338,24 +334,24 @@ additionalProperties: false
         Returns
         -------
 
-        lfa_objs : `list`
+        lfa_urls : `list`
             List of LFA objects to get files in the LFA
 
         """
         self.log.debug("Starting Electrometer exposures")
-        lfa_objs = []
+        lfa_urls = []
         for i in range(n):
             await self.electrometer.cmd_startScanDt.set_start(scanDuration=exp_time)
-            lfa_obj = await self.electrometer1.evt_largeFileObjectAvailable.next(
+            lfa_obj = await self.electrometer.evt_largeFileObjectAvailable.next(
                 flush=False, timeout=30
             )
-            lfa_objs.append(lfa_obj)
+            lfa_urls.append(lfa_obj.url)
 
-        return lfa_objs
+        return lfa_urls
 
         # @property
-        # def estimated_monochromator_setup_time(self):
-        #     """The estimated time to setup the monochromator
+        # def estimated_atmonochromator_setup_time(self):
+        #     """The estimated time to setup the atmonochromator
         #     """
         #     return 50
 
@@ -374,18 +370,18 @@ additionalProperties: false
         self.sequence_summary = {}
 
         # Add metadata from this script
-        date_begin = utils.astropy_time_from_tai_unix(utils.current_tai())
+        date_begin = utils.astropy_time_from_tai_unix(utils.current_tai()).isot
         self.sequence_summary["date_begin_tai"] = date_begin
         self.sequence_summary["script_index"] = self.salinfo.index
         # Create and empty list for the steps
         self.sequence_summary["steps"] = []
 
         # Check to see if in simulations mode, if so provide a mock.
-        if self.bucket is None and self.simulation_mode != 0:
+        if self.bucket is None:
             self.bucket = salobj.AsyncS3Bucket(
                 salobj.AsyncS3Bucket.make_bucket_name(s3instance=self.s3instance),
                 create=True,
-                domock=True,
+                domock=self.simulation_mode != 0,
             )
 
         # Generate a bucket key
@@ -421,11 +417,11 @@ additionalProperties: false
 
             await self.handle_checkpoint(
                 checkpoint_active=checkpoint_active,
-                checkpoint_message=f"Setting up Monochromator for sequence {i} of {len(self.sequence)}.",
+                checkpoint_message=f"Setting up atmonochromator for sequence {i+1} of {len(self.sequence)}.",
             )
 
-            # will be replaced by setup_monochromator in the future?
-            await self.setup_monochromator_axes(
+            # will be replaced by setup_atmonochromator in the future?
+            await self.setup_atmonochromator_axes(
                 self.step["wavelength"],
                 self.step["grating"],
                 self.step["exit_slit_width"],
@@ -434,17 +430,18 @@ additionalProperties: false
 
             await self.handle_checkpoint(
                 checkpoint_active=checkpoint_active,
-                checkpoint_message=f"Performing {self.step['n_exp']} exposures of {self.step['exp_time']}.",
+                checkpoint_message=f"Performing exposure {i+1} of {self.step['n_exp']}.",
             )
 
             for n in range(self.step["n_exp"]):
                 task1 = asyncio.create_task(
                     self.latiss.take_flats(
                         self.step["exp_time"],
+                        nflats=1,
                         group_id=self.group_id,
                         program="AT_flats",
                         reason=f"flats_{self.config.latiss_filter}_{self.config.latiss_grating}",
-                        obs_note=f"sequence_lfa_key={self.s3_key_name}",
+                        note=f"sequence_lfa_key={self.s3_key_name}",
                     )
                 )
 
@@ -467,8 +464,8 @@ additionalProperties: false
                 latiss_results, fs_results, em_results = await asyncio.gather(
                     task1, task2, task3
                 )
-                self.step["electrometer_lfa_objs"] = em_results
-                self.step["fiberspectrograph_lfa_objs"] = fs_results
+                self.step["electrometer_lfa_urls"] = em_results
+                self.step["fiberspectrograph_lfa_urls"] = fs_results
                 self.step["latiss_ids"] = latiss_results
 
                 # Add info to the sequence summary
@@ -481,10 +478,12 @@ additionalProperties: false
             )
 
             # write the final result to the LFA
-            date_end = utils.astropy_time_from_tai_unix(utils.current_tai())
+            date_end = utils.astropy_time_from_tai_unix(utils.current_tai()).isot
             self.sequence_summary["date_end_tai"] = date_end
 
             await self.publish_sequence_summary()
+            
+            self.log.info("LatissTakeFlats complete")
 
     async def _setup_latiss(self):
         """Setup latiss.
@@ -512,17 +511,26 @@ additionalProperties: false
         #     raise RuntimeError(msg)
 
         try:
-            file_upload = json.dump(self.sequence_summary)
+            file_object = io.BytesIO()
+            file_object.write(json.dumps(self.sequence_summary).encode())
+            file_object.seek(
+                0
+            )  # brings the cursor back to the top of the file for the data stream
 
-            await self.bucket.upload(fileobj=file_upload, key=self.s3_key_name)
+            await self.bucket.upload(fileobj=file_object, key=self.s3_key_name)
 
             url = (
                 f"{self.bucket.service_resource.meta.client.meta.endpoint_url}/"
                 f"{self.bucket.name}/{self.s3_key_name}"
             )
 
-            await self.csc.evt_largeFileObjectAvailable.set_write(
+            await self.evt_largeFileObjectAvailable.set_write(
                 url=url, generator=f"{self.salinfo.name}:{self.salinfo.index}"
             )
-        except Exception:
-            self.log.exception("File upload to s3 bucket failed.")
+        except Exception as e:
+            msg = f"File upload to s3 bucket failed: {e}"
+            self.log.exception(msg)
+            raise RuntimeError(msg)
+
+        
+            
