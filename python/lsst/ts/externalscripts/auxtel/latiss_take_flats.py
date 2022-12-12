@@ -429,11 +429,11 @@ additionalProperties: false
                 task1 = asyncio.create_task(
                     self.latiss.take_flats(
                         self.step["exp_time"],
-                        n_flats=1,
+                        nflats=1,
                         group_id=self.group_id,
                         program="AT_flats",
-                        reason=f"flats_{self.config.latiss_filter}_{self.config.latiss_grating}",
-                        note=f"sequence_lfa_key={self.s3_key_name}",
+                        # reason=f"flats_{self.config.latiss_filter}_{self.config.latiss_grating}",
+                        # note=f"sequence_lfa_key={self.s3_key_name}",
                     )
                 )
 
