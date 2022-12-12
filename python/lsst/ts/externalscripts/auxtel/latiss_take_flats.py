@@ -30,7 +30,8 @@ import json
 import yaml
 
 from lsst.ts import salobj, utils
-from lsst.ts.idl import enums
+
+# from lsst.ts.idl import enums
 from lsst.ts.observatory.control.auxtel import LATISS, LATISSUsages
 from lsst.ts.salobj import BaseScript
 
@@ -101,11 +102,13 @@ properties:
     latiss_grating:
         type: string
         default: 'empty_1'
+    sequences:
+        type: string
     s3instance:
         type: string
         default: 'cp'
 
-required: []
+required: [latiss_filter, latiss_grating]
 additionalProperties: false
             """
         return yaml.safe_load(yaml_schema)
@@ -166,7 +169,7 @@ additionalProperties: false
             # Returns a dictionary of sequences
             step1 = {
                 "wavelength": 580,
-                "grating": 1,  # enums.ATMonochromator.Grating.RED,
+                "grating": 1,  # enums.ATMonochromator.Grating.RED,  --> Enums are wrong!
                 "spec_res": 7,
                 "exit_slit_width": 4.5,
                 "entrance_slit_width": 4.5,
@@ -190,24 +193,12 @@ additionalProperties: false
                 "em_exp_time": 5,
                 "em_n_exp": 1,
             }
-            # step3 = {
-            #     "wavelength": [660],
-            #     "grating": [enums.ATMonochromator.Grating.RED],
-            #     "spec_res": [9],
-            #     "exit_slit_width": [4.5],
-            #     "entrance_slit_width": [4.5],
-            #     "exp_time": [5],
-            #     "n_exp": [3],
-            #     "fs_exp_time": [1],
-            #     "fs_n_exp": [1],
-            #     "el_exp_time": [5],
-            #     "el_n_exp": [1],
-            # }
 
             sequence = [step1, step2]  # , step3]
         else:
             raise RuntimeError(
-                f"The combination of {latiss_filter} and grating {latiss_grating} do not have an established flat sequence. Exiting."
+                f"The combination of {latiss_filter} and grating {latiss_grating} "
+                "do not have an established flat sequence. Exiting."
             )
 
         return sequence
@@ -405,10 +396,11 @@ additionalProperties: false
         # setup electrometer
         await self.setup_electrometer()
 
-        # Get sequences for the given setup
-        self.sequence = self.get_flat_sequence(
-            self.config.latiss_filter, self.config.latiss_grating
-        )
+        # Get sequences for the given setup if not defined explicitly
+        if self.sequence is None:
+            self.sequence = self.get_flat_sequence(
+                self.config.latiss_filter, self.config.latiss_grating
+            )
 
         # Prepare summary table for writing
         await self.prepare_summary_table()
@@ -437,7 +429,7 @@ additionalProperties: false
                 task1 = asyncio.create_task(
                     self.latiss.take_flats(
                         self.step["exp_time"],
-                        nflats=1,
+                        n_flats=1,
                         group_id=self.group_id,
                         program="AT_flats",
                         reason=f"flats_{self.config.latiss_filter}_{self.config.latiss_grating}",
@@ -482,7 +474,7 @@ additionalProperties: false
             self.sequence_summary["date_end_tai"] = date_end
 
             await self.publish_sequence_summary()
-            
+
             self.log.info("LatissTakeFlats complete")
 
     async def _setup_latiss(self):
@@ -531,6 +523,3 @@ additionalProperties: false
             msg = f"File upload to s3 bucket failed: {e}"
             self.log.exception(msg)
             raise RuntimeError(msg)
-
-        
-            
