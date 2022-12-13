@@ -131,6 +131,8 @@ additionalProperties: false
 
         self.config = config
         self.s3instance = config.s3instance
+        self.sequence = config.sequences
+        
 
     async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
 
