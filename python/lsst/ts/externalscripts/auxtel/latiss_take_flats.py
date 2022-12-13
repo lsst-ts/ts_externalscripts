@@ -132,7 +132,6 @@ additionalProperties: false
         self.config = config
         self.s3instance = config.s3instance
         self.sequence = config.sequences
-        
 
     async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
 
@@ -415,6 +414,9 @@ additionalProperties: false
             )
 
             # will be replaced by setup_atmonochromator in the future?
+            self.log.debug(
+                f'Inputs to monochromator setup are: {self.step["wavelength"]=}, {self.step["grating"]=}, {self.step["exit_slit_width"]=}, {self.step["entrance_slit_width"]}'
+            )
             await self.setup_atmonochromator_axes(
                 self.step["wavelength"],
                 self.step["grating"],
