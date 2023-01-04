@@ -26,10 +26,12 @@ import os
 import random
 import unittest
 import shutil
+import yaml
 
 import pytest
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.auxtel import LatissTakeFlats
+from lsst.utils import getPackageDir
 
 random.seed(47)  # for set_random_lsst_dds_partition_prefix
 
@@ -61,7 +63,9 @@ class TestLatissTakeFlats(
         self.script.setup_electrometer = unittest.mock.AsyncMock()
 
         # Mock setup of atmonochromator
-        self.script.setup_atmonochromator_axes = unittest.mock.AsyncMock()
+        self.script.setup_atmonochromator_axes = unittest.mock.AsyncMock(
+            side_effect=self.setup_atmonochromator_axes_callback
+        )
 
         # mock fiber spectrograph exposures
         self.script.take_fs_exposures = unittest.mock.AsyncMock(
@@ -89,6 +93,26 @@ class TestLatissTakeFlats(
         logger.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
         return (self.script,)
+
+    async def setup_atmonochromator_axes_callback(
+        self,
+        wavelength: float,
+        grating: str,
+        entrance_slit_width: float,
+        exit_slit_width: float,
+    ):
+        """
+        Mocks the monochromator setup.
+        """
+
+        # Check that all inputs are the correct type.
+
+        assert type(wavelength) == float
+        assert type(grating) == int
+        assert type(entrance_slit_width) == float
+        assert type(exit_slit_width) == float
+
+        return
 
     async def take_fs_exposures_callback(self, expTime, n):
         """
@@ -147,6 +171,27 @@ class TestLatissTakeFlats(
                 latiss_grating=latiss_grating,
             )
 
+        async with self.make_script():
+            # Try more complex parameters
+            latiss_filter = "SDSSr_65mm"
+            latiss_grating = "empty_1"
+            # load a complex sequence defined as yaml
+            test_sequence_path = os.path.join(
+                getPackageDir("ts_externalscripts"),
+                "tests",
+                "data",
+                "auxtel",
+                "test_sequence1.yaml",
+            )
+            with open(test_sequence_path, "r") as file:
+                sequence = yaml.safe_load(file)
+
+            await self.configure_script(
+                latiss_filter=latiss_filter,
+                latiss_grating=latiss_grating,
+                sequence=sequence,
+            )
+
     async def test_invalid_sequence(self):
         # invalid filters, script should configure and hardware will get
         # setup but fail.
@@ -167,10 +212,10 @@ class TestLatissTakeFlats(
                 await self.script.arun()
 
     async def test_sequence(self):
-        # valid sequence
+        # valid sequence, using the default
 
         async with self.make_script():
-            # Try configure with invalid sequence data. This should fail
+            # Try configure with invalid sequence data.
             latiss_filter = "SDSSr_65mm"
             latiss_grating = "empty_1"
 
@@ -179,6 +224,34 @@ class TestLatissTakeFlats(
                 latiss_grating=latiss_grating,
             )
             # indication simulation for s3 bucket.
+            await self.script.arun(simulation_mode=1)
+
+    async def test_sequence_custom(self):
+        # valid sequence, using a custom input
+
+        async with self.make_script():
+            # Try configure with complex sequence data.
+            latiss_filter = "SDSSr_65mm"
+            latiss_grating = "empty_1"
+            # load a complex sequence defined as yaml
+            test_sequence_path = os.path.join(
+                getPackageDir("ts_externalscripts"),
+                "tests",
+                "data",
+                "auxtel",
+                "test_sequence1.yaml",
+            )
+
+            with open(test_sequence_path, "r") as file:
+                sequence = yaml.safe_load(file)
+
+            await self.configure_script(
+                latiss_filter=latiss_filter,
+                latiss_grating=latiss_grating,
+                sequence=sequence,
+            )
+
+            # indication of simulation for s3 bucket.
             await self.script.arun(simulation_mode=1)
 
     async def test_executable(self):
