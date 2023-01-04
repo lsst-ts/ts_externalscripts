@@ -102,8 +102,13 @@ properties:
     latiss_grating:
         type: string
         default: 'empty_1'
-    sequences:
-        type: string
+    sequence:
+        description: Yaml string with all required data.
+        anyOf:
+            - type: string
+            - type: "null"
+        default: null
+
     s3instance:
         type: string
         default: 'cp'
@@ -131,7 +136,12 @@ additionalProperties: false
 
         self.config = config
         self.s3instance = config.s3instance
-        self.sequence = config.sequences
+
+        self.log.debug(f"in config, {self.sequence=}")
+
+        if config.sequence is not None:
+            self.log.debug("Loading custom configuration")
+            self.sequence = yaml.safe_load(config.sequence)
 
     async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
 
@@ -162,15 +172,16 @@ additionalProperties: false
 
         """
         self.log.debug(
-            f"Running get_flat_sequence with {latiss_filter=} and {latiss_grating=}"
+            f"Running get_flat_sequence with the default for {latiss_filter=} and {latiss_grating=}"
         )
 
         # Check that the LATISS filter/grating combination is valid
         if latiss_filter == "SDSSr_65mm" and latiss_grating == "empty_1":
             # Returns a dictionary of sequences
             step1 = {
-                "wavelength": 580,
-                "grating": 1,  # enums.ATMonochromator.Grating.RED,  --> Enums are wrong!
+                "wavelength": 580.0,
+                # enums.ATMonochromator.Grating.RED,  --> Enums are wrong!
+                "grating": 1,
                 "spec_res": 7,
                 "exit_slit_width": 4.5,
                 "entrance_slit_width": 4.5,
@@ -182,7 +193,7 @@ additionalProperties: false
                 "em_n_exp": 1,
             }
             step2 = {
-                "wavelength": 620,
+                "wavelength": 620.0,
                 "grating": 1,  # enums.ATMonochromator.Grating.RED,
                 "spec_res": 8,
                 "exit_slit_width": 4.5,
@@ -202,6 +213,7 @@ additionalProperties: false
                 "do not have an established flat sequence. Exiting."
             )
 
+        self.log.debug(f"returning sequence of: {sequence}")
         return sequence
 
     def get_atmonochromator_setup(self, wavelength: float, spec_res: float):
@@ -234,7 +246,7 @@ additionalProperties: false
     async def setup_atmonochromator_axes(
         self,
         wavelength: float,
-        grating: str,
+        grating: int,
         entrance_slit_width: float,
         exit_slit_width: float,
     ):
@@ -398,7 +410,9 @@ additionalProperties: false
         await self.setup_electrometer()
 
         # Get sequences for the given setup if not defined explicitly
+        self.log.debug(f"In arun, and {self.sequence=}")
         if self.sequence is None:
+            self.log.debug("No sequence defined, grabbing default")
             self.sequence = self.get_flat_sequence(
                 self.config.latiss_filter, self.config.latiss_grating
             )
@@ -414,8 +428,11 @@ additionalProperties: false
             )
 
             # will be replaced by setup_atmonochromator in the future?
+            self.log.debug(f"{self.step=}")
             self.log.debug(
-                f'Inputs to monochromator setup are: {self.step["wavelength"]=}, {self.step["grating"]=}, {self.step["exit_slit_width"]=}, {self.step["entrance_slit_width"]}'
+                f'Inputs to monochromator setup are: {self.step["wavelength"]=},'
+                f'{self.step["grating"]=}, {self.step["exit_slit_width"]=},'
+                f'{self.step["entrance_slit_width"]=}'
             )
             await self.setup_atmonochromator_axes(
                 self.step["wavelength"],
@@ -433,11 +450,13 @@ additionalProperties: false
                 task1 = asyncio.create_task(
                     self.latiss.take_flats(
                         self.step["exp_time"],
-                        nflats=1,
+                        n_flats=1,
                         group_id=self.group_id,
                         program="AT_flats",
-                        # reason=f"flats_{self.config.latiss_filter}_{self.config.latiss_grating}",
-                        # note=f"sequence_lfa_key={self.s3_key_name}",
+                        reason=(
+                            f"flats_{self.config.latiss_filter}_{self.config.latiss_grating}"
+                        ),
+                        note=("atmono charact."),
                     )
                 )
 
