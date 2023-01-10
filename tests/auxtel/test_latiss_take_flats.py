@@ -137,7 +137,7 @@ class TestLatissTakeFlats(
     async def take_flats_callback(
         self,
         exptime: float,
-        n_flats: int,
+        nflats: int,
         group_id: str,
         program: str,
         reason: str,

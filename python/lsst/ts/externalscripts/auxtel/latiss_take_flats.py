@@ -450,7 +450,7 @@ additionalProperties: false
                 task1 = asyncio.create_task(
                     self.latiss.take_flats(
                         self.step["exp_time"],
-                        n_flats=1,
+                        nflats=1,
                         group_id=self.group_id,
                         program="AT_flats",
                         reason=(
