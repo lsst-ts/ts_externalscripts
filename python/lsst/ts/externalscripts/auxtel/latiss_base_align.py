@@ -790,11 +790,13 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             ):
                 self.offset_total_focus += focus_offset
                 self.log.info(
+                    f"CWFS sequence converged:\n"
                     f"Focus ({focus_offset:0.3f}) and coma ({total_coma_offset:0.3f}) offsets "
-                    f"inside tolerance level ({self.threshold:0.3f}). "
-                    f"Total focus correction: {self.offset_total_focus:0.3f} mm. "
-                    f"Total coma-x correction: {self.offset_total_coma_x:0.3f} mm. "
-                    f"Total coma-y correction: {self.offset_total_coma_y:0.3f} mm."
+                    f"inside tolerance level ({self.threshold:0.3f}).\n"
+                    f"Total focus correction: {self.offset_total_focus:0.3f} mm.\n"
+                    f"Total coma-x correction: {self.offset_total_coma_x:0.3f} mm.\n"
+                    f"Total coma-y correction: {self.offset_total_coma_y:0.3f} mm.\n"
+                    f"Final iteration Zernikes are: {self.algo.zer4UpNm}"
                 )
                 if checkpoint:
                     await self.checkpoint(f"[{i + 1}/{self.max_iter}]: CWFS converged.")
