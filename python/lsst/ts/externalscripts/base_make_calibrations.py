@@ -164,10 +164,14 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
     @classmethod
     def get_schema(cls):
-        schema = """
+        url = "https://github.com/lsst-ts/"
+        path = (
+            "ts_externalscripts/blob/main/python/lsst/ts/externalscripts/"
+            "/base_make_calibrations.py"
+        )
+        schema = f"""
         $schema: http://json-schema.org/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_externalscripts/blob/main/python/lsst/ts/\
-            externalscripts/maintel/make_comcam_calibrations.py
+        $id: {url}/{path}
         title: BaseMakeCalibrations v1
         description: Configuration for BaseMakeCalibrations.
         type: object
