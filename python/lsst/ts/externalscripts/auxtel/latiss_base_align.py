@@ -351,6 +351,9 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         rot_zern = np.matmul(
             self.zern, self.matrix_rotation(self.angle + self.camera_rotation_angle)
         )
+        rot_zern_full = np.matmul(
+            self.zern_full, self.matrix_rotation(self.angle + self.camera_rotation_angle)
+        )
         hexapod_offset = np.matmul(rot_zern, self.matrix_sensitivity)
         tel_offset = np.matmul(hexapod_offset, self.hexapod_offset_scale)
 
@@ -792,11 +795,11 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 self.log.info(
                     f"CWFS sequence converged:\n"
                     f"Focus ({focus_offset:0.3f}) and coma ({total_coma_offset:0.3f}) offsets "
-                    f"inside tolerance level ({self.threshold:0.3f}).\n"
+                    f"inside tolerance level ({self.threshold:0.3f}). \n"
                     f"Total focus correction: {self.offset_total_focus:0.3f} mm.\n"
-                    f"Total coma-x correction: {self.offset_total_coma_x:0.3f} mm.\n"
+                    f"Total coma-x correction: {self.offset_total_coma_x:0.3f} mm.\n "
                     f"Total coma-y correction: {self.offset_total_coma_y:0.3f} mm.\n"
-                    f"Final iteration Zernikes are: {self.algo.zer4UpNm}"
+                    f"Full set of derotated zernikes are: {self.rot_zern_full}"
                 )
                 if checkpoint:
                     await self.checkpoint(f"[{i + 1}/{self.max_iter}]: CWFS converged.")

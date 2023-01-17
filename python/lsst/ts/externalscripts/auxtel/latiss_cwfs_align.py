@@ -250,6 +250,13 @@ Pixel_size (m)			{}
             self.algo.zer4UpNm[4],  # Coma-Y (in detector axes, TBC)
             self.algo.zer4UpNm[0],  # defocus
         ]
+        # Also dump the full set as calculated by the algorithm
+        # Then multiply all the x-axis values (vertical Noll axis)
+        self.zern_full = self.algo.zer4UpNm
+        # self.zern_full[2] *= -1 # Vertical Astigmatism
+        # self.zern_full[3] *= -1 # Vertical Coma
+        # self.zern_full[6] *= -1 # Oblique Trefoil
+        # self.zern_full[11] *= -1 # Oblique quadrafoil
 
         results_dict = self.calculate_results()
         return results_dict
