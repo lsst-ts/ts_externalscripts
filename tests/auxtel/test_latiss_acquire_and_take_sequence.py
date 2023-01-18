@@ -30,7 +30,7 @@ import unittest
 import lsst.daf.butler as dafButler
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.auxtel import LatissTakeFlats
+from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
 from lsst.utils import getPackageDir
 
 # Make matplotlib less chatty
