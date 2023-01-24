@@ -93,10 +93,14 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
 
     @classmethod
     def get_schema(cls):
-        schema = """
+        url = "https://github.com/lsst-ts/"
+        path = (
+            "ts_externalscripts/blob/main/python/lsst/ts/externalscripts/"
+            "auxtel/make_latiss_calibrations.py"
+        )
+        schema = f"""
         $schema: http://json-schema.org/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_externalscripts/python/lsst/ts/\
-                externalscripts/auxtel/make_latiss_calibrations.py
+        $id: {url}{path}
         title: MakeLatissCalibrations v1
         description: Configuration for making a LATISS calibrations SAL Script.
         type: object
