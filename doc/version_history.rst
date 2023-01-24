@@ -6,6 +6,30 @@
 Version History
 ===============
 
+v0.21.0
+-------
+
+
+* Add new Script ``CorrectPointing`` for AuxTel.
+  This Script is to be used at the start of the night to correct any zero point offset in the pointing.
+* In ``maintel/make_comcam_calibrations.py``, fix ``id`` of the configuration schema.
+* In ``auxtel/make_latiss_calibrations``, fix ``id`` of the configuration schema.
+* In ``base_make_calibrations.py``:
+
+    * Fix ``id`` of the configuration schema.
+    * Catch any exception when processing calibrations, log it and continue.
+    * Catch any exception in do_verify, log it and continue.
+
+
+v0.20.0
+-------
+
+* In base_make_calibrations:
+  
+  * Set do_gain_from_flat_pair to True by default.
+  * Log errors instead of raising.
+  * Delete RuntimeErrors related to OCPS and certification.
+
 v0.19.1
 -------
 
