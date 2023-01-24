@@ -6,6 +6,13 @@
 Version History
 ===============
 
+v0.22.0
+-------
+
+* Add new Script ``TrackTargetSched`` for MainTel.
+  This script implements a simple visit consisting of slewing to a target and start tracking.
+  
+
 v0.21.0
 -------
 
