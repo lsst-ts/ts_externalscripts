@@ -25,8 +25,6 @@ import asyncio
 import numpy as np
 import yaml
 from astropy.time import Time
-from lsst.ts import salobj
-from lsst.ts.idl.enums.Script import ScriptState
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.base_track_target import BaseTrackTarget
@@ -63,11 +61,13 @@ class RandomWalk(BaseTrackTarget):
 
     @classmethod
     def get_schema(cls):
-        schema_yaml = """
+        url = "https://github.com/lsst-ts/ts_externalscripts/"
+        path = "python/lsst/ts/externalscripts/maintel/random_walk.py"
+        schema_yaml = f"""
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_externalscripts/python/lsst/ts/externalscripts/maintel/random_walk.py
+            $id: {url}/{path}
             title: RandomWalk v1
-            description: Configuration for running a random walk on sky with slews\ and tracks.
+            description: Configuration for running a random walk on sky with slews and tracks.
             type: object
             properties:
               total_time:
@@ -118,7 +118,7 @@ class RandomWalk(BaseTrackTarget):
                 type: boolean
                 default: False
               ignore:
-                description: >- 
+                description: >-
                   CSCs from the group to ignore in status check. Name must match
                   those in self.group.components, e.g.; hexapod_1.
                 type: array
@@ -227,8 +227,8 @@ class RandomWalk(BaseTrackTarget):
         big_offset_prob=0.1,
         big_offset_radius=9.0,
     ):
-        """Generate Az/El coordinates for a a long time so we can slew and track
-        to these targets.
+        """Generate Az/El coordinates for a a long time so we can slew and
+        track to these targets.
 
         Parameters
         ----------
@@ -252,7 +252,8 @@ class RandomWalk(BaseTrackTarget):
         step = 0
         timer_task = asyncio.create_task(asyncio.sleep(total_time))
         self.log.info(
-            f"{'Time':25s}{'Steps':>10s}{'Old Az':>10s}{'New Az':>10s}{'Old El':>10s}{'New El':>10s}{'Offset':>10s}"
+            f"{'Time':25s}{'Steps':>10s}{'Old Az':>10s}{'New Az':>10s}"
+            f"{'Old El':>10s}{'New El':>10s}{'Offset':>10s}"
         )
 
         n_points = 10
@@ -293,7 +294,8 @@ class RandomWalk(BaseTrackTarget):
 
             t = Time.now().to_value("isot")
             self.log.info(
-                f"{t:25s}{step:10d}{current_az:10.2f}{new_az:10.2f}{current_el:10.2f}{new_el:10.2f}{offset:10.2f}"
+                f"{t:25s}{step:10d}{current_az:10.2f}{new_az:10.2f}"
+                f"{current_el:10.2f}{new_el:10.2f}{offset:10.2f}"
             )
 
             yield step, new_az, new_el

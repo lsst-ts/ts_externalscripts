@@ -25,13 +25,9 @@ import asyncio
 import numpy as np
 import yaml
 from astropy.time import Time
-from lsst.ts import salobj
-from lsst.ts.idl.enums.Script import ScriptState
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.base_track_target import BaseTrackTarget
-
-from .random_walk import RandomWalk
 
 
 class SerpentWalk(BaseTrackTarget):
@@ -43,6 +39,7 @@ class SerpentWalk(BaseTrackTarget):
     index : `int`
         Index of Script SAL component
     """
+
     def __init__(self, index, remotes: bool = True):
         super().__init__(
             index=index,
@@ -63,9 +60,11 @@ class SerpentWalk(BaseTrackTarget):
 
     @classmethod
     def get_schema(cls):
-        schema_yaml = """
+        url = "https://github.com/lsst-ts/ts_externalscripts/"
+        path = "python/lsst/ts/externalscripts/maintel/serpent_walk.py"
+        schema_yaml = f"""
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_externalscripts/python/lsst/ts/externalscripts/maintel/serpent_walk.py
+            $id: {url}/{path}
             title: SerpentWalk v1
             description: Configuration for an az/el grid going up and down.
             type: object
@@ -73,22 +72,22 @@ class SerpentWalk(BaseTrackTarget):
               total_time:
                 description: Total execution time in seconds.
                 type: number
-              az_grid: 
+              az_grid:
                 description: Azimuth coordinates in degree.
                 type: array
                 items:
                   type: number
-              el_grid: 
+              el_grid:
                 description: Elevation coordinates in degree.
                 type: array
                 items:
-                  type: number 
-              el_cutoff: 
-                description: >- 
-                  Elevation cutoff limit to skip targets when going down. Using 
+                  type: number
+              el_cutoff:
+                description: >-
+                  Elevation cutoff limit to skip targets when going down. Using
                   the default value includes all the targets.
                 type: number
-                default: 90. 
+                default: 90.
               track_for:
                 description: >-
                   How long to track target for (in seconds). If zero, the default,
@@ -104,7 +103,7 @@ class SerpentWalk(BaseTrackTarget):
                 type: boolean
                 default: false
               ignore:
-                description: >- 
+                description: >-
                   CSCs from the group to ignore in status check. Name must match
                   those in self.group.components, e.g.; hexapod_1.
                 type: array
@@ -210,7 +209,8 @@ class SerpentWalk(BaseTrackTarget):
         el_grid : `list` of `float`
             Elevation coordinates to slew and track.
         el_cutoff : `float`
-            Elevation cutoff limit used to skip targets to minimize the number of targets in high elevation.
+            Elevation cutoff limit used to skip targets to minimize
+            the number of targets in high elevation.
         """
         step = 0
         timer_task = asyncio.create_task(asyncio.sleep(total_time))
@@ -219,7 +219,7 @@ class SerpentWalk(BaseTrackTarget):
         )
 
         generator = self.generate_azel_sequence(az_grid, el_grid, el_cutoff=el_cutoff)
-        
+
         n_points = 10
         old_az = np.median(
             [
@@ -245,14 +245,14 @@ class SerpentWalk(BaseTrackTarget):
             self.log.info(
                 f"{t:25s}{step:10d}{old_az:10.2f}{new_az:10.2f}{old_el:10.2f}{new_el:10.2f}"
             )
-            
+
             yield step, new_az, new_el
             old_az, old_el = new_az, new_el
             step += 1
 
     def generate_azel_sequence(self, az_seq, el_seq, el_cutoff=90.0):
-        """A generator that cicles through the input azimuth and elevation sequences
-        forward and backwards.
+        """A generator that cicles through the input azimuth and
+        elevation sequences forward and backwards.
 
         Parameters
         ----------
@@ -261,17 +261,18 @@ class SerpentWalk(BaseTrackTarget):
         el_seq : `list` [`float`]
             A sequence of elevation values to cicle through
         el_cutoff : `float`, default 90.
-            Elevation cutoff limit used to skip targets to minimize the number of targets in high elevation.
-            The default value of 90 deg keeps all targets.
+            Elevation cutoff limit used to skip targets to minimize the number
+            of targets in high elevation. The default value of 90 deg keeps
+            all targets.
         Yields
         ------
         `list`
             Values from the sequence.
         Notes
         -----
-        This generator is designed to generate sequence of values cicling through
-        the input forward and backwards. It will also reverse the list when moving
-        backwards.
+        This generator is designed to generate sequence of values cicling
+        through the input forward and backwards. It will also reverse the
+        list when moving backwards.
         Use it as follows:
         >>> az_seq = [0, 180]
         >>> el_seq = [15, 45]
@@ -297,7 +298,7 @@ class SerpentWalk(BaseTrackTarget):
                         yield (az, el)
                 i *= -1
             j *= -1
-    
+
     async def slew_and_track(self, az, el, target_name=None):
         """Slew to and track a new target.
 
