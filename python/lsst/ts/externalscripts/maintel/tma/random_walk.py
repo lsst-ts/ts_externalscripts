@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["SerpentWalk"]
+__all__ = ["RandomWalk"]
 
 import asyncio
 
@@ -30,9 +30,9 @@ from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.base_track_target import BaseTrackTarget
 
 
-class SerpentWalk(BaseTrackTarget):
-    """Performs slew and tracks for targets going up and down for different
-    azimuth and elevation (like a serpent).
+class RandomWalk(BaseTrackTarget):
+    """Performs offsets of a fixed size in random directions with a probability
+    of performing a large offset also in a random direction.
 
     Parameters
     ----------
@@ -43,7 +43,8 @@ class SerpentWalk(BaseTrackTarget):
     def __init__(self, index, remotes: bool = True):
         super().__init__(
             index=index,
-            descr="Slew and track targets on an az/el grid going up and down.",
+            descr="Slew and track random targets on sky with a fixed size "
+            "offset between them",
         )
         self.config = None
         self._mtcs = (
@@ -61,33 +62,47 @@ class SerpentWalk(BaseTrackTarget):
     @classmethod
     def get_schema(cls):
         url = "https://github.com/lsst-ts/ts_externalscripts/"
-        path = "python/lsst/ts/externalscripts/maintel/serpent_walk.py"
+        path = "python/lsst/ts/externalscripts/maintel/random_walk.py"
         schema_yaml = f"""
             $schema: http://json-schema.org/draft-07/schema#
             $id: {url}/{path}
-            title: SerpentWalk v1
-            description: Configuration for an az/el grid going up and down.
+            title: RandomWalk v1
+            description: Configuration for running a random walk on sky with slews and tracks.
             type: object
             properties:
               total_time:
                 description: Total execution time in seconds.
                 type: number
-              az_grid:
-                description: Azimuth coordinates in degree.
-                type: array
-                items:
-                  type: number
-              el_grid:
-                description: Elevation coordinates in degree.
-                type: array
-                items:
-                  type: number
-              el_cutoff:
-                description: >-
-                  Elevation cutoff limit to skip targets when going down. Using
-                  the default value includes all the targets.
+              radius:
+                description: Canonical offset radius in degrees.
                 type: number
-                default: 90.
+                default: 3.5
+              min_az:
+                description: Minimum azimuth allowed in degrees.
+                type: number
+                default: -200
+              max_az:
+                description: Maximum azimuth allowed in degrees.
+                type: number
+                default: 200
+              min_el:
+                description: Minimum elevation allowed in degrees.
+                type: number
+                default: 20
+              max_el:
+                description: Maximum elevation allowed in degrees.
+                type: number
+                default: 80
+              big_offset_prob:
+                description: Probability of performing a bigger offset.
+                type: number
+                default: 0.10
+                minimum: 0
+                maximum: 1
+              big_offset_radius:
+                description: Bigger offset radius in degrees.
+                type: number
+                default: 9
               track_for:
                 description: >-
                   How long to track target for (in seconds). If zero, the default,
@@ -95,13 +110,13 @@ class SerpentWalk(BaseTrackTarget):
                   until time expires.
                 type: number
                 minimum: 0
-                default: 0
+                default: 39
               stop_when_done:
                 description: >-
-                  Stop tracking once tracking time expires. Only valid if
-                  `track_for` is larger than zero.
+                    Stop tracking once tracking time expires. Only valid if
+                    `track_for` is larger than zero.
                 type: boolean
-                default: false
+                default: False
               ignore:
                 description: >-
                   CSCs from the group to ignore in status check. Name must match
@@ -139,10 +154,6 @@ class SerpentWalk(BaseTrackTarget):
                 type: string
                 enum: ["Sky", "SkyAuto", "Parallactic", "PhysicalSky", "Physical"]
                 default: Physical
-            required:
-              - total_time
-              - az_grid
-              - el_grid
         """
         return yaml.safe_load(schema_yaml)
 
@@ -158,6 +169,13 @@ class SerpentWalk(BaseTrackTarget):
         self.log.debug(
             f"Setting up configuration: \n"
             f"  total_time: {config.total_time}\n"
+            f"  radius: {config.radius}\n"
+            f"  min_az: {config.min_az}\n"
+            f"  max_az: {config.max_az}\n"
+            f"  min_el: {config.min_el}\n"
+            f"  max_el: {config.max_el}\n"
+            f"  big_offset_prob: {config.big_offset_prob}\n"
+            f"  big_offset_radius: {config.big_offset_radius}\n"
             f"  track_for: {config.track_for}\n"
             f"  rot_value: {config.rot_value}\n"
             f"  rot_type: {config.rot_type}\n"
@@ -183,51 +201,29 @@ class SerpentWalk(BaseTrackTarget):
         metadata.duration = self.config.total_time
 
     async def run(self):
+        for i, az, el in self.random_walk_azel_by_time():
+            await self.checkpoint(f"[{i}] Tracking {az=}/{el=}.")
+            await self.slew_and_track(az, el, target_name=f"random_walk_{i}")
 
-        azel_generator = self.azel_grid_by_time(
-            total_time=self.config.total_time,
-            az_grid=self.config.az_grid,
-            el_grid=self.config.el_grid,
-            el_cutoff=self.config.el_cutoff,
-        )
-
-        for i, az, el in azel_generator:
-            self.log.debug(f"Serpent Walk - Target {i} - Moving to {az} / {el}")
-            await self.slew_and_track(az, el, target_name=f"serpent_walk_{i}")
-
-    def azel_grid_by_time(self, total_time, az_grid, el_grid, el_cutoff):
-        """
-        Generate Az/El coordinates for a a long time so we can slew and track
-        to these targets using a predefined az_grid and el_grid.
-
-        Parameters
-        ----------
-        total_time : `float`
-            Total observation time in seconds.
-        az_grid : `list` of `float`
-            Azimuth coordinates to slew and track.
-        el_grid : `list` of `float`
-            Elevation coordinates to slew and track.
-        el_cutoff : `float`
-            Elevation cutoff limit used to skip targets to minimize
-            the number of targets in high elevation.
+    async def random_walk_azel_by_time(self):
+        """Generate Az/El coordinates for a a long time so we can slew and
+        track to these targets.
         """
         step = 0
-        timer_task = asyncio.create_task(asyncio.sleep(total_time))
+        timer_task = asyncio.create_task(asyncio.sleep(self.config.total_time))
         self.log.info(
-            f"{'Time':25s}{'Steps':>10s}{'Old Az':>10s}{'New Az':>10s}{'Old El':>10s}{'New El':>10s}"
+            f"{'Time':25s}{'Steps':>10s}{'Old Az':>10s}{'New Az':>10s}"
+            f"{'Old El':>10s}{'New El':>10s}{'Offset':>10s}"
         )
 
-        generator = self.generate_azel_sequence(az_grid, el_grid, el_cutoff=el_cutoff)
-
         n_points = 10
-        old_az = np.median(
+        current_az = np.median(
             [
                 self.tcs.rem.mtmount.tel_azimuth.get().actualPosition
                 for i in range(n_points)
             ]
         )
-        old_el = np.median(
+        current_el = np.median(
             [
                 self.tcs.rem.mtmount.tel_elevation.get().actualPosition
                 for i in range(n_points)
@@ -236,68 +232,37 @@ class SerpentWalk(BaseTrackTarget):
 
         while not timer_task.done():
 
-            new_az, new_el = next(generator)
+            current_radius = (
+                self.config.big_offset_radius
+                if np.random.rand() <= self.config.big_offset_prob
+                else self.config.radius
+            )
 
-            if new_az == old_az and new_el == old_el:
-                continue
+            random_angle = 2 * np.pi * np.random.rand()
+
+            offset_az = current_radius * np.cos(random_angle)
+            new_az = current_az + offset_az
+
+            offset_el = current_radius * np.sin(random_angle)
+            new_el = current_el + offset_el
+
+            if new_az <= self.config.min_az or new_az >= self.config.max_az:
+                new_az = current_az - offset_az
+
+            if new_el <= self.config.min_el or new_el >= self.config.max_el:
+                new_el = current_el - offset_el
+
+            offset = np.sqrt((current_az - new_az) ** 2 + (current_el - new_el) ** 2)
 
             t = Time.now().to_value("isot")
             self.log.info(
-                f"{t:25s}{step:10d}{old_az:10.2f}{new_az:10.2f}{old_el:10.2f}{new_el:10.2f}"
+                f"{t:25s}{step:10d}{current_az:10.2f}{new_az:10.2f}"
+                f"{current_el:10.2f}{new_el:10.2f}{offset:10.2f}"
             )
 
             yield step, new_az, new_el
-            old_az, old_el = new_az, new_el
             step += 1
-
-    def generate_azel_sequence(self, az_seq, el_seq, el_cutoff=90.0):
-        """A generator that cicles through the input azimuth and
-        elevation sequences forward and backwards.
-
-        Parameters
-        ----------
-        az_seq : `list` [`float`]
-            A sequence of azimuth values to cicle through
-        el_seq : `list` [`float`]
-            A sequence of elevation values to cicle through
-        el_cutoff : `float`, default 90.
-            Elevation cutoff limit used to skip targets to minimize the number
-            of targets in high elevation. The default value of 90 deg keeps
-            all targets.
-        Yields
-        ------
-        `list`
-            Values from the sequence.
-        Notes
-        -----
-        This generator is designed to generate sequence of values cicling
-        through the input forward and backwards. It will also reverse the
-        list when moving backwards.
-        Use it as follows:
-        >>> az_seq = [0, 180]
-        >>> el_seq = [15, 45]
-        >>> seq_gen = generate_azel_sequence(az_seq, el_seq)
-        >>> next(seq_gen)
-        [0, 15]
-        >>> next(seq_gen)
-        [0, 45]
-        >>> next(seq_gen)
-        [180, 45]
-        >>> next(seq_gen)
-        [180, 15]
-        >>> next(seq_gen)
-        [0, 15]
-        """
-        i, j = 1, 1
-        while True:
-            for az in az_seq[::j]:
-                for el in el_seq[::i]:
-                    if el > el_cutoff and i == -1:
-                        continue
-                    else:
-                        yield (az, el)
-                i *= -1
-            j *= -1
+            current_az, current_el = new_az, new_el
 
     async def slew_and_track(self, az, el, target_name=None):
         """Slew to and track a new target.

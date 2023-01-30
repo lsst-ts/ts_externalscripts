@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import RandomWalk
+from lsst.ts.externalscripts.maintel.tma import SerpentWalk
 
-asyncio.run(RandomWalk.amain())
+asyncio.run(SerpentWalk.amain())

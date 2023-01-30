@@ -22,20 +22,21 @@ import logging
 import unittest
 
 from lsst.ts import externalscripts, standardscripts
-from lsst.ts.externalscripts.maintel import RandomWalk
+from lsst.ts.externalscripts.maintel.tma import SerpentWalk
 from lsst.ts.idl.enums import Script
 
 
-class TestRandomWalk(
+class TestSerpentWalk(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
-    def setUp(self):
-        self.log = logging.getLogger(__name__)
-        self.log.propagate = True
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.log = logging.getLogger(__name__)
+        cls.log.propagate = True
 
     async def basic_make_script(self, index):
         self.log.debug("Starting basic_make_script")
-        self.script = RandomWalk(index=index)
+        self.script = SerpentWalk(index=index)
 
         self.log.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
@@ -46,9 +47,13 @@ class TestRandomWalk(
 
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
+            az_grid = [0]
+            el_grid = [80]
             total_time = 3600.0
 
-            await self.configure_script(total_time=total_time)
+            await self.configure_script(
+                az_grid=az_grid, el_grid=el_grid, total_time=total_time
+            )
 
             assert self.script.config.total_time == total_time
 
@@ -56,22 +61,20 @@ class TestRandomWalk(
         async with self.make_script():
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
+            az_grid = [0]
+            el_grid = [80]
             total_time = 3600.0
-            await self.configure_script(total_time=total_time)
+
+            await self.configure_script(
+                az_grid=az_grid, el_grid=el_grid, total_time=total_time
+            )
 
             assert self.script.state.state == Script.ScriptState.CONFIGURED
 
             # Add some mocks
-            async def foo():
-                yield (0, 80)
-                yield (180, 60)
-
             self.script.slew_and_track = unittest.mock.AsyncMock()
-            self.script.random_walk_azel_by_time = unittest.mock.MagicMock()
-            self.script.random_walk_azel_by_time.__aiter__.return_value = [
-                (0, 80),
-                (180, 60),
-            ]
+            self.script.azel_grid_by_time = unittest.mock.MagicMock()
+            self.script.azel_grid_by_time.__aiter__.return_value = [(0, 80)]
 
             # Run the script
             await self.run_script()
@@ -79,6 +82,6 @@ class TestRandomWalk(
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
-        script_path = scripts_dir / "maintel" / "random_walk.py"
+        script_path = scripts_dir / "maintel" / "tma" / "serpent_walk.py"
         self.log.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
