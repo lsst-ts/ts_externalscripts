@@ -80,6 +80,7 @@ class TrackTargetSched(TrackTarget):
         self.config.rot_type = RotType.Physical
         self.config.track_for = sum(self.config.exp_times)
         self.config.offset = dict(x=0, y=0)
+        self.config.differential_tracking = dict(dra=0.0, ddec=0.0)
         self.config.rot_value = self.config.rot_sky
         self.config.stop_when_done = False
 
