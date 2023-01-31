@@ -183,7 +183,7 @@ class SerpentWalk(BaseTrackTarget):
         metadata.duration = self.config.total_time
 
     async def run(self):
-        for i, az, el in self.azel_grid_by_time():
+        async for i, az, el in self.azel_grid_by_time():
             await self.checkpoint(f"[{i}] Tracking {az=}/{el=}.")
             await self.slew_and_track(az, el, target_name=f"serpent_walk_{i}")
 
