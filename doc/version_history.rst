@@ -6,6 +6,11 @@
 Version History
 ===============
 
+v0.23.1
+-------
+
+* In ``auxtel/latiss_cwfs_align.py``, update log messages with positions of sources found. 
+
 v0.23.0
 -------
 * Add new Script ``RandomWalk`` for MainTel.
