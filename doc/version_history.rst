@@ -6,6 +6,20 @@
 Version History
 ===============
 
+v0.23.0
+-------
+* Add new Script ``RandomWalk`` for MainTel.
+  This script slew and track objects on sky while performing offsets with pre-defined size in random directions. 
+  It also has a probability of performing larger offsets.
+
+* Add new Script ``SerpentWalk`` for MainTel.
+  This script slew and track targets on sky following an Az/El. 
+  For the first Az, it goes up in elevation. For the following Az, it goes down in elevation.
+  This up/down pattern resembles a serpent walking on sky. 
+  The script also allows using a cut-off elevation angle. 
+  The number of targets above the cut-off elevation angle is cut in half. 
+
+
 v0.22.0
 -------
 
