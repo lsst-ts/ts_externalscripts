@@ -223,13 +223,20 @@ Pixel_size (m)			{}
             self.log.warning(
                 "Source finding algorithm found different sources for intra/extra. \n"
                 f"intra found [y,x] = [{self.intra_result.brightestObjCentroidCofM[1]},"
-                "{self.intra_result.brightestObjCentroidCofM[0]}]\n"
+                f"{self.intra_result.brightestObjCentroidCofM[0]}]\n"
                 f"extra found [y,x] = [{self.extra_result.brightestObjCentroidCofM[1]},"
-                "{self.extra_result.brightestObjCentroidCofM[0]}]\n"
+                f"{self.extra_result.brightestObjCentroidCofM[0]}]\n"
                 "Forcing them to use the intra-location."
             )
             self.extra_focal_position_out_of_range = True
         else:
+            self.log.info(
+                f"Source finding algorithm found matching sources within {dr} pixels for intra/extra. \n"
+                f"intra found [y,x] = [{self.intra_result.brightestObjCentroidCofM[1]},"
+                f"{self.intra_result.brightestObjCentroidCofM[0]}]\n"
+                f"extra found [y,x] = [{self.extra_result.brightestObjCentroidCofM[1]},"
+                f"{self.extra_result.brightestObjCentroidCofM[0]}]\n"
+            )
             self.extra_focal_position_out_of_range = False
 
         # Create stamps for CWFS algorithm. Bin (if desired).
