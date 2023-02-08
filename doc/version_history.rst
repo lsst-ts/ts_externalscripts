@@ -9,7 +9,11 @@ Version History
 v0.23.1
 -------
 
-* In ``auxtel/latiss_cwfs_align.py``, update log messages with positions of sources found. 
+* In ``auxtel/latiss_cwfs_align.py``, update log messages with positions of sources found.
+
+* Add new Script ``StressLOVE``.
+  This scripts generates LOVE-manager clients in order to stress the system.
+  It calculates a mean latency after a certain amount of messages is received.
 
 v0.23.0
 -------
