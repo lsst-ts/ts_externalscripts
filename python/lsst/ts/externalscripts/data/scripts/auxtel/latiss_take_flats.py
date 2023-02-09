@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel.build_pointing_model import BuildPointingModel
+from lsst.ts.externalscripts.auxtel.latiss_take_flats import LatissTakeFlats
 
-asyncio.run(BuildPointingModel.amain())
+asyncio.run(LatissTakeFlats.amain())
