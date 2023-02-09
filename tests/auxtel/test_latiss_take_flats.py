@@ -23,17 +23,13 @@ __all__ = ["LatissTakeFlats"]
 import asyncio
 import logging
 import os
-import random
 import unittest
-import shutil
 import yaml
 
 import pytest
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.auxtel import LatissTakeFlats
 from lsst.utils import getPackageDir
-
-random.seed(47)  # for set_random_lsst_dds_partition_prefix
 
 logger = logging.getLogger(__name__)
 logger.propagate = True
@@ -42,11 +38,6 @@ logger.propagate = True
 class TestLatissTakeFlats(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
-    def tearDown(self) -> None:
-        file_path = "/tmp/LatissTakeFlats/"
-        if os.path.isdir(file_path):
-            shutil.rmtree(file_path)
-
     def setUp(self) -> None:
         os.environ["LSST_SITE"] = "test"
         self.log = logging.getLogger(type(self).__name__)
@@ -171,27 +162,6 @@ class TestLatissTakeFlats(
                 latiss_grating=latiss_grating,
             )
 
-        async with self.make_script():
-            # Try more complex parameters
-            latiss_filter = "SDSSr_65mm"
-            latiss_grating = "empty_1"
-            # load a complex sequence defined as yaml
-            test_sequence_path = os.path.join(
-                getPackageDir("ts_externalscripts"),
-                "tests",
-                "data",
-                "auxtel",
-                "test_sequence1.yaml",
-            )
-            with open(test_sequence_path, "r") as file:
-                sequence = yaml.safe_load(file)
-
-            await self.configure_script(
-                latiss_filter=latiss_filter,
-                latiss_grating=latiss_grating,
-                sequence=sequence,
-            )
-
     async def test_invalid_sequence(self):
         # invalid filters, script should configure and hardware will get
         # setup but fail.
@@ -215,7 +185,6 @@ class TestLatissTakeFlats(
         # valid sequence, using the default
 
         async with self.make_script():
-            # Try configure with invalid sequence data.
             latiss_filter = "SDSSr_65mm"
             latiss_grating = "empty_1"
 

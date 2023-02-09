@@ -90,31 +90,31 @@ class LatissTakeFlats(BaseScript):
     @classmethod
     def get_schema(cls):
         yaml_schema = """
-$schema: http://json-schema/draft-07/schema#
-$id: https://github.com/lsst-ts/ts_externalscripts/auxtel/LatissTakeFlats.yaml
-title: LatissTakeFlats v1
-description: Configuration for LatissTakeFlats.
-type: object
-properties:
-    latiss_filter:
-        type: string
-        default: 'empty_1'
-    latiss_grating:
-        type: string
-        default: 'empty_1'
-    sequence:
-        description: Yaml string with all required data.
-        anyOf:
-            - type: string
-            - type: "null"
-        default: null
+            $schema: http://json-schema/draft-07/schema#
+            $id: https://github.com/lsst-ts/ts_externalscripts/auxtel/LatissTakeFlats.yaml
+            title: LatissTakeFlats v1
+            description: Configuration for LatissTakeFlats.
+            type: object
+            properties:
+                latiss_filter:
+                    type: string
+                    default: 'empty_1'
+                latiss_grating:
+                    type: string
+                    default: 'empty_1'
+                sequence:
+                    description: Yaml string with all required data.
+                    anyOf:
+                        - type: string
+                        - type: "null"
+                    default: null
 
-    s3instance:
-        type: string
-        default: 'cp'
+                s3instance:
+                    type: string
+                    default: 'cp'
 
-required: [latiss_filter, latiss_grating]
-additionalProperties: false
+            required: [latiss_filter, latiss_grating]
+            additionalProperties: false
             """
         return yaml.safe_load(yaml_schema)
 
@@ -363,12 +363,6 @@ additionalProperties: false
         """Prepares final summary table.
         Checks writing is possible and that s3 bucket can be made
         """
-
-        # file_output_dir = "/tmp/LatissTakeFlats/"
-        # write folder if required
-        # pathlib.Path().mkdir(parents=True, exist_ok=True)
-        # self.filename =
-        # f"LatissTakeFlats_sequence_summary_{self.group_id}.json"
 
         # Take a copy as the starting point for the summary
         self.sequence_summary = {}
