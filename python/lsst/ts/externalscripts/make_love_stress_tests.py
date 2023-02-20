@@ -204,6 +204,9 @@ class StressLOVE(salobj.BaseScript):
         # time to wait for each message collection
         self.loop_time_message_collection = 1
 
+        # time to wait for each Manager client connection
+        self.loop_time_client_connection = 1
+
         # message frequency
         self.expected_message_frequency = 100
 
@@ -247,6 +250,7 @@ class StressLOVE(salobj.BaseScript):
         # a crude estimate;
         metadata.duration = (
             self.config.number_of_messages / self.expected_message_frequency
+            + self.number_of_clients * self.loop_time_client_connection
         )
 
     async def configure(self, config):
@@ -332,6 +336,7 @@ class StressLOVE(salobj.BaseScript):
             )
             self.clients.append(client)
             client.create_start_task()
+            await asyncio.sleep(self.loop_time_client_connection)
 
         msg_count = 0
         while msg_count < self.config.number_of_messages:
