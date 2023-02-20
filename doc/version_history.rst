@@ -6,6 +6,14 @@
 Version History
 ===============
 
+v0.23.2
+-------
+
+* In ``make_love_stress_tests.py``:
+
+    * Add delay to Manager clients creation.
+    * Stop changing CSCs states. Now only checks if CSCs are enabled, otherwise raises an exception.
+
 v0.23.1
 -------
 
