@@ -204,6 +204,9 @@ class StressLOVE(salobj.BaseScript):
         # time to wait for each message collection
         self.loop_time_message_collection = 1
 
+        # time to wait for each Manager client connection
+        self.loop_time_client_connection = 1
+
         # message frequency
         self.expected_message_frequency = 100
 
@@ -221,10 +224,10 @@ class StressLOVE(salobj.BaseScript):
                 type: string
               number_of_clients:
                 description: The number of clients to create
-                type: number
+                type: integer
               number_of_messages:
                 description: The number of messages to store before calculating the mean latency
-                type: number
+                type: integer
               data:
                 description: List of CSC_name[:index]
                 type: array
@@ -247,6 +250,7 @@ class StressLOVE(salobj.BaseScript):
         # a crude estimate;
         metadata.duration = (
             self.config.number_of_messages / self.expected_message_frequency
+            + self.config.number_of_clients * self.loop_time_client_connection
         )
 
     async def configure(self, config):
@@ -303,9 +307,12 @@ class StressLOVE(salobj.BaseScript):
         self.log.info(f"Waiting for {len(self.remotes)} remotes to be ready")
         await asyncio.gather(*[remote.start_task for remote in self.remotes.values()])
 
-        # Enable all CSCs
-        for remote in self.remotes.values():
-            await salobj.set_summary_state(remote=remote, state=salobj.State.ENABLED)
+        # Checking all CSCs are enabled
+        for remote_name, remote in self.remotes.items():
+            summary_state_evt = await remote.evt_summaryState.aget()
+            remote_summary_state = salobj.State(summary_state_evt.summaryState)
+            if remote_summary_state != salobj.State.ENABLED:
+                raise RuntimeError(f"{remote_name} CSC must be enabled")
 
         event_streams = dict()
         telemetry_streams = dict()
@@ -332,6 +339,7 @@ class StressLOVE(salobj.BaseScript):
             )
             self.clients.append(client)
             client.create_start_task()
+            await asyncio.sleep(self.loop_time_client_connection)
 
         msg_count = 0
         while msg_count < self.config.number_of_messages:
@@ -352,10 +360,6 @@ class StressLOVE(salobj.BaseScript):
         # Close all ManagerClients
         for client in self.clients:
             await client.close()
-
-        # Send all CSCs to Standby
-        for remote in self.remotes.values():
-            await salobj.set_summary_state(remote=remote, state=salobj.State.STANDBY)
 
     def get_mean_latency(self):
         """Calculate the mean latency of all received messages."""
