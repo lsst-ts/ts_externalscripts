@@ -14,6 +14,8 @@ v0.23.2
     * Add delay to Manager clients creation.
     * Stop changing CSCs states. Now only checks if CSCs are enabled, otherwise raises an exception.
 
+* In ``auxtel/latiss_wep_align.py``, update ``get_donut_catalog`` to include ``blend_centroid_x`` / ``blend_centroid_y`` to the donut catalog.
+
 v0.23.1
 -------
 
