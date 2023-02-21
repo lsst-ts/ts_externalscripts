@@ -224,10 +224,10 @@ class StressLOVE(salobj.BaseScript):
                 type: string
               number_of_clients:
                 description: The number of clients to create
-                type: number
+                type: integer
               number_of_messages:
                 description: The number of messages to store before calculating the mean latency
-                type: number
+                type: integer
               data:
                 description: List of CSC_name[:index]
                 type: array
@@ -250,7 +250,7 @@ class StressLOVE(salobj.BaseScript):
         # a crude estimate;
         metadata.duration = (
             self.config.number_of_messages / self.expected_message_frequency
-            + self.number_of_clients * self.loop_time_client_connection
+            + self.config.number_of_clients * self.loop_time_client_connection
         )
 
     async def configure(self, config):
