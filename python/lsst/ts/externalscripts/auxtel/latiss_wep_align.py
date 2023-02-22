@@ -235,6 +235,8 @@ def get_donut_catalog(result: Struct, wcs: SkyWcs) -> pandas.DataFrame:
     donut_catalog["coord_dec"] = dec
     donut_catalog["centroid_x"] = [result.brightestObjCentroidCofM[0]]
     donut_catalog["centroid_y"] = [result.brightestObjCentroidCofM[1]]
+    donut_catalog["blend_centroid_x"] = [[]]
+    donut_catalog["blend_centroid_y"] = [[]]
     donut_catalog["source_flux"] = [result.brightestObjApFlux70]
 
     donut_catalog = donut_catalog.sort_values(

@@ -240,27 +240,36 @@ class RandomWalk(BaseTrackTarget):
 
             random_angle = 2 * np.pi * np.random.rand()
 
-            offset_az = current_radius * np.cos(random_angle)
-            new_az = current_az + offset_az
-
+            # Get elevation offset first
             offset_el = current_radius * np.sin(random_angle)
             new_el = current_el + offset_el
-
-            if new_az <= self.config.min_az or new_az >= self.config.max_az:
-                new_az = current_az - offset_az
 
             if new_el <= self.config.min_el or new_el >= self.config.max_el:
                 new_el = current_el - offset_el
 
-            offset = np.sqrt((current_az - new_az) ** 2 + (current_el - new_el) ** 2)
+            # Azimuth offset depends on elevation to offsets on sky consistent
+            offset_az = (current_radius * np.cos(random_angle)) / np.cos(
+                np.deg2rad(0.5 * (new_el + current_el))
+            )
+            new_az = current_az + offset_az
+
+            if new_az <= self.config.min_az or new_az >= self.config.max_az:
+                new_az = current_az - offset_az
+
+            # Confirm offset on sky
+            current_radec = self.tcs.radec_from_azel(az=current_az, el=current_el)
+            new_radec = self.tcs.radec_from_azel(az=new_az, el=new_el)
+            sky_offset = current_radec.separation(new_radec).value
 
             t = Time.now().to_value("isot")
             self.log.info(
                 f"{t:25s}{step:10d}{current_az:10.2f}{new_az:10.2f}"
-                f"{current_el:10.2f}{new_el:10.2f}{offset:10.2f}"
+                f"{current_el:10.2f}{new_el:10.2f}{sky_offset:10.2f}"
             )
 
-            yield step, new_az, new_el
+            # Yield sky offset for testing purposes
+            yield step, new_az, new_el, sky_offset
+
             step += 1
             current_az, current_el = new_az, new_el
 

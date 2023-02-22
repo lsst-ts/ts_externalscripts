@@ -21,6 +21,8 @@
 import logging
 import unittest
 
+import numpy as np
+
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel.tma import RandomWalk
 from lsst.ts.idl.enums import Script
@@ -83,3 +85,52 @@ class TestRandomWalk(
         script_path = scripts_dir / "maintel" / "tma" / "random_walk.py"
         self.log.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
+
+    async def test_random_walk_azel_by_time(self):
+        async with self.make_script():
+
+            # Simulate data from EFD
+            class Telemetry:
+                @property
+                def actualPosition(self):
+                    # The telemetry fluctuation is usually very small
+                    return 0.1 * np.random.rand()
+
+            self.script.tcs.rem.mtmount.tel_azimuth.get = unittest.mock.Mock(
+                return_value=Telemetry()
+            )
+
+            self.script.tcs.rem.mtmount.tel_elevation.get = unittest.mock.Mock(
+                return_value=Telemetry()
+            )
+
+            assert (
+                np.abs(
+                    np.median(
+                        [
+                            self.script.tcs.rem.mtmount.tel_azimuth.get().actualPosition
+                            for i in range(10)
+                        ]
+                    )
+                )
+                <= 0.1
+            )
+
+            await self.configure_script(
+                total_time=2.0,
+                track_for=0.5,
+                # We want only the 3.5 deg offsets for this test
+                big_offset_prob=0.0,
+            )
+
+            sky_offsets = []
+            async for i, az, el, off in self.script.random_walk_azel_by_time():
+                sky_offsets.append(off)
+
+                # TODO: This should not be necessary
+                # However, if I remove it the loop keeps running forever
+                # It does not seem to happen when running the loop w/ hardware
+                if i == 50:
+                    break
+
+            assert np.isclose(np.mean(sky_offsets), 3.5, atol=0.01)
