@@ -44,7 +44,6 @@ class TestSerpentWalk(
 
     async def test_configure(self):
         async with self.make_script():
-
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
             az_grid = [0]

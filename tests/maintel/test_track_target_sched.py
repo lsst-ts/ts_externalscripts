@@ -58,9 +58,7 @@ class TestSlewAndTrackSched(
                 await self.configure_script()
 
     async def test_run(self):
-
         async with self.make_script():
-
             self.script.tcs.slew_icrs = unittest.mock.AsyncMock()
             self.script.tcs.slew_object = unittest.mock.AsyncMock()
             self.script.tcs.stop_tracking = unittest.mock.AsyncMock()

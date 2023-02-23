@@ -77,7 +77,6 @@ class LatissCWFSAlign(LatissBaseAlign):
     """
 
     def __init__(self, index=1, remotes=True):
-
         super().__init__(
             index=index,
             remotes=remotes,
@@ -264,7 +263,6 @@ Pixel_size (m)			{}
     def get_donut_region(
         self, center_y: float, center_x: float
     ) -> typing.Tuple[float, float, float, float]:
-
         return (
             center_y - self.side,
             center_y + self.side,
@@ -279,7 +277,6 @@ Pixel_size (m)			{}
         )
 
     def get_extra_donut_center(self) -> typing.Tuple[int, int]:
-
         if self.extra_focal_position_out_of_range:
             return self.get_intra_donut_center()
         else:

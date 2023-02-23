@@ -1461,7 +1461,6 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.log.info(final_report_string)
 
     async def arun(self, checkpoint=False):
-
         # Check that the camera is enabled
         await self.camera.assert_all_enabled(
             "All camera components need to be enabled to run this script."

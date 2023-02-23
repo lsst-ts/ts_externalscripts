@@ -88,7 +88,6 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
     """
 
     def __init__(self, index=1, remotes=True, descr=""):
-
         super().__init__(
             index=index,
             descr=descr,
@@ -764,7 +763,6 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.offset_total_coma_x = 0.0
         self.offset_total_coma_y = 0.0
         for i in range(self.max_iter):
-
             self.log.debug(f"CWFS iteration {i + 1} starting...")
 
             if checkpoint:

@@ -71,7 +71,6 @@ class BuildPointingModel(BaseScript):
     """
 
     def __init__(self, index: int, remotes: bool = True) -> None:
-
         super().__init__(
             index=index,
             descr="Build pointing model and hexapod LUT.",
@@ -345,7 +344,6 @@ additionalProperties: false
         )
 
         for dec, n_ha in zip(dec_values, self.config.radec_grid["ha_grid"]["n"]):
-
             ha_values = np.linspace(
                 self.config.radec_grid["ha_grid"]["min"],
                 self.config.radec_grid["ha_grid"]["max"],
@@ -394,7 +392,6 @@ additionalProperties: false
         return hp.nside2resol(self.config.healpix_grid["nside"], arcmin=True) / 60.0
 
     async def arun(self, checkpoint_active=False):
-
         await self.handle_checkpoint(
             checkpoint_active=checkpoint_active,
             checkpoint_message="Setting up.",
@@ -416,7 +413,6 @@ additionalProperties: false
             self.elevation_grid,
             self.rotator_sequence_gen,
         ):
-
             if grid_index < self.config.skip:
                 continue
 
@@ -457,7 +453,6 @@ additionalProperties: false
         await self.atcs.reset_offsets()
 
     async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
-
         if checkpoint_active:
             await self.checkpoint(checkpoint_message)
         else:
@@ -503,7 +498,6 @@ additionalProperties: false
         self.iterations["successful"] += 1
 
     async def center_on_brightest_source(self):
-
         self.latiss.rem.atoods.evt_imageInOODS.flush()
 
         acquisition_image_ids = await self.latiss.take_acq(
@@ -535,7 +529,6 @@ additionalProperties: false
         await self.atcs.add_point_data()
 
     async def find_offset(self, image_id):
-
         exposure = await get_image(
             parse_visit_id(image_id),
             self.best_effort_isr,
@@ -555,7 +548,6 @@ additionalProperties: false
         return dx_arcsec, dy_arcsec
 
     async def run(self):
-
         await self.arun(checkpoint_active=True)
 
 
