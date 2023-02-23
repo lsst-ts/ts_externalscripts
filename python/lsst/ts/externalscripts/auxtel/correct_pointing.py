@@ -55,7 +55,6 @@ class CorrectPointing(BaseScript):
     """
 
     def __init__(self, index: int, remotes: bool = True) -> None:
-
         super().__init__(
             index=index,
             descr="Correct pointing.",
@@ -85,7 +84,6 @@ class CorrectPointing(BaseScript):
 
     @classmethod
     def get_schema(cls) -> dict[str, typing.Any]:
-
         schema_yaml = """
         $schema: http://json-schema.org/draft-07/schema#
         $id: https://github.com/lsst-ts/ts_standardscripts/auxtel/CorrectPointing.yaml
@@ -217,7 +215,6 @@ class CorrectPointing(BaseScript):
         await self.atcs.reset_offsets()
 
     async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
-
         if checkpoint_active:
             await self.checkpoint(checkpoint_message)
         else:

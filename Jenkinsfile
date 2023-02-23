@@ -15,7 +15,6 @@ properties([
 pipeline {
 
     agent {
-        // Run as root to avoid permission issues when creating files.
         // To run on a specific node, e.g. for a specific architecture, add `label '...'`.
         docker {
             alwaysPull true
@@ -68,7 +67,7 @@ pipeline {
                         cd ${WHOME}/ci/summit_utils
                         eups declare -r . -t current
                         setup atmospec
-                        setup summit_utils -t current 
+                        setup summit_utils -t current
                         scons || echo "summit_utils build failed; continuing..."
 
                         cd ${WHOME}/ci/ts_observing_utilities

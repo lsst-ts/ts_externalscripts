@@ -64,7 +64,6 @@ class QuickFrameMeasurement(salobj.BaseScript):
     """
 
     def __init__(self, index, silent=False):
-
         super().__init__(
             index=index,
             descr="Test QuickFrameMeasurementTask.",
@@ -116,7 +115,6 @@ class QuickFrameMeasurement(salobj.BaseScript):
         metadata.duration = 60.0
 
     async def run_qm(self, visit_id):
-
         data_id = parse_obs_id(visit_id)
 
         exp = await get_image(
@@ -140,6 +138,5 @@ class QuickFrameMeasurement(salobj.BaseScript):
         self.log.debug(f"Current brightest target position is {current_position}")
 
     async def run(self):
-
         self.log.debug(f"Running QuickFrameMeasurementTask in {self.config.visit_id}")
         await self.run_qm(self.config.visit_id)

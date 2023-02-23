@@ -22,7 +22,6 @@ import logging
 import unittest
 
 import numpy as np
-
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel.tma import RandomWalk
 from lsst.ts.idl.enums import Script
@@ -46,7 +45,6 @@ class TestRandomWalk(
 
     async def test_configure(self):
         async with self.make_script():
-
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
             total_time = 3600.0
@@ -88,7 +86,6 @@ class TestRandomWalk(
 
     async def test_random_walk_azel_by_time(self):
         async with self.make_script():
-
             # Simulate data from EFD
             class Telemetry:
                 @property

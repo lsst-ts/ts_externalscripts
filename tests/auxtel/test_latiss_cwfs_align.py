@@ -537,7 +537,6 @@ class TestLatissCWFSAlign(
         x=-0.2551161770829597, y=-0.20577598056746502, z=0.006737514919628802.
         """
         async with self.make_script():
-
             await self.configure_script()
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2021110400954: [76.95, 89.09]})
@@ -659,7 +658,6 @@ class TestLatissCWFSAlign(
         As this has not been used on-sky we cannot verify the results.
         """
         async with self.make_script():
-
             await self.configure_script()
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2022031600232: [51.07, 0.58]})
