@@ -51,7 +51,6 @@ class TestCameraHexapodWarmUp(
 
     async def test_configure(self):
         async with self.make_script():
-
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
             hexapod = "camera"
@@ -84,10 +83,8 @@ class TestCameraHexapodWarmUp(
             )
 
     async def test_run(self):
-
         # Start the test itself
         async with self.make_script():
-
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
             hexapod = "camera"

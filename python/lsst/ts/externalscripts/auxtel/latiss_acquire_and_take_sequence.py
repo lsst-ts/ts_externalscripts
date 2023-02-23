@@ -74,7 +74,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
     """
 
     def __init__(self, index, silent=False):
-
         super().__init__(
             index=index,
             descr="Perform target acquisition and data taking"
@@ -372,7 +371,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         if self.do_take_sequence:
             nexp = len(self.visit_configs)
             visit_exptime_total = 0.0
-            for (filt, exptime, grating) in self.visit_configs:
+            for filt, exptime, grating in self.visit_configs:
                 visit_exptime_total += exptime
 
             time_on_target += visit_exptime_total
@@ -396,7 +395,7 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
     def set_metadata(self, metadata):
         metadata.duration = 300
         filters, gratings, exptime_total = set(), set(), 0
-        for (filt, exptime, grating) in self.visit_configs:
+        for filt, exptime, grating in self.visit_configs:
             exptime_total += exptime
             filters.add(filt)
             gratings.add(grating)
@@ -428,7 +427,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         return data_id
 
     async def latiss_acquire(self):
-
         if self.do_pointing_model:
             target_position = latiss_constants.boresight
         else:
@@ -654,7 +652,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         nexp = len(self.visit_configs)
 
         for i, (filt, exptime, grating) in enumerate(self.visit_configs):
-
             # Check if a manual focus offset is required
             if self.manual_focus_offset != 0.0 and not self.manual_focus_offset_applied:
                 self.log.debug(
@@ -721,7 +718,6 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         )
 
     async def arun(self, checkpoint=False):
-
         await self.assert_feasibility()
 
         if self.do_acquire:

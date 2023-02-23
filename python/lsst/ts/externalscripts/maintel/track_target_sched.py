@@ -45,7 +45,6 @@ class TrackTargetSched(TrackTarget):
 
     @classmethod
     def get_schema(cls):
-
         # Get the base schema from BaseTrackTargetAndTakeImage so this script
         # is compatible with the scheduler
         schema_dict = BaseTrackTargetAndTakeImage.get_base_schema()

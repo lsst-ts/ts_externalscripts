@@ -217,7 +217,6 @@ class SerpentWalk(BaseTrackTarget):
         )
 
         while not timer_task.done():
-
             new_az, new_el = next(generator)
 
             if new_az == old_az and new_el == old_el:

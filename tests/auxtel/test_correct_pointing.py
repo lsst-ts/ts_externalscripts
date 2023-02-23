@@ -51,7 +51,6 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
         self.remotes_needed = True
 
     async def basic_make_script(self, index):
-
         self.script = CorrectPointing(index=index, remotes=self.remotes_needed)
 
         # Mock the method that returns the BestEffortIsr class if it is
@@ -61,13 +60,11 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
         return (self.script,)
 
     async def test_executable(self):
-
         scripts_dir = get_scripts_dir()
         script_path = scripts_dir / "auxtel" / "correct_pointing.py"
         await self.check_executable(script_path)
 
     async def test_configure(self):
-
         configs_good = [
             dict(),
             dict(az=100.0),
@@ -78,7 +75,6 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
 
         self.remotes_needed = False
         async with self.make_script():
-
             default_values = dict(
                 az=self.script.azimuth,
                 el=self.script.elevation,
@@ -87,7 +83,6 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
                 mag_range=self.script.magnitude_range,
             )
             for config in configs_good:
-
                 await self.configure_script(**config)
 
                 self.assert_config(default_values, config)
@@ -117,7 +112,6 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
         """
         self.remotes_needed = False
         async with self.make_script():
-
             self.script.atcs.rem.ataos = unittest.mock.AsyncMock()
             self.script.atcs.rem.atptg = unittest.mock.AsyncMock()
             self.script.latiss.rem.atspectrograph = unittest.mock.AsyncMock()

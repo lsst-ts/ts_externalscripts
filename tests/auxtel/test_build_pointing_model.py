@@ -59,7 +59,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         self.remotes_needed = True
 
     async def basic_make_script(self, index):
-
         self.script = BuildPointingModel(index=index, remotes=self.remotes_needed)
 
         # Mock the method that returns the BestEffortIsr class if it is
@@ -74,13 +73,11 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         self.check_rotator_gen()
 
     def check_configuration_values(self, configuration):
-
         for key in configuration:
             with self.subTest(key=key, value=configuration[key]):
                 assert getattr(self.script.config, key) == configuration[key]
 
     def check_azel_grid(self):
-
         assert len(self.script.elevation_grid) == len(self.script.azimuth_grid)
 
         assert len(self.script.elevation_grid) > 0
@@ -102,7 +99,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             assert len(self.script.elevation_grid) == expected_size
 
     def check_rotator_gen(self):
-
         expected_next_rot_seq = self.script.config.rotator_sequence
 
         self._check_rotator_sequence(expected_next_rot_seq, reverse=False)
@@ -116,13 +112,10 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         self._check_rotator_sequence(expected_next_rot_seq, reverse=False)
 
     def _check_rotator_sequence(self, expected_next_rot_seq, reverse):
-
         for rot_grid_expected, rot_grid_gen in zip(
             expected_next_rot_seq, self.script.rotator_sequence_gen
         ):
-
             with self.subTest(rot_grid_expected=rot_grid_expected):
-
                 for rot_expected, rot_gen in zip(
                     rot_grid_expected if not reverse else rot_grid_expected[::-1],
                     rot_grid_gen,
@@ -130,7 +123,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
                     assert rot_expected == rot_gen
 
     def assert_metadata(self, metadata):
-
         assert metadata.nimages == len(self.script.elevation_grid) * 2
         assert metadata.duration == metadata.nimages * (
             self.script.config.exposure_time
@@ -139,14 +131,12 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         )
 
     async def test_configure_use_healpix_grid(self):
-
         async with self.make_configured_dry_script(
             grid=GridType.HEALPIX
         ) as test_configuration:
             self.assert_config(test_configuration)
 
     async def test_configure_use_radec_grid(self):
-
         async with self.make_configured_dry_script(
             grid=GridType.RADEC
         ) as test_configuration:
@@ -160,7 +150,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             self.assert_config(test_configuration)
 
     async def test_configure_fails(self):
-
         self.remotes_needed = False
         bad_config = [
             dict(grid="this_is_a_typo"),
@@ -179,9 +168,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
                     await self.configure_script(**config)
 
     async def test_metadata(self):
-
         async with self.make_configured_dry_script(grid=GridType.HEALPIX):
-
             metadata = types.SimpleNamespace(
                 duration=0.0,
                 nimages=0,
@@ -193,15 +180,12 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             self.assert_metadata(metadata)
 
     async def test_executable(self):
-
         scripts_dir = get_scripts_dir()
         script_path = scripts_dir / "auxtel" / "build_pointing_model.py"
         await self.check_executable(script_path)
 
     async def test_arun(self):
-
         async with self.make_configured_dry_script(grid=GridType.HEALPIX):
-
             self.script.execute_grid = unittest.mock.AsyncMock()
 
             await self.script.arun()
@@ -209,9 +193,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             self.assert_arun()
 
     async def test_arun_skip_some(self):
-
         async with self.make_configured_dry_script(grid=GridType.HEALPIX, skip=10):
-
             self.script.execute_grid = unittest.mock.AsyncMock()
 
             await self.script.arun()
@@ -219,7 +201,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             self.assert_arun()
 
     def assert_arun(self):
-
         self.script.latiss.rem.atspectrograph.cmd_changeFilter.set_start.assert_awaited_with(
             filter=0, name="empty_1", timeout=self.script.latiss.long_timeout
         )
@@ -274,9 +255,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         )
 
     async def test_execute_grid(self):
-
         async with self.make_configured_dry_script(grid=GridType.HEALPIX):
-
             azimuth, elevation, rotator = (
                 self.script.azimuth_grid[0],
                 self.script.elevation_grid[0],
@@ -303,7 +282,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             )
 
     def assert_execute_grid(self, azimuth, elevation, rotator, target_name):
-
         self.script.atcs.find_target.assert_awaited_once_with(
             az=azimuth,
             el=elevation,
@@ -320,9 +298,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         assert self.script.iterations["successful"] == 1
 
     async def test_execute_grid_fail_to_find_target(self):
-
         async with self.make_configured_dry_script(grid=GridType.HEALPIX):
-
             azimuth, elevation = (
                 self.script.azimuth_grid[0],
                 self.script.elevation_grid[0],
@@ -341,7 +317,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             self.assert_execute_grid_fail(azimuth=azimuth, elevation=elevation)
 
     def assert_execute_grid_fail(self, azimuth, elevation):
-
         self.script.atcs.find_target.assert_awaited_once_with(
             az=azimuth,
             el=elevation,
@@ -354,9 +329,7 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         assert self.script.iterations["successful"] == 0
 
     async def test_center_on_brightest_source(self):
-
         async with self.make_configured_dry_script(grid=GridType.HEALPIX):
-
             self.find_offset_image_id = [
                 123,
             ]
@@ -383,7 +356,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             self.assert_center_on_brightest_source()
 
     def assert_center_on_brightest_source(self):
-
         self.script.latiss.rem.atoods.evt_imageInOODS.flush.assert_called_once()
 
         take_acq_calls = [
@@ -420,7 +392,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         self.script.atcs.add_point_data.assert_awaited_once()
 
     async def set_test_configuration(self, grid, **kwargs):
-
         test_configuration = self._generate_configuration(grid=grid, **kwargs)
 
         await self.configure_script(**test_configuration)
@@ -465,7 +436,6 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         """
         self.remotes_needed = False
         async with self.make_script():
-
             test_configuration = await self.set_test_configuration(grid=grid, **kwargs)
 
             self.script.atcs.rem.ataos = unittest.mock.AsyncMock()

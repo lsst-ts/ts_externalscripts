@@ -6,6 +6,12 @@
 Version History
 ===============
 
+v0.23.3
+-------
+
+* Update pre-commit hook versions.
+* Run black 23.1.0.
+
 v0.23.2
 -------
 
@@ -28,15 +34,15 @@ v0.23.1
 v0.23.0
 -------
 * Add new Script ``RandomWalk`` for MainTel.
-  This script slew and track objects on sky while performing offsets with pre-defined size in random directions. 
+  This script slew and track objects on sky while performing offsets with pre-defined size in random directions.
   It also has a probability of performing larger offsets.
 
 * Add new Script ``SerpentWalk`` for MainTel.
-  This script slew and track targets on sky following an Az/El. 
+  This script slew and track targets on sky following an Az/El.
   For the first Az, it goes up in elevation. For the following Az, it goes down in elevation.
-  This up/down pattern resembles a serpent walking on sky. 
-  The script also allows using a cut-off elevation angle. 
-  The number of targets above the cut-off elevation angle is cut in half. 
+  This up/down pattern resembles a serpent walking on sky.
+  The script also allows using a cut-off elevation angle.
+  The number of targets above the cut-off elevation angle is cut in half.
 
 
 v0.22.0
@@ -44,7 +50,7 @@ v0.22.0
 
 * Add new Script ``TrackTargetSched`` for MainTel.
   This script implements a simple visit consisting of slewing to a target and start tracking.
-  
+
 
 v0.21.0
 -------
@@ -65,7 +71,7 @@ v0.20.0
 -------
 
 * In base_make_calibrations:
-  
+
   * Set do_gain_from_flat_pair to True by default.
   * Log errors instead of raising.
   * Delete RuntimeErrors related to OCPS and certification.

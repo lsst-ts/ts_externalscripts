@@ -143,7 +143,6 @@ class TestLatissAcquireAndTakeSequence(
     async def cmd_setup_atspec_callback(
         self, grating=None, filter=None, linear_stage=None
     ):
-
         list_to_be_returned = []
         if filter:
             list_to_be_returned.append(filter)
@@ -192,7 +191,6 @@ class TestLatissAcquireAndTakeSequence(
         logger.debug("Remotes closed")
 
     async def cmd_take_images_callback(self, data):
-
         logger.debug(f"cmd_take_images callback came with data of {data}")
         one_exp_time = (
             data.expTime
@@ -208,7 +206,6 @@ class TestLatissAcquireAndTakeSequence(
         self.end_image_tasks.append(asyncio.create_task(self.finish_take_images()))
 
     async def finish_take_images(self):
-
         # Give result that the telescope is ready
         await asyncio.sleep(0.5)
         imgNum = self.atcamera.cmd_takeImages.callback.await_count - 1

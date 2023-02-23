@@ -231,7 +231,6 @@ class RandomWalk(BaseTrackTarget):
         )
 
         while not timer_task.done():
-
             current_radius = (
                 self.config.big_offset_radius
                 if np.random.rand() <= self.config.big_offset_prob

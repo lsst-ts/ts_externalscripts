@@ -92,7 +92,6 @@ class LatissWEPAlign(LatissBaseAlign):
         loop = asyncio.get_running_loop()
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=1) as pool:
-
             self.log.debug(
                 "Running wep with: "
                 f"intra_visit_id={self.intra_visit_id}, "
@@ -132,7 +131,6 @@ def run_wep(
     donut_diameter: int,
     timeout_get_image: float,
 ) -> typing.Tuple[Struct, Struct, Struct]:
-
     best_effort_isr = BestEffortIsr()
 
     exposure_intra = get_image(
