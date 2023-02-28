@@ -6,6 +6,13 @@
 Version History
 ===============
 
+v0.23.4
+-------
+
+* In ``make_base_calibrations.py``:
+
+    * Update number and exposure times for darks.
+
 v0.23.3
 -------
 
