@@ -201,7 +201,7 @@ class RandomWalk(BaseTrackTarget):
         metadata.duration = self.config.total_time
 
     async def run(self):
-        async for i, az, el in self.random_walk_azel_by_time():
+        async for i, az, el, _ in self.random_walk_azel_by_time():
             await self.checkpoint(f"[{i}] Tracking {az=}/{el=}.")
             await self.slew_and_track(az, el, target_name=f"random_walk_{i}")
 
