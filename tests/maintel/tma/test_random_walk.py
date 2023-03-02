@@ -121,13 +121,13 @@ class TestRandomWalk(
             )
 
             sky_offsets = []
-            async for i, az, el, off in self.script.random_walk_azel_by_time():
-                sky_offsets.append(off)
+            async for data in self.script.random_walk_azel_by_time():
+                sky_offsets.append(data.offset)
 
                 # TODO: This should not be necessary
                 # However, if I remove it the loop keeps running forever
                 # It does not seem to happen when running the loop w/ hardware
-                if i == 50:
+                if data.counter == 50:
                     break
 
             assert np.isclose(np.mean(sky_offsets), 3.5, atol=0.01)

@@ -21,6 +21,7 @@
 __all__ = ["RandomWalk"]
 
 import asyncio
+from dataclasses import dataclass
 
 import numpy as np
 import yaml
@@ -28,6 +29,36 @@ from astropy.time import Time
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.base_track_target import BaseTrackTarget
+
+
+@dataclass
+class RandomWalkData:
+    """Stores information used during the execution of the RandomWalk
+    script. The most critical data are the `new_az` and `new_el`.
+    The script uses them to calculate an offset relative to the initial
+    position on sky of the previous target.
+    This avoids a "trend" in azimuth.
+
+    Attributes
+    ----------
+    counter : int
+        A simple counter used only for logging purposes. It tells us
+        how many offsets the RandomWalk script already applied.
+    az : float
+        New azimuth coordinates in degrees.
+        Used as initial reference before applying new offset.
+    el : float
+        New elevation coordinates in degrees.
+        Used as initial reference before applying new offset.
+    offset : float
+        Calculated offset between old az/el coordinates and new az/el
+        coordinates on sky. Used only on unit tests.
+    """
+
+    counter: int
+    az: float
+    el: float
+    offset: float
 
 
 class RandomWalk(BaseTrackTarget):
@@ -201,15 +232,17 @@ class RandomWalk(BaseTrackTarget):
         metadata.duration = self.config.total_time
 
     async def run(self):
-        async for i, az, el, _ in self.random_walk_azel_by_time():
-            await self.checkpoint(f"[{i}] Tracking {az=}/{el=}.")
-            await self.slew_and_track(az, el, target_name=f"random_walk_{i}")
+        async for data in self.random_walk_azel_by_time():
+            await self.checkpoint(f"[{data.counter}] Tracking {data.az=}/{data.el=}.")
+            await self.slew_and_track(
+                data.az, data.el, target_name=f"random_walk_{data.counter}"
+            )
 
     async def random_walk_azel_by_time(self):
         """Generate Az/El coordinates for a a long time so we can slew and
         track to these targets.
         """
-        step = 0
+        counter = 0
         timer_task = asyncio.create_task(asyncio.sleep(self.config.total_time))
         self.log.info(
             f"{'Time':25s}{'Steps':>10s}{'Old Az':>10s}{'New Az':>10s}"
@@ -262,14 +295,17 @@ class RandomWalk(BaseTrackTarget):
 
             t = Time.now().to_value("isot")
             self.log.info(
-                f"{t:25s}{step:10d}{current_az:10.2f}{new_az:10.2f}"
+                f"{t:25s}{counter:10d}{current_az:10.2f}{new_az:10.2f}"
                 f"{current_el:10.2f}{new_el:10.2f}{sky_offset:10.2f}"
             )
 
             # Yield sky offset for testing purposes
-            yield step, new_az, new_el, sky_offset
+            data = RandomWalkData(
+                counter=counter, az=new_az, el=new_el, offset=sky_offset
+            )
+            yield data
 
-            step += 1
+            counter += 1
             current_az, current_el = new_az, new_el
 
     async def slew_and_track(self, az, el, target_name=None):
