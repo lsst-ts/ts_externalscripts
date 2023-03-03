@@ -34,10 +34,9 @@ from lsst.ts.standardscripts.base_track_target import BaseTrackTarget
 @dataclass
 class RandomWalkData:
     """Stores information used during the execution of the RandomWalk
-    script. The most critical data are the `new_az` and `new_el`.
-    The script uses them to calculate an offset relative to the initial
-    position on sky of the previous target.
-    This avoids a "trend" in azimuth.
+    script. The script uses `az` and `el` to calculate an offset relative 
+    to the initial position on sky of the previous target. This avoids a 
+    "trend" in azimuth movement.
 
     Attributes
     ----------
@@ -244,10 +243,6 @@ class RandomWalk(BaseTrackTarget):
         """
         counter = 0
         timer_task = asyncio.create_task(asyncio.sleep(self.config.total_time))
-        self.log.info(
-            f"{'Time':25s}{'Steps':>10s}{'Old Az':>10s}{'New Az':>10s}"
-            f"{'Old El':>10s}{'New El':>10s}{'Offset':>10s}"
-        )
 
         n_points = 10
         current_az = np.median(
@@ -301,17 +296,20 @@ class RandomWalk(BaseTrackTarget):
             new_radec = self.tcs.radec_from_azel(az=new_az, el=new_el)
             sky_offset = current_radec.separation(new_radec).value
 
-            t = Time.now().to_value("isot")
             self.log.info(
-                f"{t:25s}{counter:10d}{current_az:10.2f}{new_az:10.2f}"
-                f"{current_el:10.2f}{new_el:10.2f}{sky_offset:10.2f}"
+                f"{counter=:>10s}"
+                f"{current_az=:>10s}"
+                f"{new_az=:>10s}"
+                f"{old_el=:>10s}"
+                f"{new_el=:>10s}"
+                f"{sky_offset=:10s}"
             )
 
-            # Yield sky offset for testing purposes
-            data = RandomWalkData(
+            # Yield the sky offset for testing purposes and
+            # and the counter to be displayed in the checkpoints
+            yield RandomWalkData(
                 counter=counter, az=new_az, el=new_el, offset=sky_offset
             )
-            yield data
 
             counter += 1
             current_az, current_el = new_az, new_el
