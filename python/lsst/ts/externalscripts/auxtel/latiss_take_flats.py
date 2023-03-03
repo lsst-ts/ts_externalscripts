@@ -157,10 +157,10 @@ class LatissTakeFlats(BaseScript):
                Parameters:
                -----------
 
-               filt : `string`
+               latiss_filter : `string`
                    LATISS filter.
 
-               grating : `string`
+               latiss_grating : `string`
                    LATISS grating.
 
                Returns
