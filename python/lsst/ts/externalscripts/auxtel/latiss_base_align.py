@@ -237,7 +237,7 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.log.debug("Moving to intra-focal position")
 
-        await self.hexapod_offset(self.dz)
+        await self.look_up_table_offsets(self.dz)
 
         self.log.debug("Taking intra-focal image")
 
@@ -256,7 +256,7 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Hexapod offsets are relative, so need to move 2x the offset
         # to get from the intra- to the extra-focal position.
         # then add the offset to compensate for un-equal magnification
-        await self.hexapod_offset(-(self.dz * 2.0 + self.extra_focal_offset))
+        await self.look_up_table_offsets(-(self.dz * 2.0 + self.extra_focal_offset))
 
         self.log.debug("Taking extra-focal image")
 
@@ -284,38 +284,64 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the
         # same position it was before running the script
-        await self.hexapod_offset(self.dz + self.extra_focal_offset)
+        await self.look_up_table_offsets(self.dz + self.extra_focal_offset)
 
-    async def hexapod_offset(
-        self, offset: float, x: float = 0.0, y: float = 0.0
+    async def look_up_table_offsets(
+        self,
+        offset: float,
+        x: float = 0.0,
+        y: float = 0.0,
+        u: float = 0.0,
+        v: float = 0.0,
+        m1: float = 0.0,
     ) -> None:
-        """Applies z-offset to the hexapod to move between
-        intra/extra/in-focus positions.
+        """Applies offsets to the AOS look-up table values.
 
         Parameters
         ----------
         offset : `float`
-             Focus offset to the hexapod in mm.
+            Offset the hexapod in the z-axis, in mm.
         x : `float`, optional
             Offset the hexapod in the x-axis, in mm (default=0).
         y : `float`, optional
             Offset the hexapod in the y-axis, in mm (default=0).
+        u : `float`, optional
+            Rx offset, in degrees (default=0).
+        v : `float`, optional
+            Ry offset, in degrees (default=0).
+        m1 : `float`, optional
+            M1 pressure offset, in Pa (default=0).
         """
 
-        offset = {
-            "m1": 0.0,
+        offset_applied = {
+            "m1": m1,
             "m2": 0.0,
             "x": x,
             "y": y,
             "z": offset,
-            "u": 0.0,
-            "v": 0.0,
+            "u": u,
+            "v": v,
         }
 
         self.atcs.rem.ataos.evt_detailedState.flush()
         await self.atcs.rem.ataos.cmd_offset.set_start(
-            **offset, timeout=self.timeout_long
+            **offset_applied, timeout=self.timeout_long
         )
+
+        tel_el_offset, tel_az_offset, _ = np.matmul(
+            [x, y, offset], self.hexapod_offset_scale
+        )
+
+        if self.offset_telescope and (tel_az_offset != 0.0 or tel_el_offset != 0.0):
+            self.log.info(
+                f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
+            )
+            await self.atcs.offset_azel(
+                az=tel_az_offset,
+                el=tel_el_offset,
+                relative=True,
+                persistent=True,
+            )
         # Wait for ataos to go through a cycle, which will apply the offset if
         # enough error has accumulated to pass the ataos thresholds.
         # Success means we need to see ATAOS substate bit 3 (hexapod
@@ -592,6 +618,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         # offset for the intra/extra images
         self.dz = config.dz
+
         # delta offset for extra focal image
         self.extra_focal_offset = config.extra_focal_offset
 
@@ -612,6 +639,17 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.take_detection_image = config.take_detection_image
 
         self.camera_playlist = config.camera_playlist
+
+        await self.additional_configuration(config)
+
+    async def additional_configuration(self, config: types.SimpleNamespace) -> None:
+        """Additional configuration.
+
+        This method is intended to be overridden by subclasses to add
+        additional configuration.
+        """
+
+        pass
 
     async def _configure_target(self):
         """Finish configuring target.
@@ -655,6 +693,57 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             self.cwfs_target = None
             self.cwfs_target_ra = None
             self.cwfs_target_dec = None
+
+    async def _slew_to_target(self, checkpoint=True):
+        """Slew to target.
+
+        Parameters
+        ----------
+        checkpoint : `bool`, optional
+            If `True` then issue a checkpoint before slewing to the target.
+        """
+        if self.cwfs_target is not None and self.cwfs_target_dec is None:
+            if checkpoint:
+                await self.checkpoint(
+                    f"Slewing to object: {self.cwfs_target}, "
+                    f"rot={self.rot}, rot_strategy={self.rot_strategy!r}."
+                )
+            await self.atcs.slew_object(
+                name=self.cwfs_target,
+                rot=self.rot,
+                rot_type=self.rot_strategy,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
+            )
+        elif (
+            self.cwfs_target is not None
+            and self.cwfs_target_dec is not None
+            and self.cwfs_target_ra is not None
+        ):
+            if checkpoint:
+                await self.checkpoint(
+                    f"Slewing to icrs coordinates: {self.cwfs_target} @ "
+                    f"ra = {self.cwfs_target_ra}, dec = {self.cwfs_target_dec}, "
+                    f"rot = {self.rot}, rot_strategy = {self.rot_strategy!r}."
+                )
+
+            await self.atcs.slew_icrs(
+                ra=self.cwfs_target_ra,
+                dec=self.cwfs_target_dec,
+                target_name=self.cwfs_target,
+                rot=self.rot,
+                rot_type=self.rot_strategy,
+                az_wrap_strategy=WrapStrategy.OPTIMIZE,
+                time_on_target=self.time_on_target,
+            )
+        elif (self.cwfs_target_dec is not None and self.cwfs_target_ra is None) or (
+            self.cwfs_target_dec is None and self.cwfs_target_ra is not None
+        ):
+            raise RuntimeError(
+                "Invalid configuration. Only one of ra/dec pair was specified. "
+                "Either define both or neither. "
+                f"Got ra={self.cwfs_target_ra} and dec={self.cwfs_target_dec}."
+            )
 
     def set_metadata(self, metadata: salobj.type_hints.BaseMsgType) -> None:
         """Sets script metadata.
@@ -705,48 +794,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         await self._configure_target()
 
-        if self.cwfs_target is not None and self.cwfs_target_dec is None:
-            if checkpoint:
-                await self.checkpoint(
-                    f"Slewing to object: {self.cwfs_target}, "
-                    f"rot={self.rot}, rot_strategy={self.rot_strategy!r}."
-                )
-            await self.atcs.slew_object(
-                name=self.cwfs_target,
-                rot=self.rot,
-                rot_type=self.rot_strategy,
-                az_wrap_strategy=WrapStrategy.OPTIMIZE,
-                time_on_target=self.time_on_target,
-            )
-        elif (
-            self.cwfs_target is not None
-            and self.cwfs_target_dec is not None
-            and self.cwfs_target_ra is not None
-        ):
-            if checkpoint:
-                await self.checkpoint(
-                    f"Slewing to icrs coordinates: {self.cwfs_target} @ "
-                    f"ra = {self.cwfs_target_ra}, dec = {self.cwfs_target_dec}, "
-                    f"rot = {self.rot}, rot_strategy = {self.rot_strategy!r}."
-                )
-
-            await self.atcs.slew_icrs(
-                ra=self.cwfs_target_ra,
-                dec=self.cwfs_target_dec,
-                target_name=self.cwfs_target,
-                rot=self.rot,
-                rot_type=self.rot_strategy,
-                az_wrap_strategy=WrapStrategy.OPTIMIZE,
-                time_on_target=self.time_on_target,
-            )
-        elif (self.cwfs_target_dec is not None and self.cwfs_target_ra is None) or (
-            self.cwfs_target_dec is None and self.cwfs_target_ra is not None
-        ):
-            raise RuntimeError(
-                "Invalid configuration. Only one of ra/dec pair was specified. "
-                "Either define both or neither. "
-                f"Got ra={self.cwfs_target_ra} and dec={self.cwfs_target_dec}."
-            )
+        await self._slew_to_target(checkpoint)
 
         if self.take_detection_image:
             if checkpoint:
@@ -799,21 +847,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 # Add coma offsets from previous run
                 self.offset_total_coma_x += coma_x
                 self.offset_total_coma_y += coma_y
-                await self.hexapod_offset(focus_offset, x=coma_x, y=coma_y)
-                if self.offset_telescope:
-                    tel_el_offset, tel_az_offset = (
-                        results.offset_tel[0],
-                        results.offset_tel[1],
-                    )
-                    self.log.info(
-                        f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
-                    )
-                    await self.atcs.offset_azel(
-                        az=tel_az_offset,
-                        el=tel_el_offset,
-                        relative=True,
-                        persistent=True,
-                    )
+                await self.look_up_table_offsets(focus_offset, x=coma_x, y=coma_y)
+
                 current_target = await self.atcs.rem.atptg.evt_currentTarget.aget(
                     timeout=self.timeout_short
                 )
@@ -849,7 +884,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     await self.checkpoint(
                         f"[{i + 1}/{self.max_iter}]: CWFS focus error too large."
                     )
-                await self.hexapod_offset(self.large_defocus)
+                await self.look_up_table_offsets(self.large_defocus)
             else:
                 self.offset_total_focus += focus_offset
                 self.log.info(
@@ -861,21 +896,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     )
                 self.offset_total_coma_x += coma_x
                 self.offset_total_coma_y += coma_y
-                await self.hexapod_offset(focus_offset, x=coma_x, y=coma_y)
-                if self.offset_telescope:
-                    tel_el_offset, tel_az_offset = (
-                        results.offset_tel[0],
-                        results.offset_tel[1],
-                    )
-                    self.log.info(
-                        f"Applying telescope offset az/el: {tel_az_offset:0.3f}/{tel_el_offset:0.3f}."
-                    )
-                    await self.atcs.offset_azel(
-                        az=tel_az_offset,
-                        el=tel_el_offset,
-                        relative=True,
-                        persistent=True,
-                    )
+                await self.look_up_table_offsets(focus_offset, x=coma_x, y=coma_y)
 
         self.log.warning(
             f"Reached maximum iteration ({self.max_iter}) without convergence.\n"

@@ -179,7 +179,18 @@ class CorrectPointing(BaseScript):
             offset_summary.pointingOriginY + offset_summary.pointingOriginHandsetDY
         )
 
-        self.log.info(f"{porigin_x=}, {porigin_y=}")
+        current_position = await self.atcs.rem.atptg.tel_mountPositions.aget(
+            timeout=self.atcs.long_timeout
+        )
+
+        current_azimuth = current_position.azimuthCalculatedAngle[0]
+
+        current_elevation = current_position.elevationCalculatedAngle[0]
+
+        self.log.info(
+            f"{porigin_x = :0.3f} arcsec, {porigin_y = :0.3f} arcsec, "
+            f"{current_azimuth = :0.3f} deg, {current_elevation = :0.3f} deg"
+        )
 
         await self.atcs.reset_offsets()
 

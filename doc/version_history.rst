@@ -6,6 +6,24 @@
 Version History
 ===============
 
+v0.24.0
+-------
+
+* Add new Script ``LatissIntraExtraFocalData`` for AuxTel.
+  This script is used to take intra and extra focal data with given look up table offsets.
+  It uses the ``latiss_base_align.py`` module.
+
+* In ``latiss_base_algin.py``:
+    * Expand functionality of offset_hexapod() and rename to look_up_table_hexapod
+    * Add slew_to_target function
+
+v0.23.4
+-------
+
+* In ``make_base_calibrations.py``:
+
+    * Update number and exposure times for darks.
+
 v0.23.3
 -------
 

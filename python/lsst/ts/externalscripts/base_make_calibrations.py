@@ -205,7 +205,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                   - type: integer
                     minimum: 1
                   - type: "null"
-                default: 20
+                default: 22
                 description: Number of darks to take.
             n_discard_dark:
                 anyOf:
@@ -226,7 +226,13 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                       minimum: 0
                   - type: number
                     minimum: 0
-                default: 5
+                default: [5,
+                    5, 5, 5, 5,
+                    15, 15,
+                    30, 30, 30, 30,
+                    30, 30, 30, 30,
+                    30, 30, 30, 30,
+                    30, 30, 30, 30]
             n_flat:
                 anyOf:
                   - type: integer
