@@ -252,13 +252,21 @@ class RandomWalk(BaseTrackTarget):
         n_points = 10
         current_az = np.median(
             [
-                self.tcs.rem.mtmount.tel_azimuth.get().actualPosition
+                (
+                    await self.tcs.rem.mtmount.tel_azimuth.aget(
+                        timeout=self.tcs.fast_timeout
+                    )
+                ).actualPosition
                 for i in range(n_points)
             ]
         )
         current_el = np.median(
             [
-                self.tcs.rem.mtmount.tel_elevation.get().actualPosition
+                (
+                    await self.tcs.rem.mtmount.tel_elevation.aget(
+                        timeout=self.tcs.fast_timeout
+                    )
+                ).actualPosition
                 for i in range(n_points)
             ]
         )
