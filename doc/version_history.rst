@@ -6,6 +6,13 @@
 Version History
 ===============
 
+v0.24.1
+-------
+
+* In ``auxtel/latiss_intra_extra_focal_data``, take detection image after applying offset.
+
+* In ``auxtel/latiss_base_align.py``, implement telescope offset correction when applying tip-tilt hexapod offsets.
+
 v0.24.0
 -------
 
