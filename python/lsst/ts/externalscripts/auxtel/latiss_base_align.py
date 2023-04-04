@@ -133,12 +133,21 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
             ]
         )
 
-        # Matrix to map hexapod offset to alt/az offset in the focal plane
+        # Matrix to map hexapod xy-offset to alt/az offset in the focal plane
         # units are arcsec/mm. X-axis is Elevation
         # Measured with data from AT run SUMMIT-5027.
         self.hexapod_offset_scale = [
             [52.459, 0.0, 0.0],
             [0.0, 50.468, 0.0],
+            [0.0, 0.0, 0.0],
+        ]
+
+        # Matrix to map hexapod uv-offset to alt/az offset in the focal plane
+        # units are arcsec/degrees.
+        # Measured with data from AT run SUMMIT-7280
+        self.hexapod_uv_offset_scale = [
+            [1312.95, 0.0, 0.0],
+            [0.0, -1331.81, 0.0],
             [0.0, 0.0, 0.0],
         ]
 
@@ -328,11 +337,19 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
             **offset_applied, timeout=self.timeout_long
         )
 
-        tel_el_offset, tel_az_offset, _ = np.matmul(
-            [x, y, offset], self.hexapod_offset_scale
-        )
+        if self.offset_telescope and (x != 0.0 or y != 0.0 or u != 0.0 or v != 0.0):
+            tel_el_offset_xy, tel_az_offset_xy, _ = np.matmul(
+                [x, y, offset], self.hexapod_offset_scale
+            )
 
-        if self.offset_telescope and (tel_az_offset != 0.0 or tel_el_offset != 0.0):
+            tel_el_offset_uv, tel_az_offset_uv, _ = np.matmul(
+                [u, v, offset], self.hexapod_uv_offset_scale
+            )
+            tel_az_offset, tel_el_offset = (
+                tel_el_offset_xy + tel_el_offset_uv,
+                tel_az_offset_xy + tel_az_offset_uv,
+            )
+
             self.log.info(
                 f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
             )

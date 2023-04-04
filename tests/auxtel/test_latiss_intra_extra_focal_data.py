@@ -24,7 +24,6 @@ import unittest
 
 import numpy as np
 import pytest
-
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.auxtel import LatissIntraExtraFocalData
 
