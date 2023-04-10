@@ -38,9 +38,13 @@ try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.summit.utils import BestEffortIsr
     from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
-    from lsst.ts.wep.task.EstimateZernikesLatissTask import (
-        EstimateZernikesLatissTask,
-        EstimateZernikesLatissTaskConfig,
+    from lsst.ts.wep.task.calcZernikesTask import (
+        CalcZernikesTask,
+        CalcZernikesTaskConfig,
+    )
+    from lsst.ts.wep.task.cutOutDonutsCwfsTask import (
+        CutOutDonutsCwfsTask,
+        CutOutDonutsCwfsTaskConfig,
     )
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
@@ -117,9 +121,9 @@ class LatissWEPAlign(LatissBaseAlign):
 
             # output from wep are in microns, need to convert to nm.
             self.zern = [
-                -wep_results.outputZernikesAvg[0][4] * 1e3,
-                wep_results.outputZernikesAvg[0][3] * 1e3,
-                wep_results.outputZernikesAvg[0][0] * 1e3,
+                -wep_results.outputZernikesAvg[4] * 1e3,
+                wep_results.outputZernikesAvg[3] * 1e3,
+                wep_results.outputZernikesAvg[0] * 1e3,
             ]
 
         return self.calculate_results()
@@ -184,12 +188,8 @@ def run_wep(
         )
     )
 
-    config = EstimateZernikesLatissTaskConfig()
-    config.donutStampSize = donut_diameter
-    config.donutTemplateSize = donut_diameter
-    config.opticalModel = "onAxis"
-
-    task = EstimateZernikesLatissTask(config=config)
+    cut_out_config = CutOutDonutsCwfsTaskConfig()
+    cut_out_task = CutOutDonutsCwfsTask(config=cut_out_config)
 
     camera = best_effort_isr.butler.get(
         "camera",
@@ -197,10 +197,18 @@ def run_wep(
         collections="LATISS/calib/unbounded",
     )
 
-    task_output = task.run(
-        [exposure_intra, exposure_extra],
-        [donut_catalog_intra, donut_catalog_extra],
+    cut_out_output = cut_out_task.run(
+        [exposure_extra, exposure_intra],
+        [donut_catalog_extra, donut_catalog_intra],
         camera,
+    )
+
+    config = CalcZernikesTaskConfig()
+    config.opticalModel = "onAxis"
+    task = CalcZernikesTask(config=config, name="Base Task")
+
+    task_output = task.run(
+        cut_out_output.donutStampsExtra, cut_out_output.donutStampsIntra
     )
 
     return result_intra, result_extra, task_output
