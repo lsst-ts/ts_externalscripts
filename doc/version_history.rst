@@ -6,6 +6,12 @@
 Version History
 ===============
 
+v0.24.2
+-------
+
+* Update latiss_wep_align to work with version 5 of ts_wep
+
+
 v0.24.1
 -------
 

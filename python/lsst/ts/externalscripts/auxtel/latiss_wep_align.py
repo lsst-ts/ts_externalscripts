@@ -38,10 +38,15 @@ try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.summit.utils import BestEffortIsr
     from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
-    from lsst.ts.wep.task.EstimateZernikesLatissTask import (
-        EstimateZernikesLatissTask,
-        EstimateZernikesLatissTaskConfig,
+    from lsst.ts.wep.task.calcZernikesTask import (
+        CalcZernikesTask,
+        CalcZernikesTaskConfig,
     )
+    from lsst.ts.wep.task.cutOutDonutsScienceSensorTask import (
+        CutOutDonutsScienceSensorTask,
+        CutOutDonutsScienceSensorTaskConfig,
+    )
+
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
@@ -117,9 +122,9 @@ class LatissWEPAlign(LatissBaseAlign):
 
             # output from wep are in microns, need to convert to nm.
             self.zern = [
-                -wep_results.outputZernikesAvg[0][4] * 1e3,
-                wep_results.outputZernikesAvg[0][3] * 1e3,
-                wep_results.outputZernikesAvg[0][0] * 1e3,
+                -wep_results.outputZernikesAvg[4] * 1e3,
+                wep_results.outputZernikesAvg[3] * 1e3,
+                wep_results.outputZernikesAvg[0] * 1e3,
             ]
 
         return self.calculate_results()
@@ -133,6 +138,7 @@ def run_wep(
 ) -> typing.Tuple[Struct, Struct, Struct]:
     best_effort_isr = BestEffortIsr()
 
+    # Get intra and extra results
     exposure_intra = get_image(
         parse_visit_id(intra_visit_id),
         best_effort_isr,
@@ -184,12 +190,16 @@ def run_wep(
         )
     )
 
-    config = EstimateZernikesLatissTaskConfig()
-    config.donutStampSize = donut_diameter
-    config.donutTemplateSize = donut_diameter
-    config.opticalModel = "onAxis"
-
-    task = EstimateZernikesLatissTask(config=config)
+    cut_out_config = CutOutDonutsScienceSensorTaskConfig()
+    # LATISS config parameters
+    cut_out_config.opticalModel = "onAxis"
+    cut_out_config.donutStampSize = donut_diameter
+    cut_out_config.donutTemplateSize = donut_diameter
+    cut_out_config.instObscuration = 0.3525
+    cut_out_config.instFocalLength = 21.6
+    cut_out_config.instApertureDiameter = 1.2
+    cut_out_config.instDefocalOffset = 32.8
+    cut_out_task = CutOutDonutsScienceSensorTask(config=cut_out_config)
 
     camera = best_effort_isr.butler.get(
         "camera",
@@ -197,10 +207,23 @@ def run_wep(
         collections="LATISS/calib/unbounded",
     )
 
-    task_output = task.run(
-        [exposure_intra, exposure_extra],
-        [donut_catalog_intra, donut_catalog_extra],
+    cut_out_output = cut_out_task.run(
+        [exposure_extra, exposure_intra],
+        [donut_catalog_extra, donut_catalog_intra],
         camera,
+    )
+
+    config = CalcZernikesTaskConfig()
+    # LATISS config parameters
+    config.opticalModel = "onAxis"
+    config.instObscuration = 0.3525
+    config.instFocalLength = 21.6
+    config.instApertureDiameter = 1.2
+    config.instDefocalOffset = 32.8
+    task = CalcZernikesTask(config=config, name="Base Task")
+
+    task_output = task.run(
+        cut_out_output.donutStampsExtra, cut_out_output.donutStampsIntra
     )
 
     return result_intra, result_extra, task_output
