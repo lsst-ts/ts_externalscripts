@@ -6,6 +6,12 @@
 Version History
 ===============
 
+v0.25.0
+-------
+
+* Add new script ``latiss_acquire.py`` for AuxTel.
+  This script is used to slew to a target and center it at a specific position.
+
 v0.24.2
 -------
 
