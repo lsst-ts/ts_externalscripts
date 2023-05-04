@@ -19,19 +19,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import contextlib
+import logging
 import os
 import tempfile
 import unittest
-import logging
-import contextlib
-import pytest
 
 import lsst.daf.butler as dafButler
-from lsst.ts.externalscripts.auxtel import LatissAcquire
-from lsst.ts.externalscripts import get_scripts_dir
-from lsst.ts.standardscripts import BaseScriptTestCase
-from lsst.ts.idl.enums.Script import ScriptState
+import pytest
 from lsst.ts import salobj
+from lsst.ts.externalscripts import get_scripts_dir
+from lsst.ts.externalscripts.auxtel import LatissAcquire
+from lsst.ts.idl.enums.Script import ScriptState
+from lsst.ts.standardscripts import BaseScriptTestCase
 from lsst.utils import getPackageDir
 
 logger = logging.getLogger(__name__)

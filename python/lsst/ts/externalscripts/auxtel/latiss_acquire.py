@@ -30,7 +30,7 @@ import yaml
 from lsst.geom import PointD
 from lsst.ts import salobj
 from lsst.ts.idl.enums.ATPtg import WrapStrategy
-from lsst.ts.observatory.control.auxtel import ATCS, ATCSUsages, LATISS, LATISSUsages
+from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
 from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observatory.control.utils import RotType
 
