@@ -114,6 +114,13 @@ class CorrectPointing(BaseScript):
                 type: number
                 description: Radius of the cone search (in degrees).
                 default: 0.5
+            catalog_name:
+                description: >-
+                    Name of a start catalog to load or None to skip loading a catalog.
+                anyOf:
+                    - type: string
+                    - type: "null"
+                default: HD_cwfs_stars
         """
         return yaml.safe_load(schema_yaml)
 
@@ -135,6 +142,7 @@ class CorrectPointing(BaseScript):
         self.radius = config.radius
         self.magnitude_limit = config.mag_limit
         self.magnitude_range = config.mag_range
+        self.catalog_name = config.catalog_name
 
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
@@ -235,6 +243,9 @@ class CorrectPointing(BaseScript):
         """Performs target selection, acquisition, and pointing
         registration.
         """
+
+        if self.catalog_name is not None:
+            self.atcs.load_catalog(self.catalog_name)
 
         try:
             target = await self.atcs.find_target(
