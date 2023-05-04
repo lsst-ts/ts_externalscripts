@@ -11,8 +11,8 @@ v0.25.0
 
 * Add new script ``latiss_acquire.py`` for AuxTel.
   This script is used to slew to a target and center it at a specific position.
-* In ``auxtel/correct_pointing`` and ``auxtel/latiss_base_align``, add config to search local catalog and set
-  to HD_cwfs_stars by default. 
+  
+* In ``auxtel/correct_pointing`` and ``auxtel/latiss_base_align``, add config to search local catalog and set to HD_cwfs_stars by default. 
 
 * In ``auxtel/latiss_wep_align.py``, remove inline method ``get_image`` and import/use new method ``get_image_sync` from ts_observing_utilities.
 
