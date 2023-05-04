@@ -93,25 +93,21 @@ class TestRandomWalk(
                     # The telemetry fluctuation is usually very small
                     return 0.1 * np.random.rand()
 
-            self.script.tcs.rem.mtmount.tel_azimuth.get = unittest.mock.Mock(
+            self.script.tcs.rem.mtmount.tel_azimuth.aget = unittest.mock.AsyncMock(
                 return_value=Telemetry()
             )
 
-            self.script.tcs.rem.mtmount.tel_elevation.get = unittest.mock.Mock(
+            self.script.tcs.rem.mtmount.tel_elevation.aget = unittest.mock.AsyncMock(
                 return_value=Telemetry()
             )
 
-            assert (
-                np.abs(
-                    np.median(
-                        [
-                            self.script.tcs.rem.mtmount.tel_azimuth.get().actualPosition
-                            for i in range(10)
-                        ]
-                    )
-                )
-                <= 0.1
+            current_az = [
+                await self.script.tcs.rem.mtmount.tel_azimuth.aget() for _ in range(10)
+            ]
+            current_az_median = np.abs(
+                np.median([az.actualPosition for az in current_az])
             )
+            assert current_az_median <= 0.1
 
             await self.configure_script(
                 total_time=2.0,
@@ -122,12 +118,7 @@ class TestRandomWalk(
 
             sky_offsets = []
             async for data in self.script.random_walk_azel_by_time():
+                print("Data:", data)
                 sky_offsets.append(data.offset)
-
-                # TODO: This should not be necessary
-                # However, if I remove it the loop keeps running forever
-                # It does not seem to happen when running the loop w/ hardware
-                if data.counter == 50:
-                    break
 
             assert np.isclose(np.mean(sky_offsets), 3.5, atol=0.01)

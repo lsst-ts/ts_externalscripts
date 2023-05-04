@@ -25,7 +25,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import yaml
-from astropy.time import Time
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.base_track_target import BaseTrackTarget
@@ -34,8 +33,8 @@ from lsst.ts.standardscripts.base_track_target import BaseTrackTarget
 @dataclass
 class RandomWalkData:
     """Stores information used during the execution of the RandomWalk
-    script. The script uses `az` and `el` to calculate an offset relative 
-    to the initial position on sky of the previous target. This avoids a 
+    script. The script uses `az` and `el` to calculate an offset relative
+    to the initial position on sky of the previous target. This avoids a
     "trend" in azimuth movement.
 
     Attributes
@@ -245,26 +244,17 @@ class RandomWalk(BaseTrackTarget):
         timer_task = asyncio.create_task(asyncio.sleep(self.config.total_time))
 
         n_points = 10
-        current_az = np.median(
-            [
-                (
-                    await self.tcs.rem.mtmount.tel_azimuth.aget(
-                        timeout=self.tcs.fast_timeout
-                    )
-                ).actualPosition
-                for i in range(n_points)
-            ]
-        )
-        current_el = np.median(
-            [
-                (
-                    await self.tcs.rem.mtmount.tel_elevation.aget(
-                        timeout=self.tcs.fast_timeout
-                    )
-                ).actualPosition
-                for i in range(n_points)
-            ]
-        )
+        current_az_list = [
+            await self.tcs.rem.mtmount.tel_azimuth.aget(timeout=self.tcs.fast_timeout)
+            for _ in range(n_points)
+        ]
+        current_az = np.abs(np.median([az.actualPosition for az in current_az_list]))
+
+        current_el_list = [
+            await self.tcs.rem.mtmount.tel_elevation.aget(timeout=self.tcs.fast_timeout)
+            for _ in range(n_points)
+        ]
+        current_el = np.abs(np.median([el.actualPosition for el in current_el_list]))
 
         while not timer_task.done():
             current_radius = (
@@ -297,12 +287,12 @@ class RandomWalk(BaseTrackTarget):
             sky_offset = current_radec.separation(new_radec).value
 
             self.log.info(
-                f"{counter=:>10s}"
-                f"{current_az=:>10s}"
-                f"{new_az=:>10s}"
-                f"{old_el=:>10s}"
-                f"{new_el=:>10s}"
-                f"{sky_offset=:10s}"
+                f"{counter=:>10d}"
+                f"{current_az=:>10.4f}"
+                f"{new_az=:>10.4f}"
+                f"{current_el=:>10.4f}"
+                f"{new_el=:>10.4f}"
+                f"{sky_offset=:10.4f}"
             )
 
             # Yield the sky offset for testing purposes and
