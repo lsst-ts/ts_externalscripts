@@ -17,3 +17,11 @@ pytest_session.txt
 
 # vim
 *.swp
+.pre-commit-config.yaml
+.flake8
+.isort.cfg
+.mypy.ini
+
+# setuptools
+.eggs
+*.egg-info

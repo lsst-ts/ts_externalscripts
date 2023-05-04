@@ -24,19 +24,20 @@ __all__ = ["LatissWEPAlign"]
 import asyncio
 import concurrent.futures
 import functools
-import time
 import typing
 import warnings
 
 import numpy as np
 import pandas
 from lsst.afw.geom import SkyWcs
-from lsst.afw.image import ExposureF
 from lsst.pipe.base.struct import Struct
 
 try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.summit.utils import BestEffortIsr
+    from lsst.ts.observing.utilities.auxtel.latiss.getters import (
+        get_image_sync as get_image,
+    )
     from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
     from lsst.ts.wep.task.calcZernikesTask import (
         CalcZernikesTask,
@@ -265,49 +266,3 @@ def get_donut_catalog(result: Struct, wcs: SkyWcs) -> pandas.DataFrame:
     ).reset_index(drop=True)
 
     return donut_catalog
-
-
-def get_image(
-    data_id: typing.Dict[str, typing.Union[int, str]],
-    best_effort_isr: typing.Any,
-    timeout: float,
-    loop_time: float = 0.1,
-) -> ExposureF:
-    """Retrieve image from butler repository.
-
-    If not present, then it will poll at intervals of loop_time (0.1s default)
-    until the image arrives, or until the timeout is reached.
-
-    Parameters
-    ----------
-    data_id : `dict`
-        A dictionary consisting of the keys and data required to fetch an
-        image from the butler.
-        e.g data_id = {'day_obs': 20200219, 'seq_num': 2,
-                       'detector': 0, "instrument": 'LATISS'}
-    best_effort_isr : `BestEffortIsr`
-        BestEffortISR class instantiated with a butler.
-    loop_time : `float`
-        Time between polling attempts. Defaults to 0.1s
-    timeout:  `float`
-        Total time to poll for image before raising an exception
-
-    Returns
-    -------
-    exp: `ExposureF`
-        Exposure returned from butler query
-    """
-
-    endtime = time.time() + timeout
-    while True:
-        try:
-            exp = best_effort_isr.getExposure(data_id)
-            return exp
-
-        except ValueError:
-            time.sleep(loop_time)
-
-        if time.time() >= endtime:
-            raise TimeoutError(
-                f"Unable to get raw image from butler in {timeout} seconds."
-            )
