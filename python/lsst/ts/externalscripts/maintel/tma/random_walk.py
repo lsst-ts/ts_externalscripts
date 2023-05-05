@@ -237,8 +237,8 @@ class RandomWalk(BaseTrackTarget):
             )
 
     async def random_walk_azel_by_time(self):
-        """Generate Az/El coordinates using random offsets for a finite 
-        amount of time. 
+        """Generate Az/El coordinates using random offsets for a finite
+        amount of time.
         """
         counter = 0
         timer_task = asyncio.create_task(asyncio.sleep(self.config.total_time))
