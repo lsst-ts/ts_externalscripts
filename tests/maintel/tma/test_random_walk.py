@@ -18,8 +18,11 @@
 #
 # You should have received a copy of the GNU General Public License
 
+import asyncio
 import logging
 import unittest
+import types
+import pytest
 
 import numpy as np
 from lsst.ts import externalscripts, standardscripts
@@ -87,18 +90,18 @@ class TestRandomWalk(
     async def test_random_walk_azel_by_time(self):
         async with self.make_script():
             # Simulate data from EFD
-            class Telemetry:
-                @property
-                def actualPosition(self):
-                    # The telemetry fluctuation is usually very small
-                    return 0.1 * np.random.rand()
+            async def get_telemetry(*args, **kwargs):
+                await asyncio.sleep(0.1)
+                actual_position = 0.1 * np.random.rand()
+                self.log.debug(f"{actual_position=}")
+                return types.SimpleNamespace(actualPosition=actual_position)
 
             self.script.tcs.rem.mtmount.tel_azimuth.aget = unittest.mock.AsyncMock(
-                return_value=Telemetry()
+                side_effect=get_telemetry
             )
 
             self.script.tcs.rem.mtmount.tel_elevation.aget = unittest.mock.AsyncMock(
-                return_value=Telemetry()
+                side_effect=get_telemetry
             )
 
             current_az = [
@@ -118,7 +121,8 @@ class TestRandomWalk(
 
             sky_offsets = []
             async for data in self.script.random_walk_azel_by_time():
-                print("Data:", data)
+                self.log.debug(f"{data=}")
                 sky_offsets.append(data.offset)
+                await asyncio.sleep(0.1)
 
-            assert np.isclose(np.mean(sky_offsets), 3.5, atol=0.01)
+            assert np.mean(sky_offsets) == pytest.approx(3.5, abs=0.01)

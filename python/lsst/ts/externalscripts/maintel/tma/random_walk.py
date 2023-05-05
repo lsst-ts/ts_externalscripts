@@ -241,7 +241,6 @@ class RandomWalk(BaseTrackTarget):
         amount of time.
         """
         counter = 0
-        timer_task = asyncio.create_task(asyncio.sleep(self.config.total_time))
 
         n_points = 10
         current_az_list = [
@@ -255,6 +254,8 @@ class RandomWalk(BaseTrackTarget):
             for _ in range(n_points)
         ]
         current_el = np.abs(np.median([el.actualPosition for el in current_el_list]))
+
+        timer_task = asyncio.create_task(asyncio.sleep(self.config.total_time))
 
         while not timer_task.done():
             current_radius = (
