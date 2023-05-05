@@ -595,6 +595,13 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                   - type: string
                   - type: "null"
                 default: null
+              catalog_name:
+                description: >-
+                    Name of a start catalog to load or None to skip loading a catalog.
+                anyOf:
+                    - type: string
+                    - type: "null"
+                default: HD_cwfs_stars
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -657,6 +664,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         self.camera_playlist = config.camera_playlist
 
+        self.catalog_name = config.catalog_name
+
         await self.additional_configuration(config)
 
     async def additional_configuration(self, config: types.SimpleNamespace) -> None:
@@ -687,6 +696,10 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             self.log.debug(
                 f"Finding target for cwfs @ {self.target_config.find_target}"
             )
+
+            if self.catalog_name is not None:
+                self.atcs.load_catalog(self.catalog_name)
+
             self.cwfs_target = await self.atcs.find_target(
                 **self.target_config.find_target
             )
