@@ -20,11 +20,11 @@
 
 import asyncio
 import logging
-import unittest
 import types
-import pytest
+import unittest
 
 import numpy as np
+import pytest
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel.tma import RandomWalk
 from lsst.ts.idl.enums import Script
