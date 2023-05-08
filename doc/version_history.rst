@@ -9,6 +9,14 @@ Version History
 v0.25.0
 -------
 
+* In ``random_walk.py``:
+    * The ``random_walk_azel_by_time`` function now returns a dataclass
+    * Replace ``.get`` calls with ``.aget`` calls 
+    * Fix/improve docstring in RandomWalkData
+    * Remove unused variable ```data```
+    * Remove/improve log messages in ``random_walk_by_time``
+    * Improve random_walk_azel_by_time docstring to explain the name ``origin``
+
 * Add new script ``latiss_acquire.py`` for AuxTel.
   This script is used to slew to a target and center it at a specific position.
   
