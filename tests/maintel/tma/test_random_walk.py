@@ -18,10 +18,13 @@
 #
 # You should have received a copy of the GNU General Public License
 
+import asyncio
 import logging
+import types
 import unittest
 
 import numpy as np
+import pytest
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel.tma import RandomWalk
 from lsst.ts.idl.enums import Script
@@ -87,31 +90,27 @@ class TestRandomWalk(
     async def test_random_walk_azel_by_time(self):
         async with self.make_script():
             # Simulate data from EFD
-            class Telemetry:
-                @property
-                def actualPosition(self):
-                    # The telemetry fluctuation is usually very small
-                    return 0.1 * np.random.rand()
+            async def get_telemetry(*args, **kwargs):
+                await asyncio.sleep(0.1)
+                actual_position = 0.1 * np.random.rand()
+                self.log.debug(f"{actual_position=}")
+                return types.SimpleNamespace(actualPosition=actual_position)
 
-            self.script.tcs.rem.mtmount.tel_azimuth.get = unittest.mock.Mock(
-                return_value=Telemetry()
+            self.script.tcs.rem.mtmount.tel_azimuth.aget = unittest.mock.AsyncMock(
+                side_effect=get_telemetry
             )
 
-            self.script.tcs.rem.mtmount.tel_elevation.get = unittest.mock.Mock(
-                return_value=Telemetry()
+            self.script.tcs.rem.mtmount.tel_elevation.aget = unittest.mock.AsyncMock(
+                side_effect=get_telemetry
             )
 
-            assert (
-                np.abs(
-                    np.median(
-                        [
-                            self.script.tcs.rem.mtmount.tel_azimuth.get().actualPosition
-                            for i in range(10)
-                        ]
-                    )
-                )
-                <= 0.1
+            current_az = [
+                await self.script.tcs.rem.mtmount.tel_azimuth.aget() for _ in range(10)
+            ]
+            current_az_median = np.abs(
+                np.median([az.actualPosition for az in current_az])
             )
+            assert current_az_median <= 0.1
 
             await self.configure_script(
                 total_time=2.0,
@@ -121,13 +120,9 @@ class TestRandomWalk(
             )
 
             sky_offsets = []
-            async for i, az, el, off in self.script.random_walk_azel_by_time():
-                sky_offsets.append(off)
+            async for data in self.script.random_walk_azel_by_time():
+                self.log.debug(f"{data=}")
+                sky_offsets.append(data.offset)
+                await asyncio.sleep(0.1)
 
-                # TODO: This should not be necessary
-                # However, if I remove it the loop keeps running forever
-                # It does not seem to happen when running the loop w/ hardware
-                if i == 50:
-                    break
-
-            assert np.isclose(np.mean(sky_offsets), 3.5, atol=0.01)
+            assert np.mean(sky_offsets) == pytest.approx(3.5, abs=0.01)

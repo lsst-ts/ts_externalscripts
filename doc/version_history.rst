@@ -6,6 +6,36 @@
 Version History
 ===============
 
+v0.25.0
+-------
+
+* In ``random_walk.py``:
+    * The ``random_walk_azel_by_time`` function now returns a dataclass
+    * Replace ``.get`` calls with ``.aget`` calls 
+    * Fix/improve docstring in RandomWalkData
+    * Remove unused variable ```data```
+    * Remove/improve log messages in ``random_walk_by_time``
+    * Improve random_walk_azel_by_time docstring to explain the name ``origin``
+
+* Add new script ``latiss_acquire.py`` for AuxTel.
+  This script is used to slew to a target and center it at a specific position.
+  
+* In ``auxtel/correct_pointing`` and ``auxtel/latiss_base_align``, add config to search local catalog and set to HD_cwfs_stars by default. 
+
+* In ``auxtel/latiss_wep_align.py``, remove inline method ``get_image`` and import/use new method ``get_image_sync` from ts_observing_utilities.
+
+* Update latiss_wep_align to work with version 5 of ts_wep
+
+* In ``auxtel/latiss_intra_extra_focal_data``, take detection image after applying offset.
+
+* In ``auxtel/latiss_base_align.py``, implement telescope offset correction when applying tip-tilt hexapod offsets.
+
+* Run isort.
+
+* Update Jenkinsfile to use shared library.
+
+* Configure package to use ts_pre_commit to manage pre_commit hooks.
+
 v0.24.0
 -------
 

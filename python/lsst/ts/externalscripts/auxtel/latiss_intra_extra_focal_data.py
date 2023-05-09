@@ -22,6 +22,7 @@
 __all__ = ["LatissIntraExtraFocalData"]
 
 import types
+
 import yaml
 
 from .latiss_base_align import LatissAlignResults, LatissBaseAlign
@@ -136,6 +137,16 @@ class LatissIntraExtraFocalData(LatissBaseAlign):
 
         await self._slew_to_target(checkpoint)
 
+        # Apply degrees of freedom
+        await self.look_up_table_offsets(
+            self.offset_z,
+            self.offset_x,
+            self.offset_y,
+            self.offset_rx,
+            self.offset_ry,
+            self.offset_m1,
+        )
+
         if self.take_detection_image:
             if checkpoint:
                 await self.checkpoint("Detection image.")
@@ -146,16 +157,6 @@ class LatissIntraExtraFocalData(LatissBaseAlign):
                 + ("" if self.reason is None else f"_{self.reason}"),
                 program=self.program,
             )
-
-        # Apply degrees of freedom
-        await self.look_up_table_offsets(
-            self.offset_z,
-            self.offset_x,
-            self.offset_y,
-            self.offset_rx,
-            self.offset_ry,
-            self.offset_m1,
-        )
 
         # Setting visit_id's to none so run_cwfs will take a new dataset.
         self.intra_visit_id = None

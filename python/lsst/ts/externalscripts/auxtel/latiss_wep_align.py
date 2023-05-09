@@ -24,24 +24,30 @@ __all__ = ["LatissWEPAlign"]
 import asyncio
 import concurrent.futures
 import functools
-import time
 import typing
 import warnings
 
 import numpy as np
 import pandas
 from lsst.afw.geom import SkyWcs
-from lsst.afw.image import ExposureF
 from lsst.pipe.base.struct import Struct
 
 try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
     from lsst.summit.utils import BestEffortIsr
-    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
-    from lsst.ts.wep.task.EstimateZernikesLatissTask import (
-        EstimateZernikesLatissTask,
-        EstimateZernikesLatissTaskConfig,
+    from lsst.ts.observing.utilities.auxtel.latiss.getters import (
+        get_image_sync as get_image,
     )
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
+    from lsst.ts.wep.task.calcZernikesTask import (
+        CalcZernikesTask,
+        CalcZernikesTaskConfig,
+    )
+    from lsst.ts.wep.task.cutOutDonutsScienceSensorTask import (
+        CutOutDonutsScienceSensorTask,
+        CutOutDonutsScienceSensorTaskConfig,
+    )
+
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
@@ -117,9 +123,9 @@ class LatissWEPAlign(LatissBaseAlign):
 
             # output from wep are in microns, need to convert to nm.
             self.zern = [
-                -wep_results.outputZernikesAvg[0][4] * 1e3,
-                wep_results.outputZernikesAvg[0][3] * 1e3,
-                wep_results.outputZernikesAvg[0][0] * 1e3,
+                -wep_results.outputZernikesAvg[4] * 1e3,
+                wep_results.outputZernikesAvg[3] * 1e3,
+                wep_results.outputZernikesAvg[0] * 1e3,
             ]
 
         return self.calculate_results()
@@ -133,6 +139,7 @@ def run_wep(
 ) -> typing.Tuple[Struct, Struct, Struct]:
     best_effort_isr = BestEffortIsr()
 
+    # Get intra and extra results
     exposure_intra = get_image(
         parse_visit_id(intra_visit_id),
         best_effort_isr,
@@ -184,12 +191,16 @@ def run_wep(
         )
     )
 
-    config = EstimateZernikesLatissTaskConfig()
-    config.donutStampSize = donut_diameter
-    config.donutTemplateSize = donut_diameter
-    config.opticalModel = "onAxis"
-
-    task = EstimateZernikesLatissTask(config=config)
+    cut_out_config = CutOutDonutsScienceSensorTaskConfig()
+    # LATISS config parameters
+    cut_out_config.opticalModel = "onAxis"
+    cut_out_config.donutStampSize = donut_diameter
+    cut_out_config.donutTemplateSize = donut_diameter
+    cut_out_config.instObscuration = 0.3525
+    cut_out_config.instFocalLength = 21.6
+    cut_out_config.instApertureDiameter = 1.2
+    cut_out_config.instDefocalOffset = 32.8
+    cut_out_task = CutOutDonutsScienceSensorTask(config=cut_out_config)
 
     camera = best_effort_isr.butler.get(
         "camera",
@@ -197,10 +208,23 @@ def run_wep(
         collections="LATISS/calib/unbounded",
     )
 
-    task_output = task.run(
-        [exposure_intra, exposure_extra],
-        [donut_catalog_intra, donut_catalog_extra],
+    cut_out_output = cut_out_task.run(
+        [exposure_extra, exposure_intra],
+        [donut_catalog_extra, donut_catalog_intra],
         camera,
+    )
+
+    config = CalcZernikesTaskConfig()
+    # LATISS config parameters
+    config.opticalModel = "onAxis"
+    config.instObscuration = 0.3525
+    config.instFocalLength = 21.6
+    config.instApertureDiameter = 1.2
+    config.instDefocalOffset = 32.8
+    task = CalcZernikesTask(config=config, name="Base Task")
+
+    task_output = task.run(
+        cut_out_output.donutStampsExtra, cut_out_output.donutStampsIntra
     )
 
     return result_intra, result_extra, task_output
@@ -242,49 +266,3 @@ def get_donut_catalog(result: Struct, wcs: SkyWcs) -> pandas.DataFrame:
     ).reset_index(drop=True)
 
     return donut_catalog
-
-
-def get_image(
-    data_id: typing.Dict[str, typing.Union[int, str]],
-    best_effort_isr: typing.Any,
-    timeout: float,
-    loop_time: float = 0.1,
-) -> ExposureF:
-    """Retrieve image from butler repository.
-
-    If not present, then it will poll at intervals of loop_time (0.1s default)
-    until the image arrives, or until the timeout is reached.
-
-    Parameters
-    ----------
-    data_id : `dict`
-        A dictionary consisting of the keys and data required to fetch an
-        image from the butler.
-        e.g data_id = {'day_obs': 20200219, 'seq_num': 2,
-                       'detector': 0, "instrument": 'LATISS'}
-    best_effort_isr : `BestEffortIsr`
-        BestEffortISR class instantiated with a butler.
-    loop_time : `float`
-        Time between polling attempts. Defaults to 0.1s
-    timeout:  `float`
-        Total time to poll for image before raising an exception
-
-    Returns
-    -------
-    exp: `ExposureF`
-        Exposure returned from butler query
-    """
-
-    endtime = time.time() + timeout
-    while True:
-        try:
-            exp = best_effort_isr.getExposure(data_id)
-            return exp
-
-        except ValueError:
-            time.sleep(loop_time)
-
-        if time.time() >= endtime:
-            raise TimeoutError(
-                f"Unable to get raw image from butler in {timeout} seconds."
-            )

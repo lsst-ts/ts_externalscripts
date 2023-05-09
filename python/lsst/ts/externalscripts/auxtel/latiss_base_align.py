@@ -133,12 +133,21 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
             ]
         )
 
-        # Matrix to map hexapod offset to alt/az offset in the focal plane
+        # Matrix to map hexapod xy-offset to alt/az offset in the focal plane
         # units are arcsec/mm. X-axis is Elevation
         # Measured with data from AT run SUMMIT-5027.
         self.hexapod_offset_scale = [
             [52.459, 0.0, 0.0],
             [0.0, 50.468, 0.0],
+            [0.0, 0.0, 0.0],
+        ]
+
+        # Matrix to map hexapod uv-offset to alt/az offset in the focal plane
+        # units are arcsec/degrees.
+        # Measured with data from AT run SUMMIT-7280
+        self.hexapod_uv_offset_scale = [
+            [1312.95, 0.0, 0.0],
+            [0.0, -1331.81, 0.0],
             [0.0, 0.0, 0.0],
         ]
 
@@ -328,11 +337,19 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
             **offset_applied, timeout=self.timeout_long
         )
 
-        tel_el_offset, tel_az_offset, _ = np.matmul(
-            [x, y, offset], self.hexapod_offset_scale
-        )
+        if self.offset_telescope and (x != 0.0 or y != 0.0 or u != 0.0 or v != 0.0):
+            tel_el_offset_xy, tel_az_offset_xy, _ = np.matmul(
+                [x, y, offset], self.hexapod_offset_scale
+            )
 
-        if self.offset_telescope and (tel_az_offset != 0.0 or tel_el_offset != 0.0):
+            tel_el_offset_uv, tel_az_offset_uv, _ = np.matmul(
+                [u, v, offset], self.hexapod_uv_offset_scale
+            )
+            tel_az_offset, tel_el_offset = (
+                tel_el_offset_xy + tel_el_offset_uv,
+                tel_az_offset_xy + tel_az_offset_uv,
+            )
+
             self.log.info(
                 f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
             )
@@ -578,6 +595,13 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                   - type: string
                   - type: "null"
                 default: null
+              catalog_name:
+                description: >-
+                    Name of a start catalog to load or None to skip loading a catalog.
+                anyOf:
+                    - type: string
+                    - type: "null"
+                default: HD_cwfs_stars
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -640,6 +664,8 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         self.camera_playlist = config.camera_playlist
 
+        self.catalog_name = config.catalog_name
+
         await self.additional_configuration(config)
 
     async def additional_configuration(self, config: types.SimpleNamespace) -> None:
@@ -670,6 +696,10 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             self.log.debug(
                 f"Finding target for cwfs @ {self.target_config.find_target}"
             )
+
+            if self.catalog_name is not None:
+                self.atcs.load_catalog(self.catalog_name)
+
             self.cwfs_target = await self.atcs.find_target(
                 **self.target_config.find_target
             )
