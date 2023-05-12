@@ -6,6 +6,11 @@
 Version History
 ===============
 
+v0.25.1
+-------
+
+* In ``auxtel/latiss_acquire.py``, fix call to ``get_next_image_data_id``.
+
 v0.25.0
 -------
 
