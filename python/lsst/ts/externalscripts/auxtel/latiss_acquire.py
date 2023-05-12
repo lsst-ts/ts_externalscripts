@@ -451,9 +451,7 @@ class LatissAcquire(salobj.BaseScript):
                 reason=self.reason,
                 program=self.program,
             )
-            data_id = await self.get_next_image_data_id(
-                timeout=self.acq_exposure_time + STD_TIMEOUT, flush=False
-            )
+            data_id = await self.get_next_image_data_id()
             self.log.debug(
                 f"Take Object returned {tmp}. Now waiting for image to land in OODS"
             )
