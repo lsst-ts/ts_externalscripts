@@ -138,13 +138,13 @@ class LatissIntraExtraFocalData(LatissBaseAlign):
         await self._slew_to_target(checkpoint)
 
         # Apply degrees of freedom
-        await self.look_up_table_offsets(
-            self.offset_z,
-            self.offset_x,
-            self.offset_y,
-            self.offset_rx,
-            self.offset_ry,
-            self.offset_m1,
+        await self.atcs.offset_aos_lut(
+            z=self.offset_z,
+            x=self.offset_x,
+            y=self.offset_y,
+            u=self.offset_rx,
+            v=self.offset_ry,
+            m1=self.offset_m1,
         )
 
         if self.take_detection_image:
@@ -165,13 +165,13 @@ class LatissIntraExtraFocalData(LatissBaseAlign):
             await self.take_intra_extra()
         finally:
             # Return telescope to original state
-            await self.look_up_table_offsets(
-                -self.offset_z,
-                -self.offset_x,
-                -self.offset_y,
-                -self.offset_rx,
-                -self.offset_ry,
-                -self.offset_m1,
+            await self.atcs.offset_aos_lut(
+                z=-self.offset_z,
+                x=-self.offset_x,
+                y=-self.offset_y,
+                u=-self.offset_rx,
+                v=-self.offset_ry,
+                m1=-self.offset_m1,
             )
 
     async def run_align(self) -> LatissAlignResults:
