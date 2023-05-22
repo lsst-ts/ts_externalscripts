@@ -23,7 +23,6 @@ __all__ = ["LatissBaseAlign"]
 
 import abc
 import dataclasses
-import time
 import types
 import typing
 
@@ -133,24 +132,6 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
             ]
         )
 
-        # Matrix to map hexapod xy-offset to alt/az offset in the focal plane
-        # units are arcsec/mm. X-axis is Elevation
-        # Measured with data from AT run SUMMIT-5027.
-        self.hexapod_offset_scale = [
-            [52.459, 0.0, 0.0],
-            [0.0, 50.468, 0.0],
-            [0.0, 0.0, 0.0],
-        ]
-
-        # Matrix to map hexapod uv-offset to alt/az offset in the focal plane
-        # units are arcsec/degrees.
-        # Measured with data from AT run SUMMIT-7280
-        self.hexapod_uv_offset_scale = [
-            [1312.95, 0.0, 0.0],
-            [0.0, -1331.81, 0.0],
-            [0.0, 0.0, 0.0],
-        ]
-
         # Default values for rotator angle and rotator strategy.
         self.rot = 0.0
         self.rot_strategy = RotType.SkyAuto
@@ -246,7 +227,7 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.log.debug("Moving to intra-focal position")
 
-        await self.look_up_table_offsets(self.dz)
+        await self.atcs.offset_aos_lut(z=self.dz)
 
         self.log.debug("Taking intra-focal image")
 
@@ -265,7 +246,8 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Hexapod offsets are relative, so need to move 2x the offset
         # to get from the intra- to the extra-focal position.
         # then add the offset to compensate for un-equal magnification
-        await self.look_up_table_offsets(-(self.dz * 2.0 + self.extra_focal_offset))
+        z_offset = -(self.dz * 2.0 + self.extra_focal_offset)
+        await self.atcs.offset_aos_lut(z=z_offset)
 
         self.log.debug("Taking extra-focal image")
 
@@ -293,93 +275,9 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.log.debug("Moving hexapod back to zero offset (in-focus) position")
         # This is performed such that the telescope is left in the
         # same position it was before running the script
-        await self.look_up_table_offsets(self.dz + self.extra_focal_offset)
+        z_offset = self.dz + self.extra_focal_offset
 
-    async def look_up_table_offsets(
-        self,
-        offset: float,
-        x: float = 0.0,
-        y: float = 0.0,
-        u: float = 0.0,
-        v: float = 0.0,
-        m1: float = 0.0,
-    ) -> None:
-        """Applies offsets to the AOS look-up table values.
-
-        Parameters
-        ----------
-        offset : `float`
-            Offset the hexapod in the z-axis, in mm.
-        x : `float`, optional
-            Offset the hexapod in the x-axis, in mm (default=0).
-        y : `float`, optional
-            Offset the hexapod in the y-axis, in mm (default=0).
-        u : `float`, optional
-            Rx offset, in degrees (default=0).
-        v : `float`, optional
-            Ry offset, in degrees (default=0).
-        m1 : `float`, optional
-            M1 pressure offset, in Pa (default=0).
-        """
-
-        offset_applied = {
-            "m1": m1,
-            "m2": 0.0,
-            "x": x,
-            "y": y,
-            "z": offset,
-            "u": u,
-            "v": v,
-        }
-
-        self.atcs.rem.ataos.evt_detailedState.flush()
-        await self.atcs.rem.ataos.cmd_offset.set_start(
-            **offset_applied, timeout=self.timeout_long
-        )
-
-        if self.offset_telescope and (x != 0.0 or y != 0.0 or u != 0.0 or v != 0.0):
-            tel_el_offset_xy, tel_az_offset_xy, _ = np.matmul(
-                [x, y, offset], self.hexapod_offset_scale
-            )
-
-            tel_el_offset_uv, tel_az_offset_uv, _ = np.matmul(
-                [u, v, offset], self.hexapod_uv_offset_scale
-            )
-            tel_az_offset, tel_el_offset = (
-                tel_el_offset_xy + tel_el_offset_uv,
-                tel_az_offset_xy + tel_az_offset_uv,
-            )
-
-            self.log.info(
-                f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
-            )
-            await self.atcs.offset_azel(
-                az=tel_az_offset,
-                el=tel_el_offset,
-                relative=True,
-                persistent=True,
-            )
-        # Wait for ataos to go through a cycle, which will apply the offset if
-        # enough error has accumulated to pass the ataos thresholds.
-        # Success means we need to see ATAOS substate bit 3 (hexapod
-        # correction) or 4 (Focus correction), then 0 (IDLE).
-        # The bit(s) will flip when the correction is being determined,
-        # regardless  of if a hexapod actually had to move
-
-        start_time = time.time()
-        check_ss2 = False
-        while time.time() < start_time + self.timeout_long:
-            state = await self.atcs.rem.ataos.evt_detailedState.next(
-                flush=False, timeout=self.timeout_long
-            )
-            if (
-                bool(state.substate & (1 << 3))
-                or bool(state.substate & (1 << 4))
-                or check_ss2 is True
-            ):
-                check_ss2 = True
-                if state.substate == 0:
-                    break
+        await self.atcs.offset_aos_lut(z=z_offset)
 
     def calculate_results(self) -> LatissAlignResults:
         """Calculates hexapod and telescope offsets based on derotated
@@ -877,7 +775,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 # Add coma offsets from previous run
                 self.offset_total_coma_x += coma_x
                 self.offset_total_coma_y += coma_y
-                await self.look_up_table_offsets(focus_offset, x=coma_x, y=coma_y)
+                await self.atcs.offset_aos_lut(z=focus_offset, x=coma_x, y=coma_y)
 
                 current_target = await self.atcs.rem.atptg.evt_currentTarget.aget(
                     timeout=self.timeout_short
@@ -914,7 +812,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     await self.checkpoint(
                         f"[{i + 1}/{self.max_iter}]: CWFS focus error too large."
                     )
-                await self.look_up_table_offsets(self.large_defocus)
+                await self.atcs.offset_aos_lut(z=self.large_defocus)
             else:
                 self.offset_total_focus += focus_offset
                 self.log.info(
@@ -926,7 +824,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     )
                 self.offset_total_coma_x += coma_x
                 self.offset_total_coma_y += coma_y
-                await self.look_up_table_offsets(focus_offset, x=coma_x, y=coma_y)
+                await self.atcs.offset_aos_lut(z=focus_offset, x=coma_x, y=coma_y)
 
         self.log.warning(
             f"Reached maximum iteration ({self.max_iter}) without convergence.\n"

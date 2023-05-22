@@ -6,6 +6,12 @@
 Version History
 ===============
 
+v0.25.2
+-------
+
+* In ``auxtel/latiss_base_align.py`` and ``auxtel/latiss_intra_extra_focal_data.py`` replace calls of look_up_table_offset with new atcs method offset_aos_lut.
+* Add new ``.github/workflows/changelog.yaml`` file. 
+
 v0.25.1
 -------
 
