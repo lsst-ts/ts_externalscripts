@@ -32,6 +32,7 @@ from lsst.ts import salobj
 from lsst.ts.idl.enums.ATPtg import WrapStrategy
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
+from lsst.ts.observatory.control.constants import atcs_constants
 from lsst.ts.observatory.control.utils import RotType
 
 STD_TIMEOUT = 10
@@ -175,6 +176,8 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.offset_total_focus = 0.0
         self.offset_total_coma_x = 0.0
         self.offset_total_coma_y = 0.0
+
+        self.hexapod_offset_scale = atcs_constants.hexapod_offset_scale
 
         self.camera_playlist = None
 
