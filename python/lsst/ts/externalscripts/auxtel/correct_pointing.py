@@ -78,7 +78,7 @@ class CorrectPointing(BaseScript):
 
         self.azimuth = 90.0
         self.elevation = 60.0
-        self.radius = 0.5
+        self.radius = 5.0
         self.magnitude_limit = 8.0
         self.magnitude_range = 2.0
 
@@ -113,7 +113,7 @@ class CorrectPointing(BaseScript):
             radius:
                 type: number
                 description: Radius of the cone search (in degrees).
-                default: 0.5
+                default: 5.0
             catalog_name:
                 description: >-
                     Name of a start catalog to load or None to skip loading a catalog.

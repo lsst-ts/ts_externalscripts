@@ -6,6 +6,12 @@
 Version History
 ===============
 
+v0.25.3
+-------
+
+* In ``auxtel/latiss_base_align.py``, update sensitiviy matrix and add hexapod_offset_scale from constants. 
+* In ``auxtel/correct_pointing.py``, update default search radius to 5.0 deg. 
+
 v0.25.2
 -------
 
