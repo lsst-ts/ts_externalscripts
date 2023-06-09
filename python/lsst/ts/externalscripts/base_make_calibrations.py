@@ -931,10 +931,24 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 f"Valid options: {self.pipetask_parameters_verification.keys()}"
             )
 
+        # Use the camera-agnostic yaml file if the camera-specific
+        # file does not exist.
+        cp_verify_dir = getPackageDir("cp_verify")
+        pipeline_yaml_file = os.path.join(
+            cp_verify_dir, "pipelines", self.pipeline_instrument, pipe_yaml
+        )
+        file_exists = os.path.exists(pipeline_yaml_file)
+        if file_exists:
+            pipeline_yaml_file = (
+                f"${{CP_VERIFY_DIR}}/pipelines/{self.pipeline_instrument}/{pipe_yaml}"
+            )
+        else:
+            pipeline_yaml_file = f"${{CP_VERIFY_DIR}}/pipelines/{pipe_yaml}"
+
         # Verify the combined calibration
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
-            pipeline=f"${{CP_VERIFY_DIR}}/pipelines/{pipe_yaml}",
+            pipeline=f"{pipeline_yaml_file}",
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"

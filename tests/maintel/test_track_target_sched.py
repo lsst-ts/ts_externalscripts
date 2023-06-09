@@ -24,7 +24,7 @@ import random
 import unittest
 
 import pytest
-from lsst.ts import externalscripts, salobj, standardscripts
+from lsst.ts import externalscripts, salobj, standardscripts, utils
 from lsst.ts.externalscripts.maintel import TrackTargetSched
 
 random.seed(47)  # for set_random_lsst_dds_partition_prefix
@@ -59,6 +59,8 @@ class TestSlewAndTrackSched(
 
     async def test_run(self):
         async with self.make_script():
+            self.script._mtcs = unittest.mock.AsyncMock()
+            self.script._mtcs.start_task = utils.make_done_future()
             self.script.tcs.slew_icrs = unittest.mock.AsyncMock()
             self.script.tcs.slew_object = unittest.mock.AsyncMock()
             self.script.tcs.stop_tracking = unittest.mock.AsyncMock()
