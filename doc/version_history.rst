@@ -6,6 +6,17 @@
 Version History
 ===============
 
+v0.25.4
+-------
+
+* In ``base_make_calibrations.py``, update to check for instrument ``cp_verify`` config file first.
+
+v0.25.3
+-------
+
+* In ``auxtel/latiss_base_align.py``, update sensitiviy matrix and add hexapod_offset_scale from constants. 
+* In ``auxtel/correct_pointing.py``, update default search radius to 5.0 deg. 
+
 v0.25.2
 -------
 

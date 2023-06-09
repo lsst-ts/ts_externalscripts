@@ -32,6 +32,7 @@ from lsst.ts import salobj
 from lsst.ts.idl.enums.ATPtg import WrapStrategy
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
+from lsst.ts.observatory.control.constants import atcs_constants
 from lsst.ts.observatory.control.utils import RotType
 
 STD_TIMEOUT = 10
@@ -114,12 +115,12 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         # Sensitivity matrix: mm of hexapod motion for nm of wfs. To figure out
         # the hexapod correction multiply the calculated zernikes by this.
         # Note that the zernikes must be derotated before applying the
-        # corrections. See https://tstn-016.lsst.io/ for information about how
-        # these values were derived.
+        # corrections. See https://sitcomtn-072.lsst.io/ for information about
+        # how these values were derived.
         self.matrix_sensitivity = [
-            [1.0 / 206.0, 0.0, 0.0],
-            [0.0, -1.0 / 206.0, -(109.0 / 206.0) / 4200],
-            [0.0, 0.0, 1.0 / 4200.0],
+            [0.00688945, -0.00008867, 0.00004848],
+            [0.00031787, -0.00650340, -0.00007319],
+            [-0.00000782, -0.00003023, 0.00025634],
         ]
 
         # Rotation matrix to take into account angle between camera and
@@ -175,6 +176,8 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.offset_total_focus = 0.0
         self.offset_total_coma_x = 0.0
         self.offset_total_coma_y = 0.0
+
+        self.hexapod_offset_scale = atcs_constants.hexapod_offset_scale
 
         self.camera_playlist = None
 
