@@ -6,6 +6,11 @@
 Version History
 ===============
 
+v0.25.4
+-------
+
+* In ``base_make_calibrations.py``, update to check for instrument ``cp_verify`` config file first.
+
 v0.25.3
 -------
 
