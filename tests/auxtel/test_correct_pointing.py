@@ -24,6 +24,7 @@ import tempfile
 import unittest
 import unittest.mock
 
+import numpy as np
 from lsst.daf import butler as dafButler
 from lsst.ts.externalscripts import get_scripts_dir
 from lsst.ts.externalscripts.auxtel.correct_pointing import CorrectPointing
@@ -86,6 +87,18 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
                 await self.configure_script(**config)
 
                 self.assert_config(default_values, config)
+
+    async def test_check_center(self):
+        self.remotes_needed = False
+        async with self.make_script():
+            self.script.find_offset = unittest.mock.AsyncMock(
+                return_value=(np.nan, np.nan)
+            )
+            self.script.latiss.take_acq = unittest.mock.AsyncMock(return_value=([1, 2]))
+            self.script.latiss.rem.atoods = unittest.mock.AsyncMock()
+
+            with self.assertRaises(RuntimeError):
+                await self.script._center()
 
     def assert_config(self, default_values, config):
         configured_values = dict(

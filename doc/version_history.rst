@@ -6,6 +6,11 @@
 Version History
 ===============
 
+v0.25.5
+-------
+
+* In ``auxtel/correct_pointing.py``, fixed bug where ``_center`` could send ``Nan`` offsets to atcs.
+
 v0.25.4
 -------
 
