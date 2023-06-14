@@ -326,7 +326,7 @@ class CorrectPointing(BaseScript):
 
         offset_x, offset_y = await self.find_offset(image_id=acquisition_image_ids[0])
 
-        if np.isnan(offset_x) | np.isnan(offset_y):
+        if np.isnan(offset_x) or np.isnan(offset_y):
             raise RuntimeError(
                 f"offset_x and offset_y cannot contain any NANs: ({offset_x},{offset_y})"
             )

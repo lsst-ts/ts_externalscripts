@@ -96,9 +96,11 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
             )
             self.script.latiss.take_acq = unittest.mock.AsyncMock(return_value=([1, 2]))
             self.script.latiss.rem.atoods = unittest.mock.AsyncMock()
+            self.script.atcs.offset_xy = unittest.mock.AsyncMock()
 
             with self.assertRaises(RuntimeError):
                 await self.script._center()
+            self.script.atcs.offset_xy.assert_not_awaited()
 
     def assert_config(self, default_values, config):
         configured_values = dict(
