@@ -20,10 +20,11 @@
 
 __all__ = ["LoveManagerClient"]
 
-import aiohttp
 import asyncio
 import json
 import logging
+
+import aiohttp
 from lsst.ts import salobj, utils
 
 
@@ -180,7 +181,7 @@ class LoveManagerClient:
         except Exception as e:
             raise RuntimeError("Manager Client connection failed.") from e
 
-    async def send_SAL_command(self, csc, salindex, cmd_name, params):
+    async def send_sal_command(self, csc, salindex, cmd_name, params):
         """Send a SAL command to the specified CSC
 
         Parameters

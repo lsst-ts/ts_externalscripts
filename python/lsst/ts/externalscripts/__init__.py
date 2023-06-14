@@ -19,7 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from .love_manager_client import *
 from .make_love_stress_tests import *
+from .make_love_uptime_tests import *
 from .utils import *
 
 try:
