@@ -6,11 +6,15 @@
 Version History
 ===============
 
+v0.25.6
+-------
+
+* In ``maintel/make_comcam_calibrations.py``, fix typo in pipeline instrument name.
+
 v0.25.5
 -------
 
 * In ``auxtel/correct_pointing.py``, fixed bug where ``_center`` could send ``Nan`` offsets to atcs.
-* In ``maintel/make_comcam_calibrations.py``, fix typo in pipeline instrument name.
 
 v0.25.4
 -------
