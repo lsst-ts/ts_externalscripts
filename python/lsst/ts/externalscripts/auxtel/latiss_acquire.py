@@ -437,6 +437,10 @@ class LatissAcquire(salobj.BaseScript):
             f"iterations set to {self.max_acq_iter}"
         )
         _success = self.max_acq_iter == 0
+
+        await asyncio.sleep(self.acq_exposure_time)
+        return
+
         for iter_num in range(self.max_acq_iter):
             self.log.debug(
                 f"\nStarting iteration number {iter_num + 1}, with a "
