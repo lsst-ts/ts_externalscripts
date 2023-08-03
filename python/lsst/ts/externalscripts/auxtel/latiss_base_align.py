@@ -22,6 +22,7 @@
 __all__ = ["LatissBaseAlign"]
 
 import abc
+import asyncio
 import dataclasses
 import types
 import typing
@@ -726,6 +727,11 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         await self._configure_target()
 
         await self._slew_to_target(checkpoint)
+
+        if checkpoint:
+            await self.checkpoint("Pausing and finishing...")
+            await asyncio.sleep(30.0)
+            return
 
         if self.take_detection_image:
             if checkpoint:
