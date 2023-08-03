@@ -600,7 +600,10 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
             )
 
             if self.catalog_name is not None:
-                self.atcs.load_catalog(self.catalog_name)
+                try:
+                    self.atcs.load_catalog(self.catalog_name)
+                except Exception:
+                    self.log.exception("Failed to load catalog.")
 
             self.cwfs_target = await self.atcs.find_target(
                 **self.target_config.find_target
