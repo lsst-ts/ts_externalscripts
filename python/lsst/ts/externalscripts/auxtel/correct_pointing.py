@@ -79,8 +79,8 @@ class CorrectPointing(BaseScript):
         self.azimuth = 90.0
         self.elevation = 60.0
         self.radius = 5.0
-        self.magnitude_limit = 8.0
-        self.magnitude_range = 2.0
+        self.magnitude_limit = 6.0
+        self.magnitude_range = 4.0
 
     @classmethod
     def get_schema(cls) -> dict[str, typing.Any]:
@@ -103,13 +103,13 @@ class CorrectPointing(BaseScript):
             mag_limit:
                 type: number
                 description: Minimum (brightest) V-magnitude limit.
-                default: 8.0
+                default: 6.0
             mag_range:
                 type: number
                 description: >-
                     Magnitude range. The maximum/faintest limit is defined as
                     mag_limit+mag_range.
-                default: 2.0
+                default: 4.0
             radius:
                 type: number
                 description: Radius of the cone search (in degrees).
