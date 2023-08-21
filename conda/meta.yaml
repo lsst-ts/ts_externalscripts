@@ -19,7 +19,6 @@ test:
   source_files:
     - python
     - tests
-    - setup.cfg
     - pyproject.toml
   imports:
     - lsst.ts.externalscripts
