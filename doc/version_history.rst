@@ -10,7 +10,9 @@ v0.25.7
 -------
 
 * In ``auxtel/correct_pointing.py``, update default search parameters to increase chance of finding target in local catalog.
-* Remove ``setup.cfg`` file and update flake8 options in ``pyproject.toml``.
+* Remove ``setup.cfg`` file and update flake8 options in ``pyproject.toml``. Update conda recipe.
+* In ``auxtel/latiss_base_align.py``, reduce default focus correction threshold.
+
 
 v0.25.6
 -------

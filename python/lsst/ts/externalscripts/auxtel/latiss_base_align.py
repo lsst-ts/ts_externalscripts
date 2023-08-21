@@ -461,7 +461,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                    Focus correction threshold. If correction is lower than this
                    value, stop correction loop.
                  type: number
-                 default: 0.015
+                 default: 0.004
               coma_threshold:
                  description: >-
                    Coma correction threshold. If correction is lower than this
