@@ -79,7 +79,7 @@ class TestRandomWalkAndTakeImagesGenCam(
         actual_position = 0.1 * np.random.rand()
         self.log.debug(f"{actual_position=}")
         return types.SimpleNamespace(actualPosition=actual_position)
-    
+
     async def get_dome_telemetry(self, *args, **kwargs):
         self.log.debug(f"get_dome_telemetry called with {args=} {kwargs=}")
         await asyncio.sleep(0.1)
@@ -148,7 +148,7 @@ class TestRandomWalkAndTakeImagesGenCam(
                     "tel_elevation.aget.side_effect": self.get_telemetry,
                 }
             )
-            
+
             self.script._mtcs.rem.mtdome = unittest.mock.AsyncMock()
             self.script._mtcs.rem.mtdome.configure_mock(
                 **{
@@ -158,7 +158,7 @@ class TestRandomWalkAndTakeImagesGenCam(
             )
 
             self.script.slew_and_track = unittest.mock.AsyncMock()
-
+                                
             # Run the script
             self.log.debug("Running script")
             await self.run_script()
