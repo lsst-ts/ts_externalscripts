@@ -68,7 +68,9 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
         Usages.TakeImageFull = 1 << 4
 
         self.mtcs_usage, self.gencam_usage = (
-            (None, None) if add_remotes else (MTCSUsages.DryTest, Usages.DryTest)
+            (MTCSUsages.Slew, Usages.TakeImageFull)
+            if add_remotes
+            else (MTCSUsages.DryTest, Usages.DryTest)
         )
 
         self._mtcs = MTCS(
@@ -371,7 +373,7 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
 
         # Determine from the current position if we want to move or not
         dome_az_encoder = await self.tcs.rem.mtdome.tel_azimuth.next(flush=True)
-        dome_az_encoder = dome_az_encoder.positionActual        
+        dome_az_encoder = dome_az_encoder.positionActual
         dome_az_physical = dome_az_encoder - self.config.dome_offset
         self.log.debug(
             f"Current dome encoder position: {dome_az_encoder:.3f}, "
@@ -413,23 +415,21 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
 
     async def run(self):
         """Main loop of the script."""
-        # tasks = [gencam.start_task for gencam in self.gencam_list]
-        # await asyncio.gather(self.tcs.start_task, *tasks)
-
         counter = 0
         azel_gen = self.get_azel_random_walk()
         end_tai = utils.current_tai() + self.config.total_time
 
+        self.log.info("Start random walk and take images")
         while True:
             if utils.current_tai() > end_tai:
                 break
 
             counter += 1
             try:
-              data = await anext(azel_gen)
+                data = await anext(azel_gen)
             except StopAsyncIteration:
-              self.log.debug("StopAsyncIteration - end of random walk.")
-              break
+                self.log.debug("StopAsyncIteration - end of random walk.")
+                break
 
             await self.checkpoint(f"[{counter}] Tracking {data.az=}/{data.el=}.")
             await self.slew_and_track(
