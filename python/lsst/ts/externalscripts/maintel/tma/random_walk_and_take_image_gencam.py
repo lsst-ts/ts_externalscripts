@@ -375,10 +375,10 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
         dome_az_physical = dome_az_encoder - self.config.dome_offset
         self.log.debug(
             f"Current dome encoder position: {dome_az_encoder:.3f}, "
-        #     f"Dome offset: {self.config.dome_offset:.3f}, "
-        #     f"Current dome physical position: {dome_az_physical:.3f}, "
-        #     f"Target telescope az: {az:.3f}, "
-        #     f"Dome Physical - Target Az: {dome_az_physical - az:.3f}"
+            f"Dome offset: {self.config.dome_offset:.3f}, "
+            f"Current dome physical position: {dome_az_physical:.3f}, "
+            f"Target telescope az: {az:.3f}, "
+            f"Dome Physical - Target Az: {dome_az_physical - az:.3f}"
         )
 
         # Do nothing if our next target is too close to the current dome position
@@ -425,7 +425,12 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
                 break
 
             counter += 1
-            data = await anext(azel_gen)
+            try:
+              data = await anext(azel_gen)
+            except StopAsyncIteration:
+              self.log.debug("StopAsyncIteration - end of random walk.")
+              break
+
             await self.checkpoint(f"[{counter}] Tracking {data.az=}/{data.el=}.")
             await self.slew_and_track(
                 data.az, data.el, target_name=f"random_walk_{counter}"
@@ -433,11 +438,6 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
 
             # Move the dome to the new position
             await self.move_dome(data.az)
-
-            # Slew to the next target
-            await self.slew_and_track(
-                data.az, data.el, target_name=f"random_walk_{data.counter}"
-            )
 
             # Take data in sync with all the GenericCameras
             await self.take_data()
