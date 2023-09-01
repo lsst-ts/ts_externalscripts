@@ -22,9 +22,7 @@ __all__ = ["RandomWalkAndTakeImagesGenCam"]
 
 import asyncio
 
-import numpy as np
 import yaml
-
 from lsst.ts import utils
 from lsst.ts.observatory.control import Usages
 from lsst.ts.observatory.control.generic_camera import GenericCamera
@@ -383,7 +381,8 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
             f"Dome Physical - Target Az: {dome_az_physical - az:.3f}"
         )
 
-        # Do nothing if our next target is too close to the current dome position
+        # Do nothing if our next target is too close
+        # to the current dome position
         if abs(dome_az_physical - az) <= self.config.max_dome_mount_az:
             self.log.info(
                 "The difference between Dome and TMA is too small. "

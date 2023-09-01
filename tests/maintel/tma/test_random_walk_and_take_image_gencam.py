@@ -20,15 +20,14 @@
 
 import asyncio
 import logging
-import unittest
 import types
+import unittest
 
 import numpy as np
-
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel.tma import RandomWalkAndTakeImagesGenCam
-from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.idl.enums import Script
+from lsst.ts.observatory.control.utils import RotType
 
 
 class TestRandomWalkAndTakeImagesGenCam(
@@ -158,7 +157,7 @@ class TestRandomWalkAndTakeImagesGenCam(
             )
 
             self.script.slew_and_track = unittest.mock.AsyncMock()
-                                
+
             # Run the script
             self.log.debug("Running script")
             await self.run_script()

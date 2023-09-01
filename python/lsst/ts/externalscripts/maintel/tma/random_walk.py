@@ -20,7 +20,6 @@
 
 __all__ = ["RandomWalk", "RandomWalkData"]
 
-import asyncio
 from dataclasses import dataclass
 
 import numpy as np
