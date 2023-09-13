@@ -252,6 +252,8 @@ class CorrectPointing(BaseScript):
                 az=self.azimuth,
                 el=self.elevation,
                 mag_limit=self.magnitude_limit,
+                mag_range=self.magnitude_range,
+                radius=self.radius,
             )
         except Exception:
             error_message = f"Error finding target for azimuth={self.azimuth}, elevation={self.elevation}."
