@@ -13,6 +13,7 @@ v0.26.0
   This script is used to test the uptime of the LOVE system.
 * Add new module ``love_manager_client.py``.
   This module is used to create a LOVE Manager client.
+* In ``auxtel/correct_pointing.py``, fix bug where ``magnitude_range`` and ``radius`` were not being passed to ``find_target``.
 
 v0.25.7
 -------
