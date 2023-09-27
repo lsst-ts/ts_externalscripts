@@ -6,8 +6,10 @@
 Version History
 ===============
 
+.. towncrier release notes start
+
 v0.26.0
--------
+=======
 
 * Add new script ``make_love_uptime_tests.py``.
   This script is used to test the uptime of the LOVE system.
@@ -16,7 +18,7 @@ v0.26.0
 * In ``auxtel/correct_pointing.py``, fix bug where ``magnitude_range`` and ``radius`` were not being passed to ``find_target``.
 
 v0.25.7
--------
+=======
 
 * In ``auxtel/correct_pointing.py``, update default search parameters to increase chance of finding target in local catalog.
 * Remove ``setup.cfg`` file and update flake8 options in ``pyproject.toml``. Update conda recipe.
@@ -24,39 +26,39 @@ v0.25.7
 
 
 v0.25.6
--------
+=======
 
 * In ``maintel/make_comcam_calibrations.py``, fix typo in pipeline instrument name.
 
 v0.25.5
--------
+=======
 
 * In ``auxtel/correct_pointing.py``, fixed bug where ``_center`` could send ``Nan`` offsets to atcs.
 
 v0.25.4
--------
+=======
 
 * In ``base_make_calibrations.py``, update to check for instrument ``cp_verify`` config file first.
 
 v0.25.3
--------
+=======
 
 * In ``auxtel/latiss_base_align.py``, update sensitiviy matrix and add hexapod_offset_scale from constants. 
 * In ``auxtel/correct_pointing.py``, update default search radius to 5.0 deg. 
 
 v0.25.2
--------
+=======
 
 * In ``auxtel/latiss_base_align.py`` and ``auxtel/latiss_intra_extra_focal_data.py`` replace calls of look_up_table_offset with new atcs method offset_aos_lut.
 * Add new ``.github/workflows/changelog.yaml`` file. 
 
 v0.25.1
--------
+=======
 
 * In ``auxtel/latiss_acquire.py``, fix call to ``get_next_image_data_id``.
 
 v0.25.0
--------
+=======
 
 * In ``random_walk.py``:
     * The ``random_walk_azel_by_time`` function now returns a dataclass
@@ -86,7 +88,7 @@ v0.25.0
 * Configure package to use ts_pre_commit to manage pre_commit hooks.
 
 v0.24.0
--------
+=======
 
 * Add new Script ``LatissIntraExtraFocalData`` for AuxTel.
   This script is used to take intra and extra focal data with given look up table offsets.
@@ -97,20 +99,20 @@ v0.24.0
     * Add slew_to_target function
 
 v0.23.4
--------
+=======
 
 * In ``make_base_calibrations.py``:
 
     * Update number and exposure times for darks.
 
 v0.23.3
--------
+=======
 
 * Update pre-commit hook versions.
 * Run black 23.1.0.
 
 v0.23.2
--------
+=======
 
 * In ``make_love_stress_tests.py``:
 
@@ -120,7 +122,7 @@ v0.23.2
 * In ``auxtel/latiss_wep_align.py``, update ``get_donut_catalog`` to include ``blend_centroid_x`` / ``blend_centroid_y`` to the donut catalog.
 
 v0.23.1
--------
+=======
 
 * In ``auxtel/latiss_cwfs_align.py``, update log messages with positions of sources found.
 
@@ -129,7 +131,7 @@ v0.23.1
   It calculates a mean latency after a certain amount of messages is received.
 
 v0.23.0
--------
+=======
 * Add new Script ``RandomWalk`` for MainTel.
   This script slew and track objects on sky while performing offsets with pre-defined size in random directions.
   It also has a probability of performing larger offsets.
@@ -143,14 +145,14 @@ v0.23.0
 
 
 v0.22.0
--------
+=======
 
 * Add new Script ``TrackTargetSched`` for MainTel.
   This script implements a simple visit consisting of slewing to a target and start tracking.
 
 
 v0.21.0
--------
+=======
 
 
 * Add new Script ``CorrectPointing`` for AuxTel.
@@ -165,7 +167,7 @@ v0.21.0
 
 
 v0.20.0
--------
+=======
 
 * In base_make_calibrations:
 
@@ -174,12 +176,12 @@ v0.20.0
   * Delete RuntimeErrors related to OCPS and certification.
 
 v0.19.1
--------
+=======
 
 * Update unit tests for compatibility with ts_salobj 7.2.
 
 v0.19.0
--------
+=======
 
 * In ``python/lsst/ts/externalscripts/auxtel/build_pointing_model.py``:
 
@@ -192,7 +194,7 @@ v0.19.0
 * Run `isort`.
 
 v0.18.1
--------
+=======
 
 * In ``python/lsst/ts/externalscripts/auxtel/latiss_base_align.py``:
 
@@ -203,13 +205,13 @@ v0.18.1
 * Modernize Jenkinsfile for CI job.
 
 v0.18.0
--------
+=======
 
 * Add new script `python/lsst/ts/externalscripts/maintel/warmup_hexapod.py`.
   This new script is used to move one of the two hexapods to its maximum position in incremental steps.
 
 v0.17.3
--------
+=======
 
 * In `python/lsst/ts/externalscripts/auxtel/make_latiss_calibrations.py`, add option to change the grating.
 
@@ -217,7 +219,7 @@ v0.17.3
   `python/lsst/ts/externalscripts/base_make_calibrations.py`, replace ``master calibrations`` for ``combined calibrations``.
 
 v0.17.2
--------
+=======
 
 * In `python/lsst/ts/externalscripts/auxtel/latiss_acquire_and_take_sequence.py`, add feasibility check before executing script.
   This will check that all TCS and LATISS controlled CSCs are enabled and that the required ATAOS corrections are enabled.
@@ -231,7 +233,7 @@ v0.17.2
 * In `python/lsst/ts/externalscripts/auxtel/latiss_wep_align.py` replace use of `BestEffortIsr` in type annotation with `typing.All` to support `summit_utils` as a optional package.
 
 v0.17.1
--------
+=======
 
 * In ``auxtel/latiss_base_align.py``, add support for loading a playlist.
   This is useful for running integration-type tests.
@@ -242,7 +244,7 @@ v0.17.1
   * Change default rotator strategy from ``SkyAuto`` to ``PhysicalSky``.
 
 v0.17.0
--------
+=======
 
 * Add new metaclass, ``LatissBaseAlign``, which contains the generic actions required to execute a curvature wavefront error measurement, abstracting the computation part.
   The meta script performs the following actions:
@@ -282,14 +284,14 @@ v0.17.0
 
 
 v0.16.1
--------
+=======
 
 * In ``LatissAcquireAndTakeSequence.configure``, replace usage of deprecated ``collections.Iterable`` with ``collections.abc.Iterable``.
 * In ``LatissCWFSAlign`` fix missing space in error message.
 
 
 v0.16.0
--------
+=======
 
 * First version with documentation.
 * Updated latiss_cwfs_align to handle case where the applied offsets to the ATAOS are too small for a correction to be applied.
