@@ -1,0 +1,3 @@
+In ``auxtel/correct_pointing``, reset offsets after slewing to avoid elevation out of range issue.
+In ``auxtel/latiss_base_align.py``, relax default focus threshold.
+
