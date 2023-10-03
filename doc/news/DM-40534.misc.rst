@@ -1,0 +1,1 @@
+In `news_creation.yaml` remove the `--dir` parameter from towncrier check action.
