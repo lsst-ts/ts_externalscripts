@@ -25,4 +25,4 @@ jobs:
   
       - name: Run towncrier check command
         run: |
-          $CONDA/bin/towncrier check --compare-with origin/develop --dir doc/news --config pyproject.toml
+          $CONDA/bin/towncrier check --compare-with origin/develop --config pyproject.toml
