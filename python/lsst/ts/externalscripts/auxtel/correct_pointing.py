@@ -162,19 +162,7 @@ class CorrectPointing(BaseScript):
             Run script with checkpoints, by default False?
         """
 
-        await self.handle_checkpoint(
-            checkpoint_active=checkpoint_active,
-            checkpoint_message="Setting up.",
-        )
-
-        await asyncio.gather(
-            self._setup_atcs(),
-            self._setup_latiss(),
-        )
-
-        await self.handle_checkpoint(checkpoint_active, "Correcting pointing...")
-
-        await self.correct_pointing()
+        await self.correct_pointing(checkpoint_active)
 
         offset_summary = await self.atcs.rem.atptg.evt_offsetSummary.aget(
             timeout=self.atcs.long_timeout
@@ -239,7 +227,7 @@ class CorrectPointing(BaseScript):
         else:
             self.log.info(checkpoint_message)
 
-    async def correct_pointing(self):
+    async def correct_pointing(self, checkpoint_active=False):
         """Performs target selection, acquisition, and pointing
         registration.
         """
@@ -269,6 +257,18 @@ class CorrectPointing(BaseScript):
         await self.atcs.slew_object(
             name=target, rot=rotator_angle, rot_type=RotType.PhysicalSky
         )
+
+        await self.handle_checkpoint(
+            checkpoint_active=checkpoint_active,
+            checkpoint_message="Setting up.",
+        )
+
+        await asyncio.gather(
+            self._setup_atcs(),
+            self._setup_latiss(),
+        )
+
+        await self.handle_checkpoint(checkpoint_active, "Correcting pointing...")
 
         await self.center_on_brightest_source()
 
