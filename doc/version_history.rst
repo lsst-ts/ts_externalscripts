@@ -8,6 +8,29 @@ Version History
 
 .. towncrier release notes start
 
+v0.26.1 (2023-10-06)
+====================
+
+New Features
+------------
+
+- In ``auxtel/latiss_base_align.py``, add functionality to return hexapod to its initial position in case of failures during the alignment process.. (`DM-37831 <https://jira.lsstcorp.org/browse/DM-37831>`_)
+- In ``auxtel/correct_pointing``, reset offsets after slewing to avoid elevation out of range issue.
+  In ``auxtel/latiss_base_align.py``, relax default focus threshold. (`DM-40852 <https://jira.lsstcorp.org/browse/DM-40852>`_)
+
+
+Documentation
+-------------
+
+- Integrate towncrier for release notes and change log management (`DM-40534 <https://jira.lsstcorp.org/browse/DM-40534>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- In `news_creation.yaml` remove the `--dir` parameter from towncrier check action. (`DM-40534 <https://jira.lsstcorp.org/browse/DM-40534>`_)
+
+
 v0.26.0
 =======
 
