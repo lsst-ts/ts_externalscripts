@@ -1,1 +1,0 @@
-In ``auxtel/latiss_base_align.py``, add functionality to return hexapod to its initial position in case of failures during the alignment process..
