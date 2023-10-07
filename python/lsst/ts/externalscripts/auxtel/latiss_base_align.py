@@ -22,6 +22,7 @@
 __all__ = ["LatissBaseAlign"]
 
 import abc
+import asyncio
 import dataclasses
 import types
 import typing
@@ -30,6 +31,7 @@ import numpy as np
 import yaml
 from lsst.ts import salobj
 from lsst.ts.idl.enums.ATPtg import WrapStrategy
+from lsst.ts.idl.enums.Script import ScriptState
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
 from lsst.ts.observatory.control.constants import atcs_constants
@@ -181,6 +183,9 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.camera_playlist = None
 
+        # Flag to monitor if iterations have started for cleanup task.
+        self.iterations_started = False
+
     # define the method that sets the hexapod offset to create intra/extra
     # focal images
     @property
@@ -230,6 +235,9 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.log.debug("Moving to intra-focal position")
 
+        # Updated total focus offset value for intra-focal position
+        self.offset_total_focus += self.dz
+
         await self.atcs.offset_aos_lut(z=self.dz)
 
         self.log.debug("Taking intra-focal image")
@@ -250,6 +258,10 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         # to get from the intra- to the extra-focal position.
         # then add the offset to compensate for un-equal magnification
         z_offset = -(self.dz * 2.0 + self.extra_focal_offset)
+
+        # Updated total focus offset value for extra-focal position
+        self.offset_total_focus += z_offset
+
         await self.atcs.offset_aos_lut(z=z_offset)
 
         self.log.debug("Taking extra-focal image")
@@ -741,25 +753,23 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         self.offset_total_focus = 0.0
         self.offset_total_coma_x = 0.0
         self.offset_total_coma_y = 0.0
-        for i in range(self.max_iter):
-            self.log.debug(f"CWFS iteration {i + 1} starting...")
 
+        # Flagging that iterations have started
+        self.iterations_started = True
+        for self.iterations_executed in range(self.max_iter):
+            self.log.debug(f"CWFS iteration {self.iterations_executed + 1} starting...")
             if checkpoint:
                 await self.checkpoint(
-                    f"[{i + 1}/{self.max_iter}]: CWFS loop starting..."
+                    f"[{self.iterations_executed + 1}/{self.max_iter}]: CWFS loop starting..."
                 )
-
             # Setting visit_id's to none so run_cwfs will take a new dataset.
             self.intra_visit_id = None
             self.extra_visit_id = None
             await self.take_intra_extra()
-
             results = await self.run_align()
-
             coma_x = results.offset_hex[0]
             coma_y = results.offset_hex[1]
             focus_offset = results.offset_hex[2]
-
             total_coma_offset = np.sqrt(coma_x**2.0 + coma_y**2.0)
             if (
                 abs(focus_offset) < self.threshold
@@ -774,12 +784,13 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     f"Total coma-y correction: {self.offset_total_coma_y:0.3f} mm."
                 )
                 if checkpoint:
-                    await self.checkpoint(f"[{i + 1}/{self.max_iter}]: CWFS converged.")
+                    await self.checkpoint(
+                        f"[{self.iterations_executed + 1}/{self.max_iter}]: CWFS converged."
+                    )
                 # Add coma offsets from previous run
                 self.offset_total_coma_x += coma_x
                 self.offset_total_coma_y += coma_y
                 await self.atcs.offset_aos_lut(z=focus_offset, x=coma_x, y=coma_y)
-
                 current_target = await self.atcs.rem.atptg.evt_currentTarget.aget(
                     timeout=self.timeout_short
                 )
@@ -801,7 +812,6 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                     program=self.program,
                 )
                 await self.atcs.add_point_data()
-
                 self.log.info("latiss_cwfs_align script completed successfully!\n")
                 return
             elif abs(focus_offset) > self.large_defocus:
@@ -813,7 +823,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 )
                 if checkpoint:
                     await self.checkpoint(
-                        f"[{i + 1}/{self.max_iter}]: CWFS focus error too large."
+                        f"[{self.iterations_executed + 1}/{self.max_iter}]: CWFS focus error too large."
                     )
                 await self.atcs.offset_aos_lut(z=self.large_defocus)
             else:
@@ -823,19 +833,22 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                 )
                 if checkpoint:
                     await self.checkpoint(
-                        f"[{i + 1}/{self.max_iter}]: CWFS applying coma and focus correction."
+                        f"[{self.iterations_executed + 1}/{self.max_iter}]: "
+                        f"CWFS applying coma and focus correction."
                     )
                 self.offset_total_coma_x += coma_x
                 self.offset_total_coma_y += coma_y
                 await self.atcs.offset_aos_lut(z=focus_offset, x=coma_x, y=coma_y)
 
+        # If we reach this point, it means we did not converge.
+        # We are not returing it to original position in this case.
         self.log.warning(
-            f"Reached maximum iteration ({self.max_iter}) without convergence.\n"
+            f"Reached maximum iteration ({self.max_iter}) without convergence."
         )
 
     async def assert_feasibility(self) -> None:
-        """Verify that the telescope and camera are in a feasible state to
-        execute the script.
+        """Verify that the telescope and camera are in
+        a feasible state to execute the script.
         """
 
         await self.atcs.assert_all_enabled()
@@ -880,3 +893,37 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
         await self.assert_feasibility()
 
         await self.arun(True)
+
+    async def cleanup(self):
+        if self.state.state != ScriptState.ENDING:
+            # abnormal termination
+            if self.iterations_started:
+                self.log.warning(
+                    f"Terminating with state={self.state.state}: stop iterations. "
+                    f"Iterations started: {self.iterations_started}."
+                )
+                try:
+                    self.log.warning(
+                        f"Loop failed at iteration {self.iterations_executed} from a total of "
+                        f"{self.max_iter}. Returning hexapod to its initial position."
+                    )
+
+                    self.rem.ataos.evt_detailedState.flush()
+
+                    # Return hexapod to original position
+                    await self.atcs.offset_aos_lut(
+                        z=-self.offset_total_focus,
+                        x=-self.offset_total_coma_x,
+                        y=-self.offset_total_coma_y,
+                    )
+
+                except asyncio.TimeoutError:
+                    self.log.exception(
+                        "Resetting hexapod to its initial position timed "
+                        "out during cleanup procedure."
+                    )
+                except Exception:
+                    self.log.exception(
+                        "Unexpected exception in resetting "
+                        "hexapod to its initial position."
+                    )
