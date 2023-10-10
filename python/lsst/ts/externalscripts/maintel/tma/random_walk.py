@@ -245,8 +245,8 @@ class RandomWalk(BaseTrackTarget):
         position. The offset size is randomly selected between the radius
         and big_offset_radius.
 
-        Returns
-        -------
+        Yield
+        -----
         RandomWalkData
             Az/El coordinates.
         """
