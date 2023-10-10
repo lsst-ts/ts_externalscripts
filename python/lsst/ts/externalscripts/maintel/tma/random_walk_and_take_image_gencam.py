@@ -62,11 +62,8 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
         )
         self.config = None
 
-        # Is there a better way to define this?
-        Usages.TakeImageFull = 1 << 4
-
         self.mtcs_usage, self.gencam_usage = (
-            (MTCSUsages.Slew, Usages.TakeImageFull)
+            (MTCSUsages.Slew, None)
             if add_remotes
             else (MTCSUsages.DryTest, Usages.DryTest)
         )
