@@ -76,6 +76,8 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
         # Define timeouts in seconds
         self.fast_timeout = 1
         self.slow_timeout = 10
+        self.dome_wait_leave_fault_delay = 5
+        self.dome_wait_slew_start_delay = 20
 
         setattr(
             RandomWalkAndTakeImagesGenCam,
@@ -360,14 +362,16 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
         # This usually happens because they are engaged when the dome
         # is slighly out of its target position. For this script,
         # this difference is negligible.
-        await self.tcs.rem.mtdome.cmd_exitFault.set_start()
+        await self.tcs.rem.mtdome.cmd_exitFault.start(timeout=self.slow_timeout)
 
         # This time is required to have the Dome getting out its Fault
         # state before moving
-        await asyncio.sleep(5)
+        await asyncio.sleep(self.dome_wait_leave_fault_delay)
 
         # Determine from the current position if we want to move or not
-        dome_az_encoder = await self.tcs.rem.mtdome.tel_azimuth.next(flush=True)
+        dome_az_encoder = await self.tcs.rem.mtdome.tel_azimuth.next(
+            flush=True, timeout=self.fast_timeout
+        )
         dome_az_encoder = dome_az_encoder.positionActual
         dome_az_physical = dome_az_encoder - self.config.dome_offset
         self.log.debug(
@@ -399,10 +403,12 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
         await self.tcs.rem.mtdome.cmd_moveAz.set_start(position=new_dome_az, velocity=0)
 
         # The dome takes a long time to start moving
-        await asyncio.sleep(20)
+        await asyncio.sleep(self.dome_wait_slew_start_delay)
 
         self.tcs.rem.mtdome.evt_azMotion.flush()
-        az_motion = await self.tcs.rem.mtdome.evt_azMotion.aget()
+        az_motion = await self.tcs.rem.mtdome.evt_azMotion.aget(
+            timeout=self.fast_timeout
+        )
 
         while not az_motion.inPosition:
             az_motion = await self.tcs.rem.mtdome.evt_azMotion.next(
