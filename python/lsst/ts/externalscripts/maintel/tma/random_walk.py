@@ -18,13 +18,13 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["RandomWalk"]
+__all__ = ["RandomWalk", "RandomWalkData"]
 
-import asyncio
 from dataclasses import dataclass
 
 import numpy as np
 import yaml
+from lsst.ts import utils
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.base_track_target import BaseTrackTarget
@@ -32,35 +32,29 @@ from lsst.ts.standardscripts.base_track_target import BaseTrackTarget
 
 @dataclass
 class RandomWalkData:
-    """Stores information used during the execution of the RandomWalk
-    script. The script uses `az` and `el` to calculate an offset relative
+    """Data-class used during Random Walk scripts.
+
+    Store information used during the execution of the RandomWalk and similar
+    scripts. The script uses `az` and `el` to calculate an offset relative
     to the initial position on sky of the previous target. This avoids a
     "trend" in azimuth movement.
 
     Attributes
     ----------
-    counter : int
-        A simple counter used only for logging purposes. It tells us
-        how many offsets the RandomWalk script already applied.
     az : float
         New azimuth coordinates in degrees.
-        Used as initial reference before applying new offset.
+        Reference azimuth value before applying new offset.
     el : float
         New elevation coordinates in degrees.
-        Used as initial reference before applying new offset.
-    offset : float
-        Calculated offset between old az/el coordinates and new az/el
-        coordinates on sky. Used only on unit tests.
+        Reference elevation before applying new offset.
     """
 
-    counter: int
     az: float
     el: float
-    offset: float
 
 
 class RandomWalk(BaseTrackTarget):
-    """Performs offsets of a fixed size in random directions with a probability
+    """Perform offsets of a fixed size in random directions with a probability
     of performing a large offset also in a random direction.
 
     Parameters
@@ -230,23 +224,39 @@ class RandomWalk(BaseTrackTarget):
         metadata.duration = self.config.total_time
 
     async def run(self):
-        async for data in self.random_walk_azel_by_time():
-            await self.checkpoint(f"[{data.counter}] Tracking {data.az=}/{data.el=}.")
+        """Main loop of the script."""
+        counter = 0
+        azel_gen = self.get_azel_random_walk()
+        end_tai = utils.current_tai() + self.config.total_time
+
+        while True:
+            if utils.current_tai() > end_tai:
+                break
+
+            counter += 1
+            data = await anext(azel_gen)
+            await self.checkpoint(f"[{counter}] Tracking {data.az=}/{data.el=}.")
             await self.slew_and_track(
-                data.az, data.el, target_name=f"random_walk_{data.counter}"
+                data.az, data.el, target_name=f"random_walk_{counter}"
             )
 
-    async def random_walk_azel_by_time(self):
-        """Generate Az/El coordinates using random offsets for a finite
-        amount of time.
-        """
-        counter = 0
+    async def get_azel_random_walk(self):
+        """Generate new Az/El coordinates based on the current telescope
+        position. The offset size is randomly selected between the radius
+        and big_offset_radius.
 
+        Yield
+        -----
+        RandomWalkData
+            Az/El coordinates.
+        """
         n_points = 10
+        self.log.debug("Gathering current Az/El coordinates for random walk.")
         current_az_list = [
             await self.tcs.rem.mtmount.tel_azimuth.aget(timeout=self.tcs.fast_timeout)
             for _ in range(n_points)
         ]
+        self.log.debug(f"{current_az_list=}")
         current_az = np.abs(np.median([az.actualPosition for az in current_az_list]))
 
         current_el_list = [
@@ -255,55 +265,44 @@ class RandomWalk(BaseTrackTarget):
         ]
         current_el = np.abs(np.median([el.actualPosition for el in current_el_list]))
 
-        timer_task = asyncio.create_task(asyncio.sleep(self.config.total_time))
+        self.log.debug(f"Current Az/El: {current_az=}/{current_el=}")
 
-        while not timer_task.done():
-            current_radius = (
-                self.config.big_offset_radius
-                if np.random.rand() <= self.config.big_offset_prob
-                else self.config.radius
-            )
+        current_radius = (
+            self.config.big_offset_radius
+            if np.random.rand() <= self.config.big_offset_prob
+            else self.config.radius
+        )
 
-            random_angle = 2 * np.pi * np.random.rand()
+        random_angle = 2 * np.pi * np.random.rand()
 
-            # Get elevation offset first
-            offset_el = current_radius * np.sin(random_angle)
-            new_el = current_el + offset_el
+        # Get elevation offset first
+        offset_el = current_radius * np.sin(random_angle)
+        new_el = current_el + offset_el
 
-            if new_el <= self.config.min_el or new_el >= self.config.max_el:
-                new_el = current_el - offset_el
+        if new_el <= self.config.min_el or new_el >= self.config.max_el:
+            new_el = current_el - offset_el
 
-            # Azimuth offset depends on elevation to offsets on sky consistent
-            offset_az = (current_radius * np.cos(random_angle)) / np.cos(
-                np.deg2rad(0.5 * (new_el + current_el))
-            )
-            new_az = current_az + offset_az
+        # Azimuth offset depends on elevation to offsets on sky consistent
+        offset_az = (current_radius * np.cos(random_angle)) / np.cos(
+            np.deg2rad(0.5 * (new_el + current_el))
+        )
+        new_az = current_az + offset_az
 
-            if new_az <= self.config.min_az or new_az >= self.config.max_az:
-                new_az = current_az - offset_az
+        if new_az <= self.config.min_az or new_az >= self.config.max_az:
+            new_az = current_az - offset_az
 
-            # Confirm offset on sky
-            current_radec = self.tcs.radec_from_azel(az=current_az, el=current_el)
-            new_radec = self.tcs.radec_from_azel(az=new_az, el=new_el)
-            sky_offset = current_radec.separation(new_radec).value
+        self.log.info(
+            f"{current_az=:>10.4f}, "
+            f"{new_az=:>10.4f}, "
+            f"{current_el=:>10.4f}, "
+            f"{new_el=:>10.4f}, "
+        )
 
-            self.log.info(
-                f"{counter=:>10d}"
-                f"{current_az=:>10.4f}"
-                f"{new_az=:>10.4f}"
-                f"{current_el=:>10.4f}"
-                f"{new_el=:>10.4f}"
-                f"{sky_offset=:10.4f}"
-            )
+        # Yield the sky offset for testing purposes and
+        # and the counter to be displayed in the checkpoints
+        yield RandomWalkData(az=new_az, el=new_el)
 
-            # Yield the sky offset for testing purposes and
-            # and the counter to be displayed in the checkpoints
-            yield RandomWalkData(
-                counter=counter, az=new_az, el=new_el, offset=sky_offset
-            )
-
-            counter += 1
-            current_az, current_el = new_az, new_el
+        current_az, current_el = new_az, new_el
 
     async def slew_and_track(self, az, el, target_name=None):
         """Slew to and track a new target.

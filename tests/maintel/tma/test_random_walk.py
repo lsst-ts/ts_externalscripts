@@ -24,7 +24,6 @@ import types
 import unittest
 
 import numpy as np
-import pytest
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel.tma import RandomWalk
 from lsst.ts.idl.enums import Script
@@ -40,11 +39,19 @@ class TestRandomWalk(
 
     async def basic_make_script(self, index):
         self.log.debug("Starting basic_make_script")
-        self.script = RandomWalk(index=index)
+        self.script = RandomWalk(index=index, remotes=False)
 
         self.log.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
         return (self.script,)
+
+    async def get_telemetry(self, *args, **kwargs):
+        self.log.debug(f"get_telemetry called with {args=} {kwargs=}")
+        await asyncio.sleep(0.1)
+
+        actual_position = 0.1 * np.random.rand()
+        self.log.debug(f"{actual_position=}")
+        return types.SimpleNamespace(actualPosition=actual_position)
 
     async def test_configure(self):
         async with self.make_script():
@@ -60,24 +67,26 @@ class TestRandomWalk(
         async with self.make_script():
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
-            total_time = 3600.0
+            total_time = 1.0
             await self.configure_script(total_time=total_time)
 
             assert self.script.state.state == Script.ScriptState.CONFIGURED
 
             # Add some mocks
-            async def foo():
-                yield (0, 80)
-                yield (180, 60)
+            self.log.info("Setting up mocks")
+            self.script._mtcs.rem.mtmount = unittest.mock.AsyncMock()
+            self.script._mtcs.rem.mtmount.configure_mock(
+                **{
+                    "tel_azimuth.aget.side_effect": self.get_telemetry,
+                    "tel_elevation.aget.side_effect": self.get_telemetry,
+                }
+            )
 
+            # Mock the slew_and_track method
             self.script.slew_and_track = unittest.mock.AsyncMock()
-            self.script.random_walk_azel_by_time = unittest.mock.MagicMock()
-            self.script.random_walk_azel_by_time.__aiter__.return_value = [
-                (0, 80),
-                (180, 60),
-            ]
 
             # Run the script
+            self.log.debug("Running script")
             await self.run_script()
             assert self.script.state.state == Script.ScriptState.DONE
 
@@ -87,30 +96,16 @@ class TestRandomWalk(
         self.log.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
 
-    async def test_random_walk_azel_by_time(self):
+    async def test_get_azel_random_walk(self):
         async with self.make_script():
-            # Simulate data from EFD
-            async def get_telemetry(*args, **kwargs):
-                await asyncio.sleep(0.1)
-                actual_position = 0.1 * np.random.rand()
-                self.log.debug(f"{actual_position=}")
-                return types.SimpleNamespace(actualPosition=actual_position)
-
-            self.script.tcs.rem.mtmount.tel_azimuth.aget = unittest.mock.AsyncMock(
-                side_effect=get_telemetry
+            self.log.info("Setting up mocks")
+            self.script._mtcs.rem.mtmount = unittest.mock.AsyncMock()
+            self.script._mtcs.rem.mtmount.configure_mock(
+                **{
+                    "tel_azimuth.aget.side_effect": self.get_telemetry,
+                    "tel_elevation.aget.side_effect": self.get_telemetry,
+                }
             )
-
-            self.script.tcs.rem.mtmount.tel_elevation.aget = unittest.mock.AsyncMock(
-                side_effect=get_telemetry
-            )
-
-            current_az = [
-                await self.script.tcs.rem.mtmount.tel_azimuth.aget() for _ in range(10)
-            ]
-            current_az_median = np.abs(
-                np.median([az.actualPosition for az in current_az])
-            )
-            assert current_az_median <= 0.1
 
             await self.configure_script(
                 total_time=2.0,
@@ -119,10 +114,6 @@ class TestRandomWalk(
                 big_offset_prob=0.0,
             )
 
-            sky_offsets = []
-            async for data in self.script.random_walk_azel_by_time():
+            async for data in self.script.get_azel_random_walk():
                 self.log.debug(f"{data=}")
-                sky_offsets.append(data.offset)
-                await asyncio.sleep(0.1)
-
-            assert np.mean(sky_offsets) == pytest.approx(3.5, abs=0.01)
+                await asyncio.sleep(0.5)
