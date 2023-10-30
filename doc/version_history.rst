@@ -8,6 +8,16 @@ Version History
 
 .. towncrier release notes start
 
+v0.27.0 (2023-10-30)
+====================
+
+New Features
+------------
+
+- Update ``maintel/tma/random_walk.py`` to have timer outside the generator ``get_azel_random_walk``
+- Create ``maintel/tma/random_walk_and_take_image_gencam.py`` based on ``BaseTrackTargetAndTakeImage`` and ``RandomWalk`` (`DM-38437 <https://jira.lsstcorp.org/browse/DM-38437>`_)
+
+
 v0.26.1 (2023-10-06)
 ====================
 
