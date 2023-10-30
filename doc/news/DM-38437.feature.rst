@@ -1,2 +1,0 @@
-* Update ``maintel/tma/random_walk.py`` to have timer outside the generator ``get_azel_random_walk``
-* Create ``maintel/tma/random_walk_and_take_image_gencam.py`` based on ``BaseTrackTargetAndTakeImage`` and ``RandomWalk``
