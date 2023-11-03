@@ -185,7 +185,7 @@ class UptimeLOVE(salobj.BaseScript):
                     index=index,
                     include=["heartbeat", "logLevel", "summaryState"],
                 )
-                self.remotes[(name, index)] = remote
+                self.remotes[name_index] = remote
             else:
                 self.log.warning(f"Remote {name}:{index} already exists")
 
@@ -214,9 +214,9 @@ class UptimeLOVE(salobj.BaseScript):
         # Keys are tuples (csc_name, salindex) and values are lists of topics
         event_streams = dict()
         telemetry_streams = dict()
-        for name, index in self.remotes:
-            event_streams[(name, index)] = ["heartbeat", "logLevel", "summaryState"]
-            telemetry_streams[(name, index)] = []
+        for remote_name in self.remotes:
+            event_streams[remote_name] = ["heartbeat", "logLevel", "summaryState"]
+            telemetry_streams[remote_name] = []
 
         # Create clients and listen to ws messages
         self.log.info("Waiting for the Manager Client to be ready")
@@ -243,9 +243,10 @@ class UptimeLOVE(salobj.BaseScript):
                 break
 
             await asyncio.sleep(self.loop_time_send_commands)
-            name, index = random.choice(list(self.remotes.keys()))
+            name_index = random.choice(list(self.remotes.keys()))
+            name, index = salobj.name_to_name_index(name_index)
             try:
-                assert log_level_evt is not None
+                self.log.debug(f"Sending command to {name}:{index}")
                 await self.client.send_sal_command(
                     name, index, "cmd_setLogLevel", {"level": 10}
                 )
