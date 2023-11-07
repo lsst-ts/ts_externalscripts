@@ -42,11 +42,12 @@ class TestStressLOVE(
         return (self.script,)
 
     async def test_configure(self):
+        os.environ["USER_USERNAME"] = "TEST"
         os.environ["USER_USER_PASS"] = "TEST"
         async with self.make_script():
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
-            location = "love.tu.lsst.org"
+            location = "http://love.tu.lsst.org"
             number_of_clients = 50
             number_of_messages = 5000
             data = [

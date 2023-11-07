@@ -47,7 +47,7 @@ class TestUptimeLOVE(
         async with self.make_script():
             # Try configure with minimum set of parameters declared
             # Note that all are scalars and should be converted to arrays
-            host = "love.tu.lsst.org"
+            location = "http://love.tu.lsst.org"
             cscs = [
                 "ATAOS",
                 "MTAirCompressor:1",
@@ -56,12 +56,12 @@ class TestUptimeLOVE(
             max_duration = 10
 
             await self.configure_script(
-                host=host,
+                location=location,
                 cscs=cscs,
                 max_duration=max_duration,
             )
 
-            assert self.script.config.host == host
+            assert self.script.config.location == location
             assert self.script.config.cscs == cscs
             assert self.script.config.max_duration == max_duration
 
