@@ -1,0 +1,3 @@
+* In ``love_manager_client``, ``make_love_stress_tests`` and ``make_love_uptime_tests`` change location attribute to be an URL instead of a domain
+* In ``love_manager_client`` remove ``command_url``
+* In ``make_love_stress_tests`` and ``make_love_uptime_tests`` make both ``USER_USERNAME`` and ``USER_USER_PASS`` environment variables required
