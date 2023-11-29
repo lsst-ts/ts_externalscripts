@@ -1,1 +1,0 @@
-* Fix ``make_love_uptime_tests`` to use proper dict keys format

@@ -8,6 +8,23 @@ Version History
 
 .. towncrier release notes start
 
+v0.27.1 (2023-11-29)
+====================
+
+Bug Fixes
+---------
+
+- * Fix ``make_love_uptime_tests`` to use proper dict keys format (`DM-41266 <https://jira.lsstcorp.org/browse/DM-41266>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- * In ``love_manager_client``, ``make_love_stress_tests`` and ``make_love_uptime_tests`` change location attribute to be an URL instead of a domain
+  * In ``love_manager_client`` remove ``command_url``
+  * In ``make_love_stress_tests`` and ``make_love_uptime_tests`` make both ``USER_USERNAME`` and ``USER_USER_PASS`` environment variables required (`DM-41536 <https://jira.lsstcorp.org/browse/DM-41536>`_)
+
+
 v0.27.0 (2023-10-30)
 ====================
 
