@@ -140,7 +140,9 @@ class TestLoveManagerClient(unittest.IsolatedAsyncioTestCase):
         return msg_payload
 
     def setUp(self) -> None:
-        self.location = "foo.bar"
+        self.location = "http://foo.bar"
+        self.secure_location = "https://foo.bar"
+        self.domain = "foo.bar"
         self.token = "T0K3N"
 
         self.mock_client_session = MockClientSession(
@@ -201,7 +203,7 @@ class TestLoveManagerClient(unittest.IsolatedAsyncioTestCase):
 
     async def test_create_love_manager_client(self):
         """Test creating a LoveManagerClient instance"""
-        # Arrage
+        # Arrange
         username = "admin"
         password = "test"
         event_streams = {
@@ -222,19 +224,51 @@ class TestLoveManagerClient(unittest.IsolatedAsyncioTestCase):
         )
         love_manager_client.create_start_task()
 
-        while (
-            love_manager_client.websocket_url is None
-            and love_manager_client.command_url is None
-        ):
+        while love_manager_client.websocket_url is None:
             await asyncio.sleep(1)
 
         # Assert
         expected_websocket_url = (
-            f"ws://{self.location}/manager/ws/subscription?token={self.token}"
+            f"ws://{self.domain}/manager/ws/subscription?token={self.token}"
         )
-        expected_command_url = f"http://{self.location}/manager/api/cmd/"
         self.assertEqual(love_manager_client.websocket_url, expected_websocket_url)
-        self.assertEqual(love_manager_client.command_url, expected_command_url)
+
+        self.assertEqual(love_manager_client.num_received_messages, 0)
+        self.assertEqual(len(love_manager_client.msg_traces), 0)
+
+        await love_manager_client.close()
+
+    async def test_create_love_manager_client_with_secure_connection(self):
+        """Test creating a LoveManagerClient instance with secure connection"""
+        # Arrange
+        username = "admin"
+        password = "test"
+        event_streams = {
+            "Test:0": ["heartbeat", "logLevel", "summaryState"],
+        }
+        telemetry_streams = {}
+
+        client_session_mock_client = self.client_session_mock.start()
+        client_session_mock_client.return_value = self.mock_client_session
+
+        # Act
+        love_manager_client = LoveManagerClient(
+            location=self.secure_location,
+            username=username,
+            password=password,
+            event_streams=event_streams,
+            telemetry_streams=telemetry_streams,
+        )
+        love_manager_client.create_start_task()
+
+        while love_manager_client.websocket_url is None:
+            await asyncio.sleep(1)
+
+        # Assert
+        expected_websocket_url = (
+            f"wss://{self.domain}/manager/ws/subscription?token={self.token}"
+        )
+        self.assertEqual(love_manager_client.websocket_url, expected_websocket_url)
 
         self.assertEqual(love_manager_client.num_received_messages, 0)
         self.assertEqual(len(love_manager_client.msg_traces), 0)
@@ -243,7 +277,7 @@ class TestLoveManagerClient(unittest.IsolatedAsyncioTestCase):
 
     async def test_create_love_manager_client_with_msg_tracing(self):
         """Test creating a LoveManagerClient instance with msg_tracing=True"""
-        # Arrage
+        # Arrange
         username = "admin"
         password = "test"
         event_streams = {
@@ -265,19 +299,14 @@ class TestLoveManagerClient(unittest.IsolatedAsyncioTestCase):
         )
         love_manager_client.create_start_task()
 
-        while (
-            love_manager_client.websocket_url is None
-            and love_manager_client.command_url is None
-        ):
+        while love_manager_client.websocket_url is None:
             await asyncio.sleep(1)
 
         # Assert
         expected_websocket_url = (
-            f"ws://{self.location}/manager/ws/subscription?token={self.token}"
+            f"ws://{self.domain}/manager/ws/subscription?token={self.token}"
         )
-        expected_command_url = f"http://{self.location}/manager/api/cmd/"
         self.assertEqual(love_manager_client.websocket_url, expected_websocket_url)
-        self.assertEqual(love_manager_client.command_url, expected_command_url)
 
         self.assertEqual(love_manager_client.num_received_messages, 2)
         self.assertEqual(len(love_manager_client.msg_traces), 2)
@@ -286,7 +315,7 @@ class TestLoveManagerClient(unittest.IsolatedAsyncioTestCase):
 
     async def test_love_manager_client_send_command(self):
         """Test sending a command to the manager"""
-        # Arrage
+        # Arrange
         username = "admin"
         password = "test"
         event_streams = {}
@@ -304,10 +333,7 @@ class TestLoveManagerClient(unittest.IsolatedAsyncioTestCase):
         )
         love_manager_client.create_start_task()
 
-        while (
-            love_manager_client.websocket_url is None
-            and love_manager_client.command_url is None
-        ):
+        while love_manager_client.websocket_url is None:
             await asyncio.sleep(1)
 
         # Change client session mock to return a 200 response
@@ -329,7 +355,7 @@ class TestLoveManagerClient(unittest.IsolatedAsyncioTestCase):
     async def test_love_manager_client_send_command_error(self):
         """Test sending a command to the manager
         and getting an error response"""
-        # Arrage
+        # Arrange
         username = "admin"
         password = "test"
         event_streams = {}
@@ -347,10 +373,7 @@ class TestLoveManagerClient(unittest.IsolatedAsyncioTestCase):
         )
         love_manager_client.create_start_task()
 
-        while (
-            love_manager_client.websocket_url is None
-            and love_manager_client.command_url is None
-        ):
+        while love_manager_client.websocket_url is None:
             await asyncio.sleep(1)
 
         # Change client session mock to return a 500 response

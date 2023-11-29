@@ -21,154 +21,12 @@
 __all__ = ["StressLOVE"]
 
 import asyncio
-import json
 import os
 
-import aiohttp
 import yaml
-from lsst.ts import salobj, utils
+from lsst.ts import salobj
 
-
-class ManagerClient:
-    """Connect to a LOVE-manager instance.
-
-    Parameters
-    ----------
-    location : `str`
-        Host of the running LOVE-manager instance
-    username: `str`
-        LOVE username to use as authenticator
-    password: `str`
-        Password of the choosen LOVE user
-    event_streams: `dict`
-        Dictionary whith each item as <CSC:salindex>: <events_names_tuple>
-        e.g. {"ATDome:0": ('allAxesInPosition', 'authList',
-        'azimuthCommandedState', 'azimuthInPosition', ...)
-    telemetry_streams: `dict`
-        Dictionary whith each item as <CSC:salindex>: <telemetries_names_tuple>
-        e.g. {"ATDome:0": ('position', ...)
-
-    Notes
-    -----
-    **Details**
-
-    * Generate websocket connections using provided credentials
-    by token authentication and subscribe to every
-    event and telemetry specified.
-    """
-
-    def __init__(self, location, username, password, event_streams, telemetry_streams):
-        self.username = username
-        self.event_streams = event_streams
-        self.telemetry_streams = telemetry_streams
-
-        self.websocket_url = None
-        self.num_received_messages = 0
-        self.msg_traces = []
-
-        self.__location = location
-        self.__password = password
-        self.__websocket = None
-
-        self.start_task = utils.make_done_future()
-
-    async def __request_token(self):
-        """Authenticate on the LOVE-manager instance
-        to get an authorization token and set the
-        corresponding websocket_url.
-
-        Raises
-        ------
-        RuntimeError
-             If the token cannot be retrieved.
-        """
-
-        url = f"http://{self.__location}/manager/api/get-token/"
-        data = {
-            "username": self.username,
-            "password": self.__password,
-        }
-
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(url, data=data) as resp:
-                    json_data = await resp.json()
-                    token = json_data["token"]
-                    self.websocket_url = (
-                        f"ws://{self.__location}/manager/ws/subscription?token={token}"
-                    )
-            except Exception as e:
-                raise RuntimeError("Authentication failed.") from e
-
-    async def __handle_message_reception(self):
-        """Handles the reception of messages."""
-
-        if self.__websocket:
-            async for message in self.__websocket:
-                if message.type == aiohttp.WSMsgType.TEXT:
-                    msg = json.loads(message.data)
-                    if "category" not in msg or (
-                        "option" in msg and msg["option"] == "subscribe"
-                    ):
-                        continue
-                    self.num_received_messages = self.num_received_messages + 1
-                    tracing = msg["tracing"]
-                    tracing["client_rcv"] = utils.current_tai()
-                    self.msg_traces.append(tracing)
-
-    async def __subscribe_to(self, csc, salindex, topic, topic_type):
-        """Subscribes to the specified CSC stream in order to
-        receive LOVE-producer(s) data
-
-        Parameters
-        ----------
-        csc : `str`
-            Name of the CSC stream
-        salindex: `int`
-            Salindex of the CSC stream
-        topic: `str`
-            Topic of the CSC stream
-        topic_type: `str`
-            Type of topic: `event` or `telemetry`
-        """
-
-        subscribe_msg = {
-            "option": "subscribe",
-            "category": topic_type,
-            "csc": csc,
-            "salindex": salindex,
-            "stream": topic,
-        }
-        await self.__websocket.send_str(json.dumps(subscribe_msg))
-
-    async def start_ws_client(self):
-        """Start client websocket connection"""
-
-        try:
-            await self.__request_token()
-            if self.websocket_url is not None:
-                async with aiohttp.ClientSession() as session:
-                    self.__websocket = await session.ws_connect(self.websocket_url)
-                    for name in self.event_streams:
-                        csc, salindex = salobj.name_to_name_index(name)
-                        for stream in self.event_streams[name]:
-                            await self.__subscribe_to(csc, salindex, stream, "event")
-                    for name in self.telemetry_streams:
-                        csc, salindex = salobj.name_to_name_index(name)
-                        for stream in self.telemetry_streams[name]:
-                            await self.__subscribe_to(
-                                csc, salindex, stream, "telemetry"
-                            )
-                    await self.__handle_message_reception()
-        except Exception as e:
-            raise RuntimeError("Manager Client connection failed.") from e
-
-    def create_start_task(self):
-        self.start_task = asyncio.create_task(self.start_ws_client())
-
-    async def close(self):
-        if self.__websocket:
-            await self.__websocket.close()
+from .love_manager_client import LoveManagerClient
 
 
 class StressLOVE(salobj.BaseScript):
@@ -220,7 +78,8 @@ class StressLOVE(salobj.BaseScript):
             type: object
             properties:
               location:
-                description: Host of the running LOVE instance (web server) to stress
+                description: Complete URL of the running LOVE instance (web server) to stress
+                    e.g. https://base-lsp.lsst.codes/love or http://love01.ls.lsst.org
                 type: string
               number_of_clients:
                 description: The number of clients to create
@@ -256,10 +115,15 @@ class StressLOVE(salobj.BaseScript):
     async def configure(self, config):
         """Configure the script.
 
+        Look for credentials configured with environment variables:
+        - USER_USERNAME
+        - USER_USER_PASS
+        These should match the credentials used to log into the LOVE instance.
+
         Specify the Stress test configurations:
         - LOVE host location
         - Number of clients
-        - Number of messages to store
+        - Number of messages
         - CSCs
 
         Parameters
@@ -271,12 +135,20 @@ class StressLOVE(salobj.BaseScript):
         -----
         Saves the results on several attributes:
 
+        * username  : `str`, LOVE username to use as authenticator
+        * password  : `str`, Password of the choosen LOVE user
         * config    : `types.SimpleNamespace`, same as config param
         * remotes   : a dict, with each item as
             CSC_name[:index]: `lsst.ts.salobj.Remote`
 
         Constructing a `salobj.Remote` is slow (DM-17904), so configuration
         may take a 10s or 100s of seconds per CSC.
+
+        Raises
+        ------
+        RuntimeError
+            If environment variables USER_USERNAME or
+            USER_USER_PASS are not defined.
         """
         self.log.info("Configure started")
 
@@ -286,6 +158,10 @@ class StressLOVE(salobj.BaseScript):
         # get credentials
         self.username = os.environ.get("USER_USERNAME")
         self.password = os.environ.get("USER_USER_PASS")
+        if self.username is None:
+            raise RuntimeError(
+                "Configuration failed: environment variable USER_USERNAME not defined"
+            )
         if self.password is None:
             raise RuntimeError(
                 "Configuration failed: environment variable USER_USER_PASS not defined"
@@ -330,12 +206,13 @@ class StressLOVE(salobj.BaseScript):
             f"Waiting for {self.config.number_of_clients} Manager Clients to be ready"
         )
         for i in range(self.config.number_of_clients):
-            client = ManagerClient(
+            client = LoveManagerClient(
                 self.config.location,
                 self.username,
                 self.password,
                 event_streams,
                 telemetry_streams,
+                msg_tracing=True,
             )
             self.clients.append(client)
             client.create_start_task()
@@ -359,7 +236,8 @@ class StressLOVE(salobj.BaseScript):
 
         # Close all ManagerClients
         for client in self.clients:
-            await client.close()
+            if client is not None:
+                await client.close()
 
     def get_mean_latency(self):
         """Calculate the mean latency of all received messages."""

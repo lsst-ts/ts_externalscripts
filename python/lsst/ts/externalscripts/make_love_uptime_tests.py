@@ -105,9 +105,9 @@ class UptimeLOVE(salobj.BaseScript):
             description: Configuration for StressLOVE
             type: object
             properties:
-              host:
-                description: Host address of the running LOVE instance (web server) to monitor
-                    e.g. love.tu.lsst.org.
+              location:
+                description: Complete URL of the running LOVE instance (web server) to stress
+                    e.g. https://base-lsp.lsst.codes/love or http://love01.ls.lsst.org
                 type: string
               cscs:
                 description: List of CSC_name[:index]
@@ -122,7 +122,7 @@ class UptimeLOVE(salobj.BaseScript):
                     It is also approximate, because it is only checked every few seconds.
                 type: number
                 exclusiveMinimum: 0
-            required: [host, cscs, max_duration]
+            required: [location, cscs, max_duration]
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -141,9 +141,15 @@ class UptimeLOVE(salobj.BaseScript):
     async def configure(self, config):
         """Configure the script.
 
-        Specify the Uptime test configurations:
+        Look for credentials configured with environment variables:
+        - USER_USERNAME
+        - USER_USER_PASS
+        These should match the credentials used to log into the LOVE instance.
+
+        Also specify the Uptime test configurations:
         - LOVE host location
         - CSCs
+        - Maximum duration of the script execution
 
         Parameters
         ----------
@@ -154,12 +160,22 @@ class UptimeLOVE(salobj.BaseScript):
         -----
         Saves the results on several attributes:
 
+        * username  : `str`, LOVE username to use as authenticator
+        * password  : `str`, Password of the choosen LOVE user
         * config    : `types.SimpleNamespace`, same as config param
         * remotes   : a dict, with each item as
             CSC_name[:index]: `lsst.ts.salobj.Remote`
+        * max_duration : `float`, maximum duration of the
+            script execution (approximate)
 
         Constructing a `salobj.Remote` is slow (DM-17904), so configuration
         may take a 10s or 100s of seconds per CSC.
+
+        Raises
+        ------
+        RuntimeError
+            If environment variables USER_USERNAME or
+            USER_USER_PASS are not defined.
         """
         self.log.info("Configure started")
 
@@ -169,6 +185,10 @@ class UptimeLOVE(salobj.BaseScript):
         # get credentials
         self.username = os.environ.get("USER_USERNAME")
         self.password = os.environ.get("USER_USER_PASS")
+        if self.username is None:
+            raise RuntimeError(
+                "Configuration failed: environment variable USER_USERNAME not defined"
+            )
         if self.password is None:
             raise RuntimeError(
                 "Configuration failed: environment variable USER_USER_PASS not defined"
@@ -185,7 +205,7 @@ class UptimeLOVE(salobj.BaseScript):
                     index=index,
                     include=["heartbeat", "logLevel", "summaryState"],
                 )
-                self.remotes[(name, index)] = remote
+                self.remotes[name_index] = remote
             else:
                 self.log.warning(f"Remote {name}:{index} already exists")
 
@@ -214,14 +234,14 @@ class UptimeLOVE(salobj.BaseScript):
         # Keys are tuples (csc_name, salindex) and values are lists of topics
         event_streams = dict()
         telemetry_streams = dict()
-        for name, index in self.remotes:
-            event_streams[(name, index)] = ["heartbeat", "logLevel", "summaryState"]
-            telemetry_streams[(name, index)] = []
+        for remote_name in self.remotes:
+            event_streams[remote_name] = ["heartbeat", "logLevel", "summaryState"]
+            telemetry_streams[remote_name] = []
 
         # Create clients and listen to ws messages
         self.log.info("Waiting for the Manager Client to be ready")
         self.client = LoveManagerClient(
-            self.config.host,
+            self.config.location,
             self.username,
             self.password,
             event_streams,
@@ -243,9 +263,10 @@ class UptimeLOVE(salobj.BaseScript):
                 break
 
             await asyncio.sleep(self.loop_time_send_commands)
-            name, index = random.choice(list(self.remotes.keys()))
+            name_index = random.choice(list(self.remotes.keys()))
+            name, index = salobj.name_to_name_index(name_index)
             try:
-                assert log_level_evt is not None
+                self.log.debug(f"Sending command to {name}:{index}")
                 await self.client.send_sal_command(
                     name, index, "cmd_setLogLevel", {"level": 10}
                 )
@@ -257,4 +278,5 @@ class UptimeLOVE(salobj.BaseScript):
     async def cleanup(self):
         """Return the system to its default status."""
         # Close the ManagerClient
-        await self.client.close()
+        if self.client is not None:
+            await self.client.close()
