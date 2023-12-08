@@ -438,8 +438,13 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         if self.do_blind_offset:
             current_position = latiss_constants.boresight
 
+            blind_offset_position = PointD(target_position.x, target_position.y)
+
+            if blind_offset_position[1] < 400.0:
+                blind_offset_position[1] = 400.0
+
             dx_arcsec, dy_arcsec = calculate_xy_offsets(
-                current_position, target_position
+                current_position, blind_offset_position
             )
             self.log.debug(
                 f"After slew, the target should be at the boresight [{current_position}] whereas the "
