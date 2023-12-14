@@ -1,2 +1,0 @@
-In ``auxtel/correct_pointing.py``, add config to reset the AOS offsets.
-
