@@ -1,2 +1,0 @@
-Fixed a bug in `latiss_base_align.py` module when trying to flush the `ataos.evt_detailedState` event before resetting resetting the hexapod to its initial position.
-That flush was not needed, redundant and it was causing an error.

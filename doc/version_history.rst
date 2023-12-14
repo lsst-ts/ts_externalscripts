@@ -8,6 +8,23 @@ Version History
 
 .. towncrier release notes start
 
+v0.27.2 (2023-12-14)
+====================
+
+New Features
+------------
+
+- In ``auxtel/correct_pointing.py``, add config to reset the AOS offsets. (`DM-41870 <https://jira.lsstcorp.org/browse/DM-41870>`_)
+
+
+Bug Fixes
+---------
+
+- Fixed a bug in `latiss_base_align.py` module when trying to flush the `ataos.evt_detailedState` event before resetting resetting the hexapod to its initial position.
+  That flush was not needed, redundant and it was causing an error. (`DM-41718 <https://jira.lsstcorp.org/browse/DM-41718>`_)
+- In ``auxtel/latiss_acquire_and_take_sequence.py``, add floor to y-value of final blind offset position to prevent target landing off of detector. (`DM-41870 <https://jira.lsstcorp.org/browse/DM-41870>`_)
+
+
 v0.27.1 (2023-11-29)
 ====================
 
