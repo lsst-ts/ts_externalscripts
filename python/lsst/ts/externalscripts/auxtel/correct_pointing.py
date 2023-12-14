@@ -121,6 +121,12 @@ class CorrectPointing(BaseScript):
                     - type: string
                     - type: "null"
                 default: HD_cwfs_stars
+            reset_aos_offsets:
+                type: boolean
+                description: >-
+                    If true, also reset the hexapod X/Y offsets before
+                    correcting pointing.
+                default: True
         """
         return yaml.safe_load(schema_yaml)
 
@@ -143,6 +149,7 @@ class CorrectPointing(BaseScript):
         self.magnitude_limit = config.mag_limit
         self.magnitude_range = config.mag_range
         self.catalog_name = config.catalog_name
+        self.reset_aos_offsets = config.reset_aos_offsets
 
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
@@ -207,18 +214,23 @@ class CorrectPointing(BaseScript):
     async def _setup_atcs(self):
         """Setup ATCS.
 
-        This method will reset the ATAOS and pointing offsets.
+        This method will reset the pointing offsets and optionally reset the
+        AOS hexapod X and Y offsets.
         """
-        self.log.info("Resetting pointing and hexapod x and y offsets.")
 
-        await self.atcs.rem.ataos.cmd_resetOffset.set_start(
-            axis="x",
-            timeout=self.atcs.long_timeout,
-        )
-        await self.atcs.rem.ataos.cmd_resetOffset.set_start(
-            axis="y",
-            timeout=self.atcs.long_timeout,
-        )
+        if self.reset_aos_offsets:
+            self.log.info("Resetting hexapod x and y offsets.")
+
+            await self.atcs.rem.ataos.cmd_resetOffset.set_start(
+                axis="x",
+                timeout=self.atcs.long_timeout,
+            )
+            await self.atcs.rem.ataos.cmd_resetOffset.set_start(
+                axis="y",
+                timeout=self.atcs.long_timeout,
+            )
+
+        self.log.info("Resetting pointing offsets.")
         await self.atcs.reset_offsets()
 
     async def handle_checkpoint(self, checkpoint_active, checkpoint_message):

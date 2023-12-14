@@ -908,8 +908,6 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
                         f"{self.max_iter}. Returning hexapod to its initial position."
                     )
 
-                    self.rem.ataos.evt_detailedState.flush()
-
                     # Return hexapod to original position
                     await self.atcs.offset_aos_lut(
                         z=-self.offset_total_focus,
