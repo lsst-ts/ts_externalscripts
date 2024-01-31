@@ -48,9 +48,9 @@ class TrackTargetSched(TrackTarget):
         # Get the base schema from BaseTrackTargetAndTakeImage so this script
         # is compatible with the scheduler
         schema_dict = BaseTrackTargetAndTakeImage.get_base_schema()
-        schema_dict[
-            "$id"
-        ] = "https://github.com/lsst-ts/ts_externalscripts/maintel/track_target_sched.py"
+        schema_dict["$id"] = (
+            "https://github.com/lsst-ts/ts_externalscripts/maintel/track_target_sched.py"
+        )
         schema_dict["title"] = "TrackTargetSched v1"
         schema_dict["description"] = "Configuration for TrackTargetSched."
 

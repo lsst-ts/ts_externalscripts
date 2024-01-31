@@ -424,14 +424,14 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
                 for fieldname in fieldnames:
                     row_dict[fieldname] = None
                 row_dict["Exposure Time"] = self.integration_times[i]
-                row_dict[
-                    "Fiber Spectrograph Exposure Time"
-                ] = self.fiber_spectrograph_integration_times[i]
+                row_dict["Fiber Spectrograph Exposure Time"] = (
+                    self.fiber_spectrograph_integration_times[i]
+                )
                 row_dict["Monochromator Grating"] = self.mono_grating_types[i]
                 row_dict["Monochromator Wavelength"] = self.wavelengths[i]
-                row_dict[
-                    "Monochromator Entrance Slit Size"
-                ] = self.mono_entrance_slit_widths[i]
+                row_dict["Monochromator Entrance Slit Size"] = (
+                    self.mono_entrance_slit_widths[i]
+                )
                 row_dict["Monochromator Exit Slit Size"] = self.mono_exit_slit_widths[i]
                 row_dict["Fiber Spectrograph Fits File"] = fiber_spectrograph_lfo_url
                 row_dict["Electrometer Fits File"] = electrometer_lfo_url
@@ -441,9 +441,9 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
                 if self.setup_spectrograph:
                     row_dict["ATSpectrograph Filter"] = self.latiss_filter[i]
                     row_dict["ATSpectrograph Grating"] = self.latiss_grating[i]
-                    row_dict[
-                        "ATSpectrograph Linear Stage Position"
-                    ] = self.latiss_stage_pos[i]
+                    row_dict["ATSpectrograph Linear Stage Position"] = (
+                        self.latiss_stage_pos[i]
+                    )
                 data_writer.writerow(row_dict)
         with open(f"{path}/{csv_filename}", newline="") as csvfile:
             data_reader = csv.DictReader(csvfile)
