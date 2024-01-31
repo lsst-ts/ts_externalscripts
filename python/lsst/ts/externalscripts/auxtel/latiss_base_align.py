@@ -242,10 +242,12 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.log.debug("Taking intra-focal image")
 
+        supplemented_group_id = self.next_supplemented_group_id()
+
         intra_image = await self.latiss.take_cwfs(
             exptime=self.exposure_time,
             n=1,
-            group_id=self.group_id,
+            group_id=supplemented_group_id,
             filter=self.filter,
             grating=self.grating,
             reason="INTRA" + ("" if self.reason is None else f"_{self.reason}"),
@@ -269,7 +271,7 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         extra_image = await self.latiss.take_cwfs(
             exptime=self.exposure_time,
             n=1,
-            group_id=self.group_id,
+            group_id=supplemented_group_id,
             filter=self.filter,
             grating=self.grating,
             reason="EXTRA" + ("" if self.reason is None else f"_{self.reason}"),
