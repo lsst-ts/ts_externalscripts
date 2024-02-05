@@ -8,6 +8,16 @@ Version History
 
 .. towncrier release notes start
 
+v0.27.3 (2024-02-02)
+====================
+
+New Features
+------------
+
+- In ``auxtel/latiss_base_align.py`` added `self.next_supplemented_group_id()` call so that intra and extra focal images have the same group id.
+  (`DM-41684 <https://jira.lsstcorp.org/browse/DM-41684>`_) (`DM-41684 <https://jira.lsstcorp.org/browse/DM-41684>`_)
+
+
 v0.27.2 (2023-12-14)
 ====================
 
