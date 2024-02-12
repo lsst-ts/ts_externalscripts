@@ -135,6 +135,10 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
             ]
         )
 
+        # Gains to be applied to the calculated corrections.
+        # These should be less than 1.
+        self.gain = np.array([0.5, 0.5, 0.9])
+
         # Default values for rotator angle and rotator strategy.
         self.rot = 0.0
         self.rot_strategy = RotType.SkyAuto
@@ -308,7 +312,7 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         rot_zern = np.matmul(
             self.zern, self.matrix_rotation(self.angle + self.camera_rotation_angle)
         )
-        hexapod_offset = np.matmul(rot_zern, self.matrix_sensitivity)
+        hexapod_offset = np.matmul(rot_zern, self.matrix_sensitivity) * self.gain
         tel_offset = np.matmul(hexapod_offset, self.hexapod_offset_scale)
 
         self.log.info(
@@ -317,6 +321,7 @@ Measured [coma-X, coma-Y, focus] zernike coefficients [nm]: [{
             (len(self.zern) * '{:0.1f}, ').format(*self.zern)}]
 De-rotated [coma-X, coma-Y, focus]  zernike coefficients [nm]: [{
             (len(rot_zern) * '{:0.1f}, ').format(*rot_zern)}]
+Gain: {self.gain}
 Hexapod [x, y, z] offsets [mm] : {(len(hexapod_offset) * '{:0.3f}, ').format(*hexapod_offset)}
 Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)}
 ==============================

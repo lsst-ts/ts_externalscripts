@@ -30,6 +30,7 @@ import warnings
 import numpy as np
 import pandas
 from lsst.afw.geom import SkyWcs
+from lsst.geom import PointD
 from lsst.pipe.base.struct import Struct
 
 try:
@@ -38,7 +39,10 @@ try:
     from lsst.ts.observing.utilities.auxtel.latiss.getters import (
         get_image_sync as get_image,
     )
-    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import (
+        calculate_xy_offsets,
+        parse_visit_id,
+    )
     from lsst.ts.wep.task.calcZernikesTask import (
         CalcZernikesTask,
         CalcZernikesTaskConfig,
@@ -51,6 +55,8 @@ try:
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
+
+from lsst.ts.observatory.control.constants.latiss_constants import boresight
 
 from .latiss_base_align import LatissAlignResults, LatissBaseAlign
 
@@ -136,6 +142,7 @@ def run_wep(
     extra_visit_id: int,
     donut_diameter: int,
     timeout_get_image: float,
+    max_distance_from_boresight: float = 500.0,
 ) -> typing.Tuple[Struct, Struct, Struct]:
     best_effort_isr = BestEffortIsr()
 
@@ -170,23 +177,43 @@ def run_wep(
             f"Extra image ({exposure_extra}) success is {result_extra.success}."
         )
 
-    dy = (
-        result_extra.brightestObjCentroidCofM[0]
-        - result_intra.brightestObjCentroidCofM[0]
+    dx_boresight_extra, dy_boresight_extra = calculate_xy_offsets(
+        PointD(
+            result_extra.brightestObjCentroid[0], result_extra.brightestObjCentroid[1]
+        ),
+        boresight,
     )
-    dx = (
-        result_extra.brightestObjCentroidCofM[1]
-        - result_intra.brightestObjCentroidCofM[1]
+    dx_boresight_intra, dy_boresight_intra = calculate_xy_offsets(
+        PointD(
+            result_intra.brightestObjCentroid[0], result_intra.brightestObjCentroid[1]
+        ),
+        boresight,
     )
-    dr = np.sqrt(dy**2 + dx**2)
 
-    position_out_of_range = dr > 100
+    dr_boresight_extra = np.sqrt(dx_boresight_extra**2 + dy_boresight_extra**2)
+    dr_boresight_intra = np.sqrt(dx_boresight_intra**2 + dy_boresight_intra**2)
 
-    donut_catalog_intra = get_donut_catalog(result_intra, exposure_intra.getWcs())
+    extra_source_out_of_bounds = dr_boresight_extra > max_distance_from_boresight
+    intra_source_out_of_bounds = dr_boresight_intra > max_distance_from_boresight
+
+    if extra_source_out_of_bounds and intra_source_out_of_bounds:
+        raise RuntimeError(
+            "Both the intra and extra images detected sources are out of bounds. "
+            f"Should be closer than {max_distance_from_boresight}. "
+            f"Got {dr_boresight_extra} and {dr_boresight_intra}."
+        )
+
+    donut_catalog_intra = get_donut_catalog(
+        *(
+            (result_intra, exposure_intra.getWcs())
+            if not intra_source_out_of_bounds
+            else (result_extra, exposure_extra.getWcs())
+        )
+    )
     donut_catalog_extra = get_donut_catalog(
         *(
             (result_extra, exposure_extra.getWcs())
-            if position_out_of_range
+            if not extra_source_out_of_bounds
             else (result_intra, exposure_intra.getWcs())
         )
     )
