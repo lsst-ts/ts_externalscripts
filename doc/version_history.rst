@@ -8,6 +8,19 @@ Version History
 
 .. towncrier release notes start
 
+v0.27.4 (2024-02-12)
+====================
+
+Performance Enhancement
+-----------------------
+
+- In ``/auxtel/latiss_wep_align.py``, change how the source selection is checked when running wep.
+  Instead of relying on the intra-focal image as the basis, compute the distance to the boresight and either use the source detected (if it is close enough to the bore sight) or use the source detected for the other image.
+  It will also raise an exception if both sources are too far from the boresight.
+
+  In ``auxtel/latiss_base_align.py``, add gains when converting from wavefront error to hexapod correction. (`DM-42690 <https://jira.lsstcorp.org/browse/DM-42690>`_)
+
+
 v0.27.3 (2024-02-02)
 ====================
 
