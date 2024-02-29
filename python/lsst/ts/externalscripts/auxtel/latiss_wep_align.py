@@ -169,11 +169,11 @@ def run_wep(
         exposure_extra, donutDiameter=donut_diameter
     )
 
-    if not result_intra.success or not result_extra.success:
+    if result_intra.mode == "failed" or result_extra.mode == "failed":
         raise RuntimeError(
             f"Centroid finding algorithm was unsuccessful. "
-            f"Intra image ({exposure_intra}) success is {result_intra.success}. "
-            f"Extra image ({exposure_extra}) success is {result_extra.success}."
+            f"Intra image ({exposure_intra}) success is {result_intra}. "
+            f"Extra image ({exposure_extra}) success is {result_extra}."
         )
 
     dx_boresight_extra, dy_boresight_extra = calculate_xy_offsets(
