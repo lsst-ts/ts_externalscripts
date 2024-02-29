@@ -34,8 +34,7 @@ from lsst.geom import PointD
 from lsst.pipe.base.struct import Struct
 
 try:
-    from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask
-    from lsst.summit.utils import BestEffortIsr
+    from lsst.summit.utils import BestEffortIsr, PeekExposureTask
     from lsst.ts.observing.utilities.auxtel.latiss.getters import (
         get_image_sync as get_image,
     )
@@ -158,8 +157,8 @@ def run_wep(
         timeout=timeout_get_image,
     )
 
-    quick_frame_measurement_config = QuickFrameMeasurementTask.ConfigClass()
-    quick_frame_measurement_task = QuickFrameMeasurementTask(
+    quick_frame_measurement_config = PeekExposureTask.ConfigClass()
+    quick_frame_measurement_task = PeekExposureTask(
         config=quick_frame_measurement_config
     )
 
