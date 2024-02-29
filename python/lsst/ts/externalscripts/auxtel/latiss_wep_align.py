@@ -181,7 +181,7 @@ def run_wep(
         boresight,
     )
     dx_boresight_intra, dy_boresight_intra = calculate_xy_offsets(
-        PointD(result_intra.brightestCentroid[0], result_intra.brightestObjCentroid[1]),
+        PointD(result_intra.brightestCentroid[0], result_intra.brightestCentroid[1]),
         boresight,
     )
 
