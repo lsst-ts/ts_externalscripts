@@ -177,15 +177,11 @@ def run_wep(
         )
 
     dx_boresight_extra, dy_boresight_extra = calculate_xy_offsets(
-        PointD(
-            result_extra.brightestObjCentroid[0], result_extra.brightestObjCentroid[1]
-        ),
+        PointD(result_extra.brightestCentroid[0], result_extra.brightestCentroid[1]),
         boresight,
     )
     dx_boresight_intra, dy_boresight_intra = calculate_xy_offsets(
-        PointD(
-            result_intra.brightestObjCentroid[0], result_intra.brightestObjCentroid[1]
-        ),
+        PointD(result_intra.brightestCentroid[0], result_intra.brightestObjCentroid[1]),
         boresight,
     )
 
@@ -273,19 +269,19 @@ def get_donut_catalog(result: Struct, wcs: SkyWcs) -> pandas.DataFrame:
         Donut catalog.
     """
     ra, dec = wcs.pixelToSkyArray(
-        result.brightestObjCentroidCofM[0],
-        result.brightestObjCentroidCofM[1],
+        result.brightestCentroid[0],
+        result.brightestCentroid[1],
         degrees=False,
     )
 
     donut_catalog = pandas.DataFrame([])
     donut_catalog["coord_ra"] = ra
     donut_catalog["coord_dec"] = dec
-    donut_catalog["centroid_x"] = [result.brightestObjCentroidCofM[0]]
-    donut_catalog["centroid_y"] = [result.brightestObjCentroidCofM[1]]
+    donut_catalog["centroid_x"] = [result.brightestCentroid[0]]
+    donut_catalog["centroid_y"] = [result.brightestCentroid[1]]
     donut_catalog["blend_centroid_x"] = [[]]
     donut_catalog["blend_centroid_y"] = [[]]
-    donut_catalog["source_flux"] = [result.brightestObjApFlux70]
+    donut_catalog["source_flux"] = [result.pixelMedian]
 
     donut_catalog = donut_catalog.sort_values(
         "source_flux", ascending=False
