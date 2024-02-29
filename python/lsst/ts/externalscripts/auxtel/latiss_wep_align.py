@@ -27,21 +27,16 @@ import functools
 import typing
 import warnings
 
-import numpy as np
 import pandas
 from lsst.afw.geom import SkyWcs
-from lsst.geom import PointD
 from lsst.pipe.base.struct import Struct
 
 try:
-    from lsst.summit.utils import BestEffortIsr, PeekExposureTask
+    from lsst.summit.utils import BestEffortIsr
     from lsst.ts.observing.utilities.auxtel.latiss.getters import (
         get_image_sync as get_image,
     )
-    from lsst.ts.observing.utilities.auxtel.latiss.utils import (
-        calculate_xy_offsets,
-        parse_visit_id,
-    )
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
     from lsst.ts.wep.task.calcZernikesTask import (
         CalcZernikesTask,
         CalcZernikesTaskConfig,
@@ -50,12 +45,14 @@ try:
         CutOutDonutsScienceSensorTask,
         CutOutDonutsScienceSensorTaskConfig,
     )
+    from lsst.ts.wep.task.generateDonutCatalogOnlineTask import (
+        GenerateDonutCatalogOnlineTask,
+    )
+    from lsst.ts.wep.task.refCatalogInterface import RefCatalogInterface
 
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
-
-from lsst.ts.observatory.control.constants.latiss_constants import boresight
 
 from .latiss_base_align import LatissAlignResults, LatissBaseAlign
 
@@ -157,60 +154,34 @@ def run_wep(
         timeout=timeout_get_image,
     )
 
-    quick_frame_measurement_config = PeekExposureTask.ConfigClass()
-    quick_frame_measurement_task = PeekExposureTask(
+    visitInfo = exposure_intra.getInfo().getVisitInfo()
+    boresightRa = visitInfo.getBoresightRaDec().getRa().asDegrees()
+    boresightDec = visitInfo.getBoresightRaDec().getDec().asDegrees()
+    boresightRotAng = visitInfo.getBoresightRotAngle().asDegrees()
+    refCatInterface = RefCatalogInterface(boresightRa, boresightDec, boresightRotAng)
+    htmIds = refCatInterface.getHtmIds()
+
+    catalogName = "gaia_dr2_20200414"
+    collections = "refcats"
+
+    dataRefs, dataIds = refCatInterface.getDataRefs(
+        htmIds, best_effort_isr.butler, catalogName, collections
+    )
+
+    quick_frame_measurement_config = GenerateDonutCatalogOnlineTask.ConfigClass()
+    quick_frame_measurement_config.filterName = "phot_g_mean"
+    quick_frame_measurement_config.donutSelector.useCustomMagLimit = True
+    quick_frame_measurement_config.donutSelector.magMax = 13
+    quick_frame_measurement_config.donutSelector.magMin = 9
+
+    generate_donut_catalog_online_task = GenerateDonutCatalogOnlineTask(
         config=quick_frame_measurement_config
     )
 
-    result_intra = quick_frame_measurement_task.run(
-        exposure_intra, mode="donut", binSize=2, donutDiameter=donut_diameter
-    )
-    result_extra = quick_frame_measurement_task.run(
-        exposure_extra, mode="donut", binSize=2, donutDiameter=donut_diameter
-    )
-
-    if result_intra.mode == "failed" or result_extra.mode == "failed":
-        raise RuntimeError(
-            f"Centroid finding algorithm was unsuccessful. "
-            f"Intra image ({exposure_intra}) success is {result_intra}. "
-            f"Extra image ({exposure_extra}) success is {result_extra}."
-        )
-
-    dx_boresight_extra, dy_boresight_extra = calculate_xy_offsets(
-        PointD(result_extra.brightestCentroid[0], result_extra.brightestCentroid[1]),
-        boresight,
-    )
-    dx_boresight_intra, dy_boresight_intra = calculate_xy_offsets(
-        PointD(result_intra.brightestCentroid[0], result_intra.brightestCentroid[1]),
-        boresight,
-    )
-
-    dr_boresight_extra = np.sqrt(dx_boresight_extra**2 + dy_boresight_extra**2)
-    dr_boresight_intra = np.sqrt(dx_boresight_intra**2 + dy_boresight_intra**2)
-
-    extra_source_out_of_bounds = dr_boresight_extra > max_distance_from_boresight
-    intra_source_out_of_bounds = dr_boresight_intra > max_distance_from_boresight
-
-    if extra_source_out_of_bounds and intra_source_out_of_bounds:
-        raise RuntimeError(
-            "Both the intra and extra images detected sources are out of bounds. "
-            f"Should be closer than {max_distance_from_boresight}. "
-            f"Got {dr_boresight_extra} and {dr_boresight_intra}."
-        )
-
-    donut_catalog_intra = get_donut_catalog(
-        *(
-            (result_intra, exposure_intra.getWcs())
-            if not intra_source_out_of_bounds
-            else (result_extra, exposure_extra.getWcs())
-        )
-    )
-    donut_catalog_extra = get_donut_catalog(
-        *(
-            (result_extra, exposure_extra.getWcs())
-            if not extra_source_out_of_bounds
-            else (result_intra, exposure_intra.getWcs())
-        )
+    donut_catalog = generate_donut_catalog_online_task.run(
+        refCatalogs=dataRefs,
+        detector=exposure_intra.detector,
+        detectorWcs=exposure_intra.getWcs(),
     )
 
     cut_out_config = CutOutDonutsScienceSensorTaskConfig()
@@ -230,16 +201,11 @@ def run_wep(
         collections="LATISS/calib/unbounded",
     )
 
-    try:
-        cut_out_output = cut_out_task.run(
-            [exposure_extra, exposure_intra],
-            [donut_catalog_extra, donut_catalog_intra],
-            camera,
-        )
-    except Exception:
-        raise RuntimeError(
-            f"Failed to run cut_out_task with {result_intra=} and {result_extra=}."
-        )
+    cut_out_output = cut_out_task.run(
+        [exposure_extra, exposure_intra],
+        [donut_catalog.donutCatalog, donut_catalog.donutCatalog],
+        camera,
+    )
 
     config = CalcZernikesTaskConfig()
     # LATISS config parameters
@@ -254,7 +220,7 @@ def run_wep(
         cut_out_output.donutStampsExtra, cut_out_output.donutStampsIntra
     )
 
-    return result_intra, result_extra, task_output
+    return donut_catalog, donut_catalog, task_output
 
 
 def get_donut_catalog(result: Struct, wcs: SkyWcs) -> pandas.DataFrame:
