@@ -162,12 +162,8 @@ def run_wep(
         config=quick_frame_measurement_config
     )
 
-    result_intra = quick_frame_measurement_task.run(
-        exposure_intra, donutDiameter=donut_diameter
-    )
-    result_extra = quick_frame_measurement_task.run(
-        exposure_extra, donutDiameter=donut_diameter
-    )
+    result_intra = quick_frame_measurement_task.run(exposure_intra)
+    result_extra = quick_frame_measurement_task.run(exposure_extra)
 
     if result_intra.mode == "failed" or result_extra.mode == "failed":
         raise RuntimeError(
