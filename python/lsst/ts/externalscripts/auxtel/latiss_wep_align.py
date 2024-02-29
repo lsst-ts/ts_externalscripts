@@ -172,7 +172,7 @@ def run_wep(
     quick_frame_measurement_config.filterName = "phot_g_mean"
     quick_frame_measurement_config.donutSelector.useCustomMagLimit = True
     quick_frame_measurement_config.donutSelector.magMax = 13
-    quick_frame_measurement_config.donutSelector.magMin = 9
+    quick_frame_measurement_config.donutSelector.magMin = 0
 
     generate_donut_catalog_online_task = GenerateDonutCatalogOnlineTask(
         config=quick_frame_measurement_config
