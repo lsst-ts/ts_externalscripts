@@ -230,11 +230,16 @@ def run_wep(
         collections="LATISS/calib/unbounded",
     )
 
-    cut_out_output = cut_out_task.run(
-        [exposure_extra, exposure_intra],
-        [donut_catalog_extra, donut_catalog_intra],
-        camera,
-    )
+    try:
+        cut_out_output = cut_out_task.run(
+            [exposure_extra, exposure_intra],
+            [donut_catalog_extra, donut_catalog_intra],
+            camera,
+        )
+    except Exception:
+        raise RuntimeError(
+            f"Failed to run cut_out_task with {result_intra=} and {result_extra=}."
+        )
 
     config = CalcZernikesTaskConfig()
     # LATISS config parameters
