@@ -95,11 +95,9 @@ class CorrectPointing(BaseScript):
             az:
                 type: number
                 description: Azimuth (in degrees) to find a target.
-                default: 90.0
             el:
                 type: number
                 description: Elevation (in degrees) to find a target.
-                default: 60.0
             mag_limit:
                 type: number
                 description: Minimum (brightest) V-magnitude limit.
@@ -113,7 +111,7 @@ class CorrectPointing(BaseScript):
             radius:
                 type: number
                 description: Radius of the cone search (in degrees).
-                default: 5.0
+                default: 10.0
             catalog_name:
                 description: >-
                     Name of a start catalog to load or None to skip loading a catalog.
@@ -143,8 +141,8 @@ class CorrectPointing(BaseScript):
         """
         self.best_effort_isr = self.get_best_effort_isr()
 
-        self.azimuth = config.az
-        self.elevation = config.el
+        self.azimuth = getattr(config, "az", None)
+        self.elevation = getattr(config, "el", None)
         self.radius = config.radius
         self.magnitude_limit = config.mag_limit
         self.magnitude_range = config.mag_range
@@ -248,6 +246,16 @@ class CorrectPointing(BaseScript):
             self.atcs.load_catalog(self.catalog_name)
 
         try:
+            if self.azimuth is None or self.elevation is None:
+                self.log.debug(
+                    "Either azimuth or elevation not provided, using current telescope position."
+                )
+                telescope_position = await self.next_telescope_position()
+                if self.azimuth is None:
+                    self.azimuth = telescope_position.azimuthCalculatedAngle[-1]
+                if self.elevation is None:
+                    self.elevation = telescope_position.elevationCalculatedAngle[-1]
+
             target = await self.atcs.find_target(
                 az=self.azimuth,
                 el=self.elevation,
