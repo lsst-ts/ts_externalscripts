@@ -72,6 +72,7 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
             dict(el=45.0),
             dict(mag_limit=9.0),
             dict(radius=1.0),
+            dict(filter="SDSSr_65mm"),
         ]
 
         self.remotes_needed = False
@@ -82,6 +83,7 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
                 radius=self.script.radius,
                 mag_limit=self.script.magnitude_limit,
                 mag_range=self.script.magnitude_range,
+                filter=self.script.filter,
             )
             for config in configs_good:
                 await self.configure_script(**config)
@@ -109,6 +111,7 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
             radius=self.script.radius,
             mag_limit=self.script.magnitude_limit,
             mag_range=self.script.magnitude_range,
+            filter=self.script.filter,
         )
 
         for parameter in default_values:

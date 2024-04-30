@@ -81,6 +81,7 @@ class CorrectPointing(BaseScript):
         self.radius = 5.0
         self.magnitude_limit = 6.0
         self.magnitude_range = 4.0
+        self.filter = "empty_1"
 
     @classmethod
     def get_schema(cls) -> dict[str, typing.Any]:
@@ -127,6 +128,10 @@ class CorrectPointing(BaseScript):
                     If true, also reset the hexapod X/Y offsets before
                     correcting pointing.
                 default: True
+            filter:
+                type: string
+                description: Which filter to use.
+                default: empty_1
         """
         return yaml.safe_load(schema_yaml)
 
@@ -150,6 +155,7 @@ class CorrectPointing(BaseScript):
         self.magnitude_range = config.mag_range
         self.catalog_name = config.catalog_name
         self.reset_aos_offsets = config.reset_aos_offsets
+        self.filter = config.filter
 
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
@@ -207,7 +213,7 @@ class CorrectPointing(BaseScript):
         Set filter and grating to empty_1.
         """
         await self.latiss.setup_instrument(
-            filter="empty_1",
+            filter=self.filter,
             grating="empty_1",
         )
 
