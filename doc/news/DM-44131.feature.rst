@@ -1,0 +1,1 @@
+In auxtel/correct_pointing.py, add option to pass instrument filter to configuration.
