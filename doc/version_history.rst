@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v0.27.5 (2024-05-02)
+====================
+
+New Features
+------------
+
+- In auxtel/correct_pointing.py, add option to pass instrument filter to configuration. (`DM-44131 <https://jira.lsstcorp.org/browse/DM-44131>`_)
+
+
 v0.27.4 (2024-02-12)
 ====================
 
