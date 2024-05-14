@@ -24,9 +24,9 @@ import asyncio
 import logging
 import os
 import unittest
-import yaml
 
 import pytest
+import yaml
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.auxtel import LatissTakeFlats
 from lsst.utils import getPackageDir

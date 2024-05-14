@@ -27,8 +27,8 @@ import asyncio
 # import pathlib
 import io
 import json
-import yaml
 
+import yaml
 from lsst.ts import salobj, utils
 
 # from lsst.ts.idl import enums
@@ -47,7 +47,6 @@ class LatissTakeFlats(BaseScript):
     def __init__(
         self, index: int, remotes: bool = True, simulation_mode: int = 0
     ) -> None:
-
         # valid_simulation_modes = (0, 1)
 
         super().__init__(
@@ -84,7 +83,6 @@ class LatissTakeFlats(BaseScript):
         self.get_image_timeout = 10.0
 
     async def run(self, simulation_mode: int = 0):
-
         await self.arun(checkpoint_active=True, simulation_mode=simulation_mode)
 
     @classmethod
@@ -119,7 +117,6 @@ class LatissTakeFlats(BaseScript):
         return yaml.safe_load(yaml_schema)
 
     def set_metadata(self, metadata):
-
         self.log.debug("In set_metadata")
         metadata.nimages = 3
         metadata.duration = 600  # set arbitrarily
@@ -144,7 +141,6 @@ class LatissTakeFlats(BaseScript):
             self.sequence = yaml.safe_load(config.sequence)
 
     async def handle_checkpoint(self, checkpoint_active, checkpoint_message):
-
         if checkpoint_active:
             await self.checkpoint(checkpoint_message)
         else:
@@ -392,7 +388,6 @@ class LatissTakeFlats(BaseScript):
         )
 
     async def arun(self, checkpoint_active=False, simulation_mode: bool = 0):
-
         await self.handle_checkpoint(
             checkpoint_active=checkpoint_active,
             checkpoint_message="Setting up LATISS",
@@ -415,7 +410,6 @@ class LatissTakeFlats(BaseScript):
         await self.prepare_summary_table()
 
         for i, self.step in enumerate(self.sequence):
-
             await self.handle_checkpoint(
                 checkpoint_active=checkpoint_active,
                 checkpoint_message=f"Setting up atmonochromator for sequence {i+1} of {len(self.sequence)}.",
