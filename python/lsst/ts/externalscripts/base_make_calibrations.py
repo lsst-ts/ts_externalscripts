@@ -512,12 +512,20 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             )
         except asyncio.TimeoutError:
             expected_ids = set(exposures)
-            received_ids = set(
-                [
-                    self.get_exposure_id(image_in_oods.obsid)
+            received_ids = set()
+            try:
+                received_ids = set(
+                    [
+                        self.get_exposure_id(image_in_oods.obsid)
+                        for image_in_oods in self.image_in_oods_samples[image_type]
+                    ]
+                )
+            except ValueError:
+                obs_ids = [
+                    image_in_oods.obsid
                     for image_in_oods in self.image_in_oods_samples[image_type]
                 ]
-            )
+                self.log.error(f"Could not parse list of received_ids. Got {obs_ids}.")
             missing_image_ids = expected_ids - received_ids
 
             self.log.error(
