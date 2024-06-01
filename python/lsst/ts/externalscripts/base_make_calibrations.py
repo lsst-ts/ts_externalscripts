@@ -30,10 +30,11 @@ import lsst.daf.butler as dafButler
 import numpy as np
 import yaml
 from lsst.ts import salobj
+from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 from lsst.utils import getPackageDir
 
 
-class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
+class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
     """Base class for taking images, and constructing, verifying, and
         certifying combined calibrations.
 
@@ -348,7 +349,16 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 descriptor: Timeout value, in seconds, for OODS.
         additionalProperties: false
         """
-        return yaml.safe_load(schema)
+        schema_dict = yaml.safe_load(schema)
+
+        base_schema_dict = super().get_schema()
+
+        for properties in base_schema_dict["properties"]:
+            schema_dict["properties"][properties] = base_schema_dict["properties"][
+                properties
+            ]
+
+        return schema_dict
 
     async def set_exp_times_per_im_type(self, image_type):
         """Define exp_times and n_images according to image type.
@@ -415,6 +425,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.n_images_discard["BIAS"] = config.n_discard_bias
         self.n_images_discard["DARK"] = config.n_discard_dark
         self.n_images_discard["FLAT"] = config.n_discard_flat
+
+        await super().configure(config=config)
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
@@ -500,12 +512,20 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             )
         except asyncio.TimeoutError:
             expected_ids = set(exposures)
-            received_ids = set(
-                [
-                    self.get_exposure_id(image_in_oods.obsid)
+            received_ids = set()
+            try:
+                received_ids = set(
+                    [
+                        self.get_exposure_id(image_in_oods.obsid)
+                        for image_in_oods in self.image_in_oods_samples[image_type]
+                    ]
+                )
+            except ValueError:
+                obs_ids = [
+                    image_in_oods.obsid
                     for image_in_oods in self.image_in_oods_samples[image_type]
                 ]
-            )
+                self.log.error(f"Could not parse list of received_ids. Got {obs_ids}.")
             missing_image_ids = expected_ids - received_ids
 
             self.log.error(
@@ -1480,7 +1500,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     continue
         self.log.info(final_report_string)
 
-    async def arun(self, checkpoint=False):
+    async def run_block(self):
         # Check that the camera is enabled
         await self.camera.assert_all_enabled(
             "All camera components need to be enabled to run this script."
@@ -1491,9 +1511,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             "All OCPS components need to be enabled to run this script."
         )
 
-        if checkpoint:
-            await self.checkpoint("setup instrument")
-            await self.camera.setup_instrument(**self.get_instrument_configuration())
+        await self.checkpoint("Setup instrument.")
+        await self.camera.setup_instrument(**self.get_instrument_configuration())
 
         mode = self.config.script_mode
         if mode == "BIAS":
@@ -1513,13 +1532,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         for im_type in image_types:
             # 1. Take images with the instrument, only for "BIAS,
             # "DARK", or "FLAT".
-            if checkpoint:
-                if im_type == "BIAS":
-                    await self.checkpoint(f"Taking {self.config.n_bias} biases.")
-                elif im_type == "DARK":
-                    await self.checkpoint(f"Taking {self.config.n_dark} darks.")
-                elif im_type == "FLAT":
-                    await self.checkpoint(f"Taking {self.config.n_flat} flats.")
+            if im_type == "BIAS":
+                await self.checkpoint(f"Taking {self.config.n_bias} biases.")
+            elif im_type == "DARK":
+                await self.checkpoint(f"Taking {self.config.n_dark} darks.")
+            elif im_type == "FLAT":
+                await self.checkpoint(f"Taking {self.config.n_flat} flats.")
 
             # TODO: Before taking flats with LATISS (and also
             # with LSSTComCam), check that the telescope is in
@@ -1530,11 +1548,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             n_discard = self.n_images_discard[im_type]
             self.exposure_ids[im_type] = exposure_ids_list[n_discard:]
 
-            if checkpoint:
-                # Image IDs
-                await self.checkpoint(
-                    f"Images taken: {self.exposure_ids[im_type]}; type: {im_type}"
-                )
+            # Image IDs
+            await self.checkpoint(
+                f"Images taken: {self.exposure_ids[im_type]}; type: {im_type}"
+            )
 
             if self.config.generate_calibrations:
                 # 2. Call the calibration pipetask via the OCPS
@@ -1547,8 +1564,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 job_id_calib = response_ocps_calib_pipetask["jobId"]
             else:
                 self.log.info(
-                    f"A combined {im_type} will not be generated from the images "
-                    "taken as part of this script. Any needed input "
+                    f"A combined {im_type} will not be generated from the "
+                    "images taken as part of this script. Any needed input "
                     "calibrations by the verification pipetasks will be "
                     "sought in their input calibrations."
                 )
@@ -1718,7 +1735,3 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             detectors_string = f"(0..{n_det})"
 
         return detectors_string
-
-    async def run(self):
-        """"""
-        await self.arun(checkpoint=True)

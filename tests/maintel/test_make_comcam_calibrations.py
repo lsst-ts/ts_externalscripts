@@ -22,7 +22,8 @@
 import logging
 import unittest
 
-from lsst.ts import externalscripts, standardscripts
+import pytest
+from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.maintel import MakeComCamCalibrations
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,12 @@ class TestMakeComCamCalibrations(
             exp_times_flat = [10, 10, 50, 50]
             detectors = [0, 1, 2, 3, 4, 5, 6, 7, 8]
             n_processes = 4
+            program = "BLOCK-123"
+            reason = "SITCOM-321"
+
+            self.script.get_obs_id = unittest.mock.AsyncMock(
+                side_effect=["202306060001"]
+            )
 
             await self.configure_script(
                 n_bias=n_bias,
@@ -60,6 +67,8 @@ class TestMakeComCamCalibrations(
                 exp_times_flat=exp_times_flat,
                 detectors=detectors,
                 n_processes=n_processes,
+                program=program,
+                reason=reason,
             )
 
             assert self.script.config.n_bias == n_bias
@@ -69,6 +78,37 @@ class TestMakeComCamCalibrations(
             assert self.script.config.exp_times_flat == exp_times_flat
             assert self.script.config.n_processes == n_processes
             assert self.script.config.detectors == detectors
+            assert self.script.program == program
+            assert self.script.reason == reason
+            assert (
+                self.script.checkpoint_message
+                == "MakeComCamCalibrations BLOCK-123 202306060001 SITCOM-321"
+            )
+
+    async def test_configure_invalid_program_name(self):
+        async with self.make_script():
+            n_bias = 2
+            n_dark = 2
+            exp_times_dark = 10
+            n_flat = 4
+            exp_times_flat = [10, 10, 50, 50]
+            detectors = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+            n_processes = 4
+            program = "BLOCK_123"
+            reason = "SITCOM-321"
+
+            with pytest.raises(salobj.ExpectedError):
+                await self.configure_script(
+                    n_bias=n_bias,
+                    n_dark=n_dark,
+                    n_flat=n_flat,
+                    exp_times_dark=exp_times_dark,
+                    exp_times_flat=exp_times_flat,
+                    detectors=detectors,
+                    n_processes=n_processes,
+                    program=program,
+                    reason=reason,
+                )
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()

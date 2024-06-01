@@ -168,10 +168,12 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
         additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema)
-        base_schema_dict = super(MakeLatissCalibrations, cls).get_schema()
+        base_schema_dict = super().get_schema()
 
-        for prop in base_schema_dict["properties"]:
-            schema_dict["properties"][prop] = base_schema_dict["properties"][prop]
+        for properties in base_schema_dict["properties"]:
+            schema_dict["properties"][properties] = base_schema_dict["properties"][
+                properties
+            ]
 
         return schema_dict
 
