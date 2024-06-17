@@ -1,0 +1,2 @@
+Update pipeline paths, filenames, and subset names to reflect upstream changes in `cp_pipe` and `cp_verify`.
+

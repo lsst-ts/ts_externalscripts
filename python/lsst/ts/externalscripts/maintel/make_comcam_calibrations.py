@@ -74,7 +74,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
     @property
     def pipeline_instrument(self):
         """String with instrument name for pipeline yaml file"""
-        return "LsstComCam"
+        return "LSSTComCam"
 
     @property
     def detectors(self):

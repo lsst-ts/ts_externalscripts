@@ -324,7 +324,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             do_gain_from_flat_pairs:
                 type: boolean
                 descriptor: Should the gain be estimated from each pair of flats
-                    taken at the same exposure time? Runs the cpPtc.yaml# generateGainFromFlatPairs \
+                    taken at the same exposure time? Runs the cpPtc.yaml#cpPtcGainFromFlatPairs \
                     pipeline. Use the 'config_options_ptc' parameter to pass options to the ISR and \
                     cpExtract tasks. This configuration will only be in effect if \
                     script_mode = BIAS_DARK_FLAT.
@@ -651,7 +651,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             input_collections_defects = f"{self.config.input_collections_defects}"
 
         return (
-            "findDefects.yaml",
+            "cpDefects.yaml",
             (
                 f"-j {self.config.n_processes} -i {input_collections_defects} "
                 "--register-dataset-types "
@@ -665,7 +665,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        cpPtc.yaml or cpPtc.yaml#gainFromFlatPairs : `str`
+        cpPtc.yaml or cpPtc.yaml#cpPtcGainFromFlatPairs : `str`
             cp_pipe PTC or gain from pairs pipeline.
 
         config_string : `str`
@@ -685,7 +685,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         if (self.config.do_ptc is False) and (
             self.config.do_gain_from_flat_pairs is True
         ):
-            pipeline_yaml_file = "cpPtc.yaml#gainFromFlatPairs"
+            pipeline_yaml_file = "cpPtc.yaml#cpPtcGainFromFlatPairs"
         else:
             pipeline_yaml_file = "cpPtc.yaml"
 
@@ -806,7 +806,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             List of bias exposure IDs.
         """
 
-        pipe_yaml = "VerifyBias.yaml"
+        pipe_yaml = "verifyBias.yaml"
         # If the combined calibration was not generated with the images
         # taken at the beginning of the script, the verification
         # pipetask will use the calibrations provided as input
@@ -850,7 +850,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         exposure_ids_dark : `list`[`int`]
             List of dark exposure IDs.
         """
-        pipe_yaml = "VerifyDark.yaml"
+        pipe_yaml = "verifyDark.yaml"
         # If the combined calibration was not generated with the images
         # taken at the beginning of the script, the verification
         # pipetask will use the calibrations provided as input
@@ -895,7 +895,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             List of flat exposure IDs.
         """
 
-        pipe_yaml = "VerifyFlat.yaml"
+        pipe_yaml = "verifyFlat.yaml"
         # If the combined calibration was not generated with the images
         # taken at the beginning of the script, the verification
         # pipetask will use the calibrations provided as input
