@@ -64,7 +64,7 @@ try:
     butler = dafButler.Butler(
         DATAPATH,
         instrument="LATISS",
-        collections=["LATISS/raw/all", "LATISS_test_data"],
+        collections=["LATISS/raw/all", "LATISS-test-data"],
     )
     DATA_AVAILABLE = True
 except FileNotFoundError:
