@@ -111,7 +111,7 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.timeout_long = 30.0  # used to wait for in-position event from hexapod
         # Have discovered that the occasional image will take 12+ seconds
         # to ingest
-        self.timeout_get_image = 20.0
+        self.timeout_get_image = 60.0
         self.data_pool_sleep = 5.0
 
         # Sensitivity matrix: mm of hexapod motion for nm of wfs. To figure out
