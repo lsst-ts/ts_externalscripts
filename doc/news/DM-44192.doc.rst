@@ -1,1 +1,0 @@
-Update version history notes and towncrier ticket links to use cloud jira project.

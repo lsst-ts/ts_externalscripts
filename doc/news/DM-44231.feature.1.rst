@@ -1,1 +1,0 @@
-In auxtel/correct_pointing.py, add feature to limit max number of iterations.

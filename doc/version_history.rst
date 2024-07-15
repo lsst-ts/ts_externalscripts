@@ -8,6 +8,30 @@ Version History
 
 .. towncrier release notes start
 
+v0.27.6 (2024-07-15)
+====================
+
+New Features
+------------
+
+- In base_make_calibrations enable block metadata. (`DM-44231 <https://rubinobs.atlassian.net/browse/DM-44231>`_)
+- In auxtel/correct_pointing.py, add feature to limit max number of iterations. (`DM-44231 <https://rubinobs.atlassian.net/browse/DM-44231>`_)
+- In ``base_make_calibrations.py``, add metadata keywords (program, reason, note and group_id) to take_image call. (`DM-45220 <https://rubinobs.atlassian.net/browse/DM-45220>`_)
+
+
+Bug Fixes
+---------
+
+- Update auxtel/latiss_wep_align to use camera from lsst obs package instead of getting it from the butler. (`DM-44824 <https://rubinobs.atlassian.net/browse/DM-44824>`_)
+- Update pipeline paths, filenames, and subset names to reflect upstream changes in `cp_pipe` and `cp_verify`. (`DM-44873 <https://rubinobs.atlassian.net/browse/DM-44873>`_)
+
+
+Documentation
+-------------
+
+- Update version history notes and towncrier ticket links to use cloud jira project. (`DM-44192 <https://rubinobs.atlassian.net/browse/DM-44192>`_)
+
+
 v0.27.5 (2024-05-02)
 ====================
 
