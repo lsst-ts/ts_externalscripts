@@ -347,6 +347,9 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 type: integer
                 default: 120
                 descriptor: Timeout value, in seconds, for OODS.
+            note:
+                description: A descriptive note about the images being taken.
+                type: string
         additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema)
@@ -458,9 +461,22 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             Tuple with exposure IDs.
         """
 
+        self.note = getattr(self.config, "note", None)
+        self.group_id = self.group_id if self.obs_id is None else self.obs_id
+
         return tuple(
             [
-                (await self.camera.take_imgtype(image_type, exp_time, 1))[0]
+                (
+                    await self.camera.take_imgtype(
+                        image_type,
+                        exp_time,
+                        1,
+                        reason=self.reason,
+                        program=self.program,
+                        note=self.note,
+                        group_id=self.group_id,
+                    )
+                )[0]
                 for exp_time in exp_times
             ]
         )
