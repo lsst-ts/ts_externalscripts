@@ -30,10 +30,11 @@ import lsst.daf.butler as dafButler
 import numpy as np
 import yaml
 from lsst.ts import salobj
+from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 from lsst.utils import getPackageDir
 
 
-class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
+class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
     """Base class for taking images, and constructing, verifying, and
         certifying combined calibrations.
 
@@ -323,7 +324,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             do_gain_from_flat_pairs:
                 type: boolean
                 descriptor: Should the gain be estimated from each pair of flats
-                    taken at the same exposure time? Runs the cpPtc.yaml# generateGainFromFlatPairs \
+                    taken at the same exposure time? Runs the cpPtc.yaml#cpPtcGainFromFlatPairs \
                     pipeline. Use the 'config_options_ptc' parameter to pass options to the ISR and \
                     cpExtract tasks. This configuration will only be in effect if \
                     script_mode = BIAS_DARK_FLAT.
@@ -346,9 +347,21 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 type: integer
                 default: 120
                 descriptor: Timeout value, in seconds, for OODS.
+            note:
+                description: A descriptive note about the images being taken.
+                type: string
         additionalProperties: false
         """
-        return yaml.safe_load(schema)
+        schema_dict = yaml.safe_load(schema)
+
+        base_schema_dict = super().get_schema()
+
+        for properties in base_schema_dict["properties"]:
+            schema_dict["properties"][properties] = base_schema_dict["properties"][
+                properties
+            ]
+
+        return schema_dict
 
     async def set_exp_times_per_im_type(self, image_type):
         """Define exp_times and n_images according to image type.
@@ -416,6 +429,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.n_images_discard["DARK"] = config.n_discard_dark
         self.n_images_discard["FLAT"] = config.n_discard_flat
 
+        await super().configure(config=config)
+
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
         n_images = self.config.n_bias + self.config.n_dark + self.config.n_flat
@@ -446,9 +461,22 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             Tuple with exposure IDs.
         """
 
+        self.note = getattr(self.config, "note", None)
+        self.group_id = self.group_id if self.obs_id is None else self.obs_id
+
         return tuple(
             [
-                (await self.camera.take_imgtype(image_type, exp_time, 1))[0]
+                (
+                    await self.camera.take_imgtype(
+                        image_type,
+                        exp_time,
+                        1,
+                        reason=self.reason,
+                        program=self.program,
+                        note=self.note,
+                        group_id=self.group_id,
+                    )
+                )[0]
                 for exp_time in exp_times
             ]
         )
@@ -500,12 +528,20 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             )
         except asyncio.TimeoutError:
             expected_ids = set(exposures)
-            received_ids = set(
-                [
-                    self.get_exposure_id(image_in_oods.obsid)
+            received_ids = set()
+            try:
+                received_ids = set(
+                    [
+                        self.get_exposure_id(image_in_oods.obsid)
+                        for image_in_oods in self.image_in_oods_samples[image_type]
+                    ]
+                )
+            except ValueError:
+                obs_ids = [
+                    image_in_oods.obsid
                     for image_in_oods in self.image_in_oods_samples[image_type]
                 ]
-            )
+                self.log.error(f"Could not parse list of received_ids. Got {obs_ids}.")
             missing_image_ids = expected_ids - received_ids
 
             self.log.error(
@@ -631,7 +667,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             input_collections_defects = f"{self.config.input_collections_defects}"
 
         return (
-            "findDefects.yaml",
+            "cpDefects.yaml",
             (
                 f"-j {self.config.n_processes} -i {input_collections_defects} "
                 "--register-dataset-types "
@@ -645,7 +681,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        cpPtc.yaml or cpPtc.yaml#gainFromFlatPairs : `str`
+        cpPtc.yaml or cpPtc.yaml#cpPtcGainFromFlatPairs : `str`
             cp_pipe PTC or gain from pairs pipeline.
 
         config_string : `str`
@@ -665,7 +701,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         if (self.config.do_ptc is False) and (
             self.config.do_gain_from_flat_pairs is True
         ):
-            pipeline_yaml_file = "cpPtc.yaml#gainFromFlatPairs"
+            pipeline_yaml_file = "cpPtc.yaml#cpPtcGainFromFlatPairs"
         else:
             pipeline_yaml_file = "cpPtc.yaml"
 
@@ -786,7 +822,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             List of bias exposure IDs.
         """
 
-        pipe_yaml = "VerifyBias.yaml"
+        pipe_yaml = "verifyBias.yaml"
         # If the combined calibration was not generated with the images
         # taken at the beginning of the script, the verification
         # pipetask will use the calibrations provided as input
@@ -830,7 +866,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         exposure_ids_dark : `list`[`int`]
             List of dark exposure IDs.
         """
-        pipe_yaml = "VerifyDark.yaml"
+        pipe_yaml = "verifyDark.yaml"
         # If the combined calibration was not generated with the images
         # taken at the beginning of the script, the verification
         # pipetask will use the calibrations provided as input
@@ -875,7 +911,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             List of flat exposure IDs.
         """
 
-        pipe_yaml = "VerifyFlat.yaml"
+        pipe_yaml = "verifyFlat.yaml"
         # If the combined calibration was not generated with the images
         # taken at the beginning of the script, the verification
         # pipetask will use the calibrations provided as input
@@ -1480,7 +1516,7 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                     continue
         self.log.info(final_report_string)
 
-    async def arun(self, checkpoint=False):
+    async def run_block(self):
         # Check that the camera is enabled
         await self.camera.assert_all_enabled(
             "All camera components need to be enabled to run this script."
@@ -1491,9 +1527,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             "All OCPS components need to be enabled to run this script."
         )
 
-        if checkpoint:
-            await self.checkpoint("setup instrument")
-            await self.camera.setup_instrument(**self.get_instrument_configuration())
+        await self.checkpoint("Setup instrument.")
+        await self.camera.setup_instrument(**self.get_instrument_configuration())
 
         mode = self.config.script_mode
         if mode == "BIAS":
@@ -1513,13 +1548,12 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
         for im_type in image_types:
             # 1. Take images with the instrument, only for "BIAS,
             # "DARK", or "FLAT".
-            if checkpoint:
-                if im_type == "BIAS":
-                    await self.checkpoint(f"Taking {self.config.n_bias} biases.")
-                elif im_type == "DARK":
-                    await self.checkpoint(f"Taking {self.config.n_dark} darks.")
-                elif im_type == "FLAT":
-                    await self.checkpoint(f"Taking {self.config.n_flat} flats.")
+            if im_type == "BIAS":
+                await self.checkpoint(f"Taking {self.config.n_bias} biases.")
+            elif im_type == "DARK":
+                await self.checkpoint(f"Taking {self.config.n_dark} darks.")
+            elif im_type == "FLAT":
+                await self.checkpoint(f"Taking {self.config.n_flat} flats.")
 
             # TODO: Before taking flats with LATISS (and also
             # with LSSTComCam), check that the telescope is in
@@ -1530,11 +1564,10 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             n_discard = self.n_images_discard[im_type]
             self.exposure_ids[im_type] = exposure_ids_list[n_discard:]
 
-            if checkpoint:
-                # Image IDs
-                await self.checkpoint(
-                    f"Images taken: {self.exposure_ids[im_type]}; type: {im_type}"
-                )
+            # Image IDs
+            await self.checkpoint(
+                f"Images taken: {self.exposure_ids[im_type]}; type: {im_type}"
+            )
 
             if self.config.generate_calibrations:
                 # 2. Call the calibration pipetask via the OCPS
@@ -1547,8 +1580,8 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
                 job_id_calib = response_ocps_calib_pipetask["jobId"]
             else:
                 self.log.info(
-                    f"A combined {im_type} will not be generated from the images "
-                    "taken as part of this script. Any needed input "
+                    f"A combined {im_type} will not be generated from the "
+                    "images taken as part of this script. Any needed input "
                     "calibrations by the verification pipetasks will be "
                     "sought in their input calibrations."
                 )
@@ -1718,7 +1751,3 @@ class BaseMakeCalibrations(salobj.BaseScript, metaclass=abc.ABCMeta):
             detectors_string = f"(0..{n_det})"
 
         return detectors_string
-
-    async def run(self):
-        """"""
-        await self.arun(checkpoint=True)

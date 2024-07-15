@@ -31,6 +31,7 @@ import numpy as np
 import pandas
 from lsst.afw.geom import SkyWcs
 from lsst.geom import PointD
+from lsst.obs.lsst import Latiss
 from lsst.pipe.base.struct import Struct
 
 try:
@@ -229,11 +230,7 @@ def run_wep(
     cut_out_config.instDefocalOffset = 32.8
     cut_out_task = CutOutDonutsScienceSensorTask(config=cut_out_config)
 
-    camera = best_effort_isr.butler.get(
-        "camera",
-        dataId={"instrument": "LATISS"},
-        collections="LATISS/calib/unbounded",
-    )
+    camera = Latiss.getCamera()
 
     cut_out_output = cut_out_task.run(
         [exposure_extra, exposure_intra],

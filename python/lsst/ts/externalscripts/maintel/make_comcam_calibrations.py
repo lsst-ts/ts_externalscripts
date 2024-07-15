@@ -35,8 +35,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
     constructs a combined calibration for each image type by calling
     the appropiate pipetask via OCPS, and then verifies and certifies
     each combined calibration. It also optionally produces defects and
-    Photon Transfer Curves. "
-
+    Photon Transfer Curves.
     """
 
     def __init__(self, index=1):
@@ -75,7 +74,7 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
     @property
     def pipeline_instrument(self):
         """String with instrument name for pipeline yaml file"""
-        return "LsstComCam"
+        return "LSSTComCam"
 
     @property
     def detectors(self):
@@ -177,10 +176,12 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
         additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema)
-        base_schema_dict = super(MakeComCamCalibrations, cls).get_schema()
+        base_schema_dict = super().get_schema()
 
-        for prop in base_schema_dict["properties"]:
-            schema_dict["properties"][prop] = base_schema_dict["properties"][prop]
+        for properties in base_schema_dict["properties"]:
+            schema_dict["properties"][properties] = base_schema_dict["properties"][
+                properties
+            ]
 
         return schema_dict
 

@@ -1,0 +1,1 @@
+Update auxtel/latiss_wep_align to use camera from lsst obs package instead of getting it from the butler.

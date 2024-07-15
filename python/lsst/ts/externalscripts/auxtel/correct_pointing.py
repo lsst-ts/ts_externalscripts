@@ -82,6 +82,7 @@ class CorrectPointing(BaseScript):
         self.magnitude_limit = 6.0
         self.magnitude_range = 4.0
         self.filter = "empty_1"
+        self.max_iters = 5
 
     @classmethod
     def get_schema(cls) -> dict[str, typing.Any]:
@@ -132,6 +133,11 @@ class CorrectPointing(BaseScript):
                 type: string
                 description: Which filter to use.
                 default: empty_1
+            max_iters:
+                type: number
+                description: Maximum number of iterations to attempt.
+                default: 5
+                minimum: 0
         """
         return yaml.safe_load(schema_yaml)
 
@@ -156,6 +162,7 @@ class CorrectPointing(BaseScript):
         self.catalog_name = config.catalog_name
         self.reset_aos_offsets = config.reset_aos_offsets
         self.filter = config.filter
+        self.max_iters = config.max_iters
 
     def get_best_effort_isr(self):
         # Isolate the BestEffortIsr class so it can be mocked
@@ -286,7 +293,10 @@ class CorrectPointing(BaseScript):
             self._setup_latiss(),
         )
 
-        await self.handle_checkpoint(checkpoint_active, "Correcting pointing...")
+        await self.handle_checkpoint(
+            checkpoint_active,
+            f"Correcting pointing with a max number of {self.max_iters} iterations.",
+        )
 
         await self.center_on_brightest_source()
 
@@ -319,8 +329,26 @@ class CorrectPointing(BaseScript):
 
         offset = await self._center()
 
-        while offset > self.tolerance:
-            offset = await self._center()
+        _success = self.max_iters == 0
+
+        for iter_num in range(self.max_iters):
+            if offset < self.tolerance:
+                self.log.info(
+                    "Distance between target and center of detector is within tolerance."
+                )
+                _success = True
+                break
+            else:
+                self.log.info(
+                    f"Distance between target and center of detector {offset} "
+                    f"arcsec is greater than required tolerance {self.tolerance} arcsec. "
+                    f"Starting iteration number {iter_num+1} of {self.max_iters}."
+                )
+
+                offset = await self._center()
+
+        if not _success:
+            raise RuntimeError(f"Failed to correct pointing after {iter_num} attempts.")
 
         await self.atcs.add_point_data()
 

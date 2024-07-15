@@ -14,7 +14,7 @@ v0.27.5 (2024-05-02)
 New Features
 ------------
 
-- In auxtel/correct_pointing.py, add option to pass instrument filter to configuration. (`DM-44131 <https://jira.lsstcorp.org/browse/DM-44131>`_)
+- In auxtel/correct_pointing.py, add option to pass instrument filter to configuration. (`DM-44131 <https://rubinobs.atlassian.net/browse/DM-44131>`_)
 
 
 v0.27.4 (2024-02-12)
@@ -27,7 +27,7 @@ Performance Enhancement
   Instead of relying on the intra-focal image as the basis, compute the distance to the boresight and either use the source detected (if it is close enough to the bore sight) or use the source detected for the other image.
   It will also raise an exception if both sources are too far from the boresight.
 
-  In ``auxtel/latiss_base_align.py``, add gains when converting from wavefront error to hexapod correction. (`DM-42690 <https://jira.lsstcorp.org/browse/DM-42690>`_)
+  In ``auxtel/latiss_base_align.py``, add gains when converting from wavefront error to hexapod correction. (`DM-42690 <https://rubinobs.atlassian.net/browse/DM-42690>`_)
 
 
 v0.27.3 (2024-02-02)
@@ -37,7 +37,7 @@ New Features
 ------------
 
 - In ``auxtel/latiss_base_align.py`` added `self.next_supplemented_group_id()` call so that intra and extra focal images have the same group id.
-  (`DM-41684 <https://jira.lsstcorp.org/browse/DM-41684>`_) (`DM-41684 <https://jira.lsstcorp.org/browse/DM-41684>`_)
+  (`DM-41684 <https://rubinobs.atlassian.net/browse/DM-41684>`_) (`DM-41684 <https://rubinobs.atlassian.net/browse/DM-41684>`_)
 
 
 v0.27.2 (2023-12-14)
@@ -46,15 +46,15 @@ v0.27.2 (2023-12-14)
 New Features
 ------------
 
-- In ``auxtel/correct_pointing.py``, add config to reset the AOS offsets. (`DM-41870 <https://jira.lsstcorp.org/browse/DM-41870>`_)
+- In ``auxtel/correct_pointing.py``, add config to reset the AOS offsets. (`DM-41870 <https://rubinobs.atlassian.net/browse/DM-41870>`_)
 
 
 Bug Fixes
 ---------
 
 - Fixed a bug in `latiss_base_align.py` module when trying to flush the `ataos.evt_detailedState` event before resetting resetting the hexapod to its initial position.
-  That flush was not needed, redundant and it was causing an error. (`DM-41718 <https://jira.lsstcorp.org/browse/DM-41718>`_)
-- In ``auxtel/latiss_acquire_and_take_sequence.py``, add floor to y-value of final blind offset position to prevent target landing off of detector. (`DM-41870 <https://jira.lsstcorp.org/browse/DM-41870>`_)
+  That flush was not needed, redundant and it was causing an error. (`DM-41718 <https://rubinobs.atlassian.net/browse/DM-41718>`_)
+- In ``auxtel/latiss_acquire_and_take_sequence.py``, add floor to y-value of final blind offset position to prevent target landing off of detector. (`DM-41870 <https://rubinobs.atlassian.net/browse/DM-41870>`_)
 
 
 v0.27.1 (2023-11-29)
@@ -63,7 +63,7 @@ v0.27.1 (2023-11-29)
 Bug Fixes
 ---------
 
-- * Fix ``make_love_uptime_tests`` to use proper dict keys format (`DM-41266 <https://jira.lsstcorp.org/browse/DM-41266>`_)
+- * Fix ``make_love_uptime_tests`` to use proper dict keys format (`DM-41266 <https://rubinobs.atlassian.net/browse/DM-41266>`_)
 
 
 Other Changes and Additions
@@ -71,7 +71,7 @@ Other Changes and Additions
 
 - * In ``love_manager_client``, ``make_love_stress_tests`` and ``make_love_uptime_tests`` change location attribute to be an URL instead of a domain
   * In ``love_manager_client`` remove ``command_url``
-  * In ``make_love_stress_tests`` and ``make_love_uptime_tests`` make both ``USER_USERNAME`` and ``USER_USER_PASS`` environment variables required (`DM-41536 <https://jira.lsstcorp.org/browse/DM-41536>`_)
+  * In ``make_love_stress_tests`` and ``make_love_uptime_tests`` make both ``USER_USERNAME`` and ``USER_USER_PASS`` environment variables required (`DM-41536 <https://rubinobs.atlassian.net/browse/DM-41536>`_)
 
 
 v0.27.0 (2023-10-30)
@@ -81,7 +81,7 @@ New Features
 ------------
 
 - Update ``maintel/tma/random_walk.py`` to have timer outside the generator ``get_azel_random_walk``
-- Create ``maintel/tma/random_walk_and_take_image_gencam.py`` based on ``BaseTrackTargetAndTakeImage`` and ``RandomWalk`` (`DM-38437 <https://jira.lsstcorp.org/browse/DM-38437>`_)
+- Create ``maintel/tma/random_walk_and_take_image_gencam.py`` based on ``BaseTrackTargetAndTakeImage`` and ``RandomWalk`` (`DM-38437 <https://rubinobs.atlassian.net/browse/DM-38437>`_)
 
 
 v0.26.1 (2023-10-06)
@@ -90,21 +90,21 @@ v0.26.1 (2023-10-06)
 New Features
 ------------
 
-- In ``auxtel/latiss_base_align.py``, add functionality to return hexapod to its initial position in case of failures during the alignment process.. (`DM-37831 <https://jira.lsstcorp.org/browse/DM-37831>`_)
+- In ``auxtel/latiss_base_align.py``, add functionality to return hexapod to its initial position in case of failures during the alignment process.. (`DM-37831 <https://rubinobs.atlassian.net/browse/DM-37831>`_)
 - In ``auxtel/correct_pointing``, reset offsets after slewing to avoid elevation out of range issue.
-  In ``auxtel/latiss_base_align.py``, relax default focus threshold. (`DM-40852 <https://jira.lsstcorp.org/browse/DM-40852>`_)
+  In ``auxtel/latiss_base_align.py``, relax default focus threshold. (`DM-40852 <https://rubinobs.atlassian.net/browse/DM-40852>`_)
 
 
 Documentation
 -------------
 
-- Integrate towncrier for release notes and change log management (`DM-40534 <https://jira.lsstcorp.org/browse/DM-40534>`_)
+- Integrate towncrier for release notes and change log management (`DM-40534 <https://rubinobs.atlassian.net/browse/DM-40534>`_)
 
 
 Other Changes and Additions
 ---------------------------
 
-- In `news_creation.yaml` remove the `--dir` parameter from towncrier check action. (`DM-40534 <https://jira.lsstcorp.org/browse/DM-40534>`_)
+- In `news_creation.yaml` remove the `--dir` parameter from towncrier check action. (`DM-40534 <https://rubinobs.atlassian.net/browse/DM-40534>`_)
 
 
 v0.26.0
