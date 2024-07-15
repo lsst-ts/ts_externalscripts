@@ -1,0 +1,1 @@
+In ``base_make_calibrations.py``, add metadata keywords (program, reason, note and group_id) to take_image call.
