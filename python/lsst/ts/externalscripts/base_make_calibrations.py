@@ -462,7 +462,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         """
 
         self.note = getattr(self.config, "note", None)
-        self.group_id = self.group_id if self.obs_id is None else self.obs_id
+        group_id = self.group_id if self.obs_id is None else self.obs_id
 
         return tuple(
             [
@@ -474,7 +474,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                         reason=self.reason,
                         program=self.program,
                         note=self.note,
-                        group_id=self.group_id,
+                        group_id=group_id,
                     )
                 )[0]
                 for exp_time in exp_times
