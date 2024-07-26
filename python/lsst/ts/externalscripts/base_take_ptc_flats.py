@@ -372,6 +372,15 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 integration_time=self.config.electrometer_scan["integration_time"],
             )
 
+        # Setup instrument filter
+        try:
+            await self.camera.setup_instrument(filter=self.get_instrument_filter())
+        except salobj.AckError:
+            self.log.warning(
+                f"Filter is already set to {self.get_instrument_filter()}. "
+                f"Continuing."
+            )
+
         for i, exp_time in enumerate(self.config.flats_exp_times):
             exp_time_pair = [exp_time, exp_time]
 
@@ -396,7 +405,6 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                         group_id=self.group_id,
                         program=self.program,
                         reason=self.reason,
-                        **self.get_instrument_configuration(),
                     )
 
                     await asyncio.gather(electrometer_task, flat_task)
@@ -411,7 +419,6 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                         group_id=self.group_id,
                         program=self.program,
                         reason=self.reason,
-                        **self.get_instrument_configuration(),
                     )
 
                 if hasattr(self.config, "interleave_darks"):
