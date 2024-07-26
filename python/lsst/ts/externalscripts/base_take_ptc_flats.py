@@ -102,13 +102,11 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                           type: number
                           minimum: 0
                         minItems: 1
-                    default: 30
                   n_darks:
                     description: >
                       Number of dark images to interleave between flat pairs.
                     type: integer
                     minimum: 1
-                    default: 2
               electrometer_scan:
                 description: Electrometer scan settings.
                 type: object
@@ -123,17 +121,14 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                       are "CURRENT" and "CHARGE".
                     type: string
                     enum: ["CURRENT", "CHARGE"]
-                    default: "CURRENT"
                   range:
                     description:  >
                       Electrometer measurement range. -1 for autorange.
                     type: number
-                    default: -1
                   integration_time:
                     description: Electrometer integration time.
                     type: number
                     exclusiveMinimum: 0
-                    default: 0.1
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
