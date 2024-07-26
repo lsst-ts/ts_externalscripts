@@ -44,7 +44,9 @@ class TakePTCFlatsComCam(BaseTakePTCFlats):
         if self.comcam is None:
             self.log.debug("Creating Camera.")
             self.comcam = ComCam(
-                self.domain, intended_usage=ComCamUsages.TakeImage, log=self.log
+                self.domain,
+                intended_usage=ComCamUsages.TakeImage + ComCamUsages.StateTransition,
+                log=self.log,
             )
             await self.comcam.start_task
         else:

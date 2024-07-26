@@ -392,7 +392,7 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
                     flat_task = self.camera.take_flats(
                         exptime=time,
-                        n=1,
+                        nflats=1,
                         group_id=self.group_id,
                         program=self.program,
                         reason=self.reason,
@@ -407,7 +407,7 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                     )
                     await self.camera.take_flats(
                         exptime=time,
-                        n=1,
+                        nflats=1,
                         group_id=self.group_id,
                         program=self.program,
                         reason=self.reason,
@@ -424,7 +424,7 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                         )
                         await self.camera.take_darks(
                             exptime=dark_exp_time,
-                            n=1,
+                            ndarks=1,
                             group_id=self.group_id,
                             program=self.program,
                             reason=self.reason,
