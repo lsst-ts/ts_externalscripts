@@ -102,13 +102,11 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                           type: number
                           minimum: 0
                         minItems: 1
-                    default: 30
                   n_darks:
                     description: >
                       Number of dark images to interleave between flat pairs.
                     type: integer
                     minimum: 1
-                    default: 2
               electrometer_scan:
                 description: Electrometer scan settings.
                 type: object
@@ -123,17 +121,14 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                       are "CURRENT" and "CHARGE".
                     type: string
                     enum: ["CURRENT", "CHARGE"]
-                    default: "CURRENT"
                   range:
                     description:  >
                       Electrometer measurement range. -1 for autorange.
                     type: number
-                    default: -1
                   integration_time:
                     description: Electrometer integration time.
                     type: number
                     exclusiveMinimum: 0
-                    default: 0.1
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
@@ -372,6 +367,17 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 integration_time=self.config.electrometer_scan["integration_time"],
             )
 
+        # Setup instrument filter
+        try:
+            await self.camera.setup_instrument(filter=self.get_instrument_filter())
+        except salobj.AckError:
+            self.log.warning(
+                f"Filter is already set to {self.get_instrument_filter()}. "
+                f"Continuing."
+            )
+
+        group_id = self.group_id if self.obs_id is None else self.obs_id
+
         for i, exp_time in enumerate(self.config.flats_exp_times):
             exp_time_pair = [exp_time, exp_time]
 
@@ -392,11 +398,10 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
                     flat_task = self.camera.take_flats(
                         exptime=time,
-                        n=1,
-                        group_id=self.group_id,
+                        nflats=1,
+                        group_id=group_id,
                         program=self.program,
                         reason=self.reason,
-                        **self.get_instrument_configuration(),
                     )
 
                     await asyncio.gather(electrometer_task, flat_task)
@@ -407,11 +412,10 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                     )
                     await self.camera.take_flats(
                         exptime=time,
-                        n=1,
-                        group_id=self.group_id,
+                        nflats=1,
+                        group_id=group_id,
                         program=self.program,
                         reason=self.reason,
-                        **self.get_instrument_configuration(),
                     )
 
                 if hasattr(self.config, "interleave_darks"):
@@ -424,8 +428,8 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                         )
                         await self.camera.take_darks(
                             exptime=dark_exp_time,
-                            n=1,
-                            group_id=self.group_id,
+                            ndarks=1,
+                            group_id=group_id,
                             program=self.program,
                             reason=self.reason,
                         )
