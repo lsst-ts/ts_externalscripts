@@ -376,6 +376,8 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 f"Continuing."
             )
 
+        group_id = self.group_id if self.obs_id is None else self.obs_id
+
         for i, exp_time in enumerate(self.config.flats_exp_times):
             exp_time_pair = [exp_time, exp_time]
 
@@ -397,7 +399,7 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                     flat_task = self.camera.take_flats(
                         exptime=time,
                         nflats=1,
-                        group_id=self.group_id,
+                        group_id=group_id,
                         program=self.program,
                         reason=self.reason,
                     )
@@ -411,7 +413,7 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                     await self.camera.take_flats(
                         exptime=time,
                         nflats=1,
-                        group_id=self.group_id,
+                        group_id=group_id,
                         program=self.program,
                         reason=self.reason,
                     )
@@ -427,7 +429,7 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                         await self.camera.take_darks(
                             exptime=dark_exp_time,
                             ndarks=1,
-                            group_id=self.group_id,
+                            group_id=group_id,
                             program=self.program,
                             reason=self.reason,
                         )
