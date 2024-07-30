@@ -1,5 +1,0 @@
-In ``base_make_calibrations.py``, fix issue with ``take_image_type`` method trying to set ``self.group_id``.
-
-This is a class property and cannot be changed.
-Instead, use a local variable.Add your info here
-

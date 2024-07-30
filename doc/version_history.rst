@@ -8,6 +8,31 @@ Version History
 
 .. towncrier release notes start
 
+v0.28.0 (2024-07-30)
+====================
+
+New Features
+------------
+
+- Add new TakeComCamGuiderImage script, designed to test ComCam guider mode. (`DM-45401 <https://rubinobs.atlassian.net/browse/DM-45401>`_)
+- Add new TakePTCFlatsComcam script to take PTC flats with ComCam while scanning electrometer. (`DM-45406 <https://rubinobs.atlassian.net/browse/DM-45406>`_)
+
+
+Bug Fixes
+---------
+
+- In ``take_ptc_flats_comcam`` add ``StateTransition`` usage to Camera instance. (`DM-45232 <https://rubinobs.atlassian.net/browse/DM-45232>`_)
+- In ``base_make_calibrations.py``, fix issue with ``take_image_type`` method trying to set ``self.group_id``.
+
+  This is a class property and cannot be changed.
+  Instead, use a local variable.Add your info here (`DM-45232 <https://rubinobs.atlassian.net/browse/DM-45232>`_)
+- In ``take_ptc_flats_comcam`` add a setup_instrument to change filter.
+
+  This is needed because ComCam is still returning an error when we tell it to select a filter that is already selected. (`DM-45232 <https://rubinobs.atlassian.net/browse/DM-45232>`_)
+- In take_ptc_flats_comcam.py, fix issue with take_image_type method trying to set self.group_id. (`DM-45232 <https://rubinobs.atlassian.net/browse/DM-45232>`_)
+- In ``take_ptc_flats_comcam`` remove default value from schema. (`DM-45232 <https://rubinobs.atlassian.net/browse/DM-45232>`_)
+
+
 v0.27.6 (2024-07-15)
 ====================
 
