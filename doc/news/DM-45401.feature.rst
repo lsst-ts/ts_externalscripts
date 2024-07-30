@@ -1,1 +1,0 @@
-Add new TakeComCamGuiderImage script, designed to test ComCam guider mode.
