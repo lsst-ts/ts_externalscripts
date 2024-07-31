@@ -109,7 +109,7 @@ class LatissWEPAlign(LatissBaseAlign):
                 "Running wep with: "
                 f"intra_visit_id={self.intra_visit_id}, "
                 f"extra_visit_id={self.extra_visit_id}, "
-                f"donut_diameter={2 * self.side}, "
+                f"donut_diameter={2*self.side}, "
                 f"timeout_get_image={self.timeout_get_image}. "
             )
 
@@ -220,14 +220,9 @@ def run_wep(
     )
 
     cut_out_config = CutOutDonutsScienceSensorTaskConfig()
-    # LATISS config parameters
-    cut_out_config.opticalModel = "onAxis"
     cut_out_config.donutStampSize = donut_diameter
-    cut_out_config.donutTemplateSize = donut_diameter
-    cut_out_config.instObscuration = 0.3525
-    cut_out_config.instFocalLength = 21.6
-    cut_out_config.instApertureDiameter = 1.2
-    cut_out_config.instDefocalOffset = 32.8
+    cut_out_config.opticalModel = "onAxis"
+    cut_out_config.initialCutoutPadding = 40
     cut_out_task = CutOutDonutsScienceSensorTask(config=cut_out_config)
 
     camera = Latiss.getCamera()
@@ -239,12 +234,6 @@ def run_wep(
     )
 
     config = CalcZernikesTaskConfig()
-    # LATISS config parameters
-    config.opticalModel = "onAxis"
-    config.instObscuration = 0.3525
-    config.instFocalLength = 21.6
-    config.instApertureDiameter = 1.2
-    config.instDefocalOffset = 32.8
     task = CalcZernikesTask(config=config, name="Base Task")
 
     task_output = task.run(
