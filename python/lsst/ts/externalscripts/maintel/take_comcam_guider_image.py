@@ -158,6 +158,7 @@ required:
         reason = self.reason
         program = self.program
 
+        self.log.info(f"roi_spec={self.roi_spec}")
         await self.comcam.init_guider(roi_spec=self.roi_spec)
 
         await self.comcam.take_engtest(
