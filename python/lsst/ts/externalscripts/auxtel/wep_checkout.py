@@ -38,11 +38,13 @@ class WepCheckout(salobj.BaseScript):
         Index of Script SAL component.
     """
 
-    def __init__(self, index: int = 1, descr="Run the WEP pipeline checkout.") -> None:
+    def __init__(self, index, descr="Run the WEP pipeline checkout.") -> None:
         super().__init__(
             index=index,
             descr=descr,
         )
+
+        self.config = None
 
         self.timeout_get_image = 20.0
 
@@ -69,13 +71,13 @@ class WepCheckout(salobj.BaseScript):
 
     @classmethod
     def get_schema(cls):
-        pass
+        return None
 
-    async def configure(self):
-        pass
+    async def configure(self, config):
+        self.config = config
 
-    def set_metadata(self):
-        pass
+    def set_metadata(self, metadata):
+        metadata.duration = 10.0
 
     async def run(self):
         """Run the WEP pipeline checkout."""
@@ -85,7 +87,7 @@ class WepCheckout(salobj.BaseScript):
         donut_diameter = int(np.ceil(self.side * self.dz / 1.5 / 2.0) * 2)
 
         try:
-            intra_result, extra_result, wep_results = run_wep(
+            intra_result, extra_result, wep_results = await run_wep(
                 self.intra_visit_id,
                 self.extra_visit_id,
                 donut_diameter,
@@ -94,6 +96,7 @@ class WepCheckout(salobj.BaseScript):
             # Validate results
             self.validate_results(wep_results.outputZernikesAvg)
             self.log.info("WEP environment verification completed successfully.")
+
         except Exception as e:
             error_msg = f"Failed to process images with WEP: {str(e)}"
             self.log.error(error_msg)
