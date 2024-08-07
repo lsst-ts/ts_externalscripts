@@ -2,9 +2,8 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from lsst.ts import salobj, standardscripts
-from lsst.ts.externalscripts import get_scripts_dir
-from lsst.ts.externalscripts.auxtel.wep_checkout import WepCheckout
+from lsst.ts import externalscripts, salobj, standardscripts
+from lsst.ts.externalscripts.auxtel import WepCheckout
 
 
 class TestWepCheckout(
@@ -26,12 +25,12 @@ class TestWepCheckout(
             )
         )
 
-    async def basic_make_script(self):
+    async def basic_make_script(self, index):
         # Patch 'run_wep' in the script setup
         with patch(
             "lsst.ts.externalscripts.auxtel.wep_checkout.run_wep", self.mock_run_wep
         ):
-            self.script = WepCheckout()
+            self.script = WepCheckout(index=index)
         return self.script
 
     async def test_run_successful(self):
@@ -54,6 +53,6 @@ class TestWepCheckout(
             self.mock_run_wep.assert_called_once()
 
     async def test_executable(self):
-        scripts_dir = get_scripts_dir()
+        scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "auxtel" / "wep_checkout.py"
         await self.check_executable(script_path)
