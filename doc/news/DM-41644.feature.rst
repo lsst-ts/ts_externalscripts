@@ -1,0 +1,1 @@
+In `auxtel` add a SAL Script (`wep_checkout.py`) to perform daytime checkout of the wep code.
