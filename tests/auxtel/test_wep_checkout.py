@@ -44,6 +44,7 @@ class TestWepCheckout(
                 None,
                 {"outputZernikesAvg": [58.163, 34.633, 100.47, -95.882, 138.513]},
             )
+            self.addCleanup(patch.stop)
             self.script.run_wep = mock_run_wep
 
         return (self.script,)
