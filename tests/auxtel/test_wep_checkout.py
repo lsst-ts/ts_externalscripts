@@ -31,7 +31,8 @@ class TestWepCheckout(
             "lsst.ts.externalscripts.auxtel.wep_checkout.run_wep", self.mock_run_wep
         ):
             self.script = WepCheckout(index=index)
-        return self.script
+
+        return (self.script,)
 
     async def test_run_successful(self):
         async with self.make_script():

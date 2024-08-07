@@ -38,7 +38,7 @@ class WepCheckout(salobj.BaseScript):
         Index of Script SAL component.
     """
 
-    def __init__(self, index: int, descr="Run the WEP pipeline checkout.") -> None:
+    def __init__(self, index: int = 1, descr="Run the WEP pipeline checkout.") -> None:
         super().__init__(
             index=index,
             descr=descr,
