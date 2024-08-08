@@ -22,6 +22,7 @@
 import unittest
 from unittest.mock import AsyncMock, patch
 
+import numpy as np
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.auxtel import WepCheckout
@@ -36,7 +37,7 @@ class TestWepCheckout(
         self.script = WepCheckout(index=index)
 
         with patch(
-            "lsst.ts.externalscripts.auxtel.wep_checkout.run_wep",
+            "lsst.ts.externalscripts.auxtel.latiss_wep_align.run_wep",
             new_callable=AsyncMock,
         ) as mock_run_wep:
             mock_run_wep.return_value = (
@@ -44,9 +45,7 @@ class TestWepCheckout(
                 None,
                 {"outputZernikesAvg": [58.163, 34.633, 100.47, -95.882, 138.513]},
             )
-            self.addCleanup(patch.stop)
             self.script.run_wep = mock_run_wep
-
         return (self.script,)
 
     async def test_run_successful(self):
@@ -54,7 +53,12 @@ class TestWepCheckout(
             await self.configure_script()
             await self.run_script()
             # Assert that run_wep was called once
-            self.script.run_wep.assert_called_once()
+            self.script.run_wep.assert_called_once_with(
+                self.script.intra_visit_id,
+                self.scrit.extra_visit_id,
+                int(np.ceil(self.side * self.dz / 1.5 / 2.0) * 2),
+                self.script.timeout_get_image,
+            )
 
     async def test_run_exception_handling(self):
         # Setup to simulate incorrect Zernike coefficients
