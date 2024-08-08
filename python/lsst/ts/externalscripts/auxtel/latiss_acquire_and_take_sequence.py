@@ -440,8 +440,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
 
             blind_offset_position = PointD(target_position.x, target_position.y)
 
-            if blind_offset_position[1] < 400.0:
-                blind_offset_position[1] = 400.0
+            if blind_offset_position[1] < 500.0:
+                blind_offset_position[1] = 500.0
 
             dx_arcsec, dy_arcsec = calculate_xy_offsets(
                 current_position, blind_offset_position
