@@ -1,0 +1,1 @@
+In take_comcam_guider_image, log roi_spec.
