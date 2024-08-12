@@ -41,6 +41,9 @@ class TestMakeComCamCalibrations(
         # Return a single element tuple
         return (self.script,)
 
+    @unittest.mock.patch(
+        "lsst.ts.standardscripts.BaseBlockScript.obs_id", "202306060001"
+    )
     async def test_configure(self):
         async with self.make_script():
             # Try configure with minimum set of parameters declared
