@@ -97,7 +97,7 @@ class BaseParameterMarch(BaseBlockScript):
     def get_schema(cls) -> dict:
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_standardscripts/base_parameter_march.yaml
+            $id: https://github.com/lsst-ts/ts_externalscripts/base_parameter_march.yaml
             title: BaseParameterMarch v1
             description: Configuration for BaseParameterMarch.
             type: object
