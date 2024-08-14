@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# This file is part of ts_standardscripts
+# This file is part of ts_externalscripts
 #
 # Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -22,6 +22,6 @@
 
 import asyncio
 
-from lsst.ts.standardscripts.maintel import ParameterMarchComCam
+from lsst.ts.externalscripts.maintel import ParameterMarchComCam
 
 asyncio.run(ParameterMarchComCam.amain())

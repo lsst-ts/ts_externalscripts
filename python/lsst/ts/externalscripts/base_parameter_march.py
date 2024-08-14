@@ -1,4 +1,4 @@
-# This file is part of ts_standardscripts
+# This file is part of ts_externalscripts
 #
 # Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -28,8 +28,7 @@ import types
 import numpy as np
 import yaml
 from lsst.ts import salobj
-
-from .base_block_script import BaseBlockScript
+from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 
 
 class BaseParameterMarch(BaseBlockScript):

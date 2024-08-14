@@ -25,7 +25,7 @@ import unittest.mock as mock
 
 import numpy as np
 import pytest
-from lsst.ts import externalscripts, salobj
+from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.maintel.parameter_march_lsstcam import (
     ParameterMarchLSSTCam,
 )
@@ -33,7 +33,7 @@ from lsst.ts.observatory.control.utils.enums import DOFName
 
 
 class TestParameterMarchLSSTCam(
-    externalscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
+    standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     async def basic_make_script(self, index):
         self.script = ParameterMarchLSSTCam(index=index)
