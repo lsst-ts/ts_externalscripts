@@ -226,7 +226,7 @@ class BaseParameterMarch(BaseBlockScript):
             config.n_steps = len(config.step_sequence)
         elif hasattr(config, "range"):
             config.step_sequence = [
-                -config.range + 2 * i * config.range / (config.n_steps - 1) 
+                -config.range + 2 * i * config.range / (config.n_steps - 1)
                 for i in range(config.n_steps)
             ]
 
@@ -240,9 +240,7 @@ class BaseParameterMarch(BaseBlockScript):
                         f"does not match n_steps {config.n_steps}."
                     )
             else:
-                raise TypeError(
-                    "rotation_sequence must be either a number or a list."
-                )
+                raise TypeError("rotation_sequence must be either a number or a list.")
 
         self.config = config
 
@@ -321,7 +319,7 @@ class BaseParameterMarch(BaseBlockScript):
         await self.tcs.stop_tracking()
         await asyncio.sleep(1.0)
         await self.tcs.start_tracking()
-    
+
     async def parameter_march(self) -> None:
         """Perform the parameter_march operation."""
 
@@ -373,7 +371,9 @@ class BaseParameterMarch(BaseBlockScript):
             self.total_offset += offset
 
             # Move rotator
-            await self.track_target_with_rotation(self.config.rotation_sequence[self.iterations_executed])
+            await self.track_target_with_rotation(
+                self.config.rotation_sequence[self.iterations_executed]
+            )
 
             # Take images at the current dof position
             await self.take_images()

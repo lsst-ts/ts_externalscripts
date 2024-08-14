@@ -1,4 +1,4 @@
-# This file is part of ts_standardscripts
+# This file is part of ts_externalscripts
 #
 # Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -19,17 +19,21 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import types
 import unittest
 import unittest.mock as mock
 
+import numpy as np
 import pytest
-from lsst.ts import salobj, externalscripts
+from lsst.ts import externalscripts, salobj
+from lsst.ts.externalscripts.maintel.parameter_march_lsstcam import (
+    ParameterMarchLSSTCam,
+)
 from lsst.ts.observatory.control.utils.enums import DOFName
-from lsst.ts.standardscripts.maintel.parameter_march_lsstcam import ParameterMarchLSSTCam
 
 
 class TestParameterMarchLSSTCam(
-    standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
+    externalscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     async def basic_make_script(self, index):
         self.script = ParameterMarchLSSTCam(index=index)
@@ -49,12 +53,14 @@ class TestParameterMarchLSSTCam(
         self.script.mtcs.point_azel = mock.AsyncMock()
         self.script.mtcs.stop_tracking = mock.AsyncMock()
         self.script.mtcs.start_tracking = mock.AsyncMock()
-        
+
         self.script.mtcs.rem.mtaos = unittest.mock.AsyncMock()
         self.script.mtcs.rem.mtaos.configure_mock(
             **{
                 "cmd_offsetDOF.start": unittest.mock.AsyncMock(),
-                "cmd_offsetDOF.DataType.return_value": types.SimpleNamespace(value=np.zeros(len(DOFName))),
+                "cmd_offsetDOF.DataType.return_value": types.SimpleNamespace(
+                    value=np.zeros(len(DOFName))
+                ),
             }
         )
 
@@ -78,7 +84,7 @@ class TestParameterMarchLSSTCam(
             "dofs": np.ones(50),
             "rotation_sequence": 50,
             "range": 1,
-            "n_steps": 11
+            "n_steps": 11,
         }
 
         async with self.make_script():
@@ -87,8 +93,20 @@ class TestParameterMarchLSSTCam(
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
             assert np.array_equal(self.script.config.dofs, np.ones(50))
-            assert self.script.config.rotation_sequence == [50]*11
-            assert self.script.config.step_sequence == [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1]
+            assert self.script.config.rotation_sequence == [50] * 11
+            assert self.script.config.step_sequence == [
+                -1,
+                -0.8,
+                -0.6,
+                -0.4,
+                -0.2,
+                0,
+                0.2,
+                0.4,
+                0.6,
+                0.8,
+                1,
+            ]
             assert self.script.config.range == 1
             assert self.script.config.n_steps == 11
 
@@ -229,7 +247,6 @@ class TestParameterMarchLSSTCam(
             "step_sequence": [0, 100, 200, 300, 400],
         }
 
-
         async with self.make_script():
             await self.configure_script(**config)
 
@@ -246,7 +263,9 @@ class TestParameterMarchLSSTCam(
 
             # Ensure the hexapod is returned to the original position
             offset_dof_data = self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
-            for i, dof_offset in enumerate(self.script.config.dofs * -self.script.total_offset):
+            for i, dof_offset in enumerate(
+                self.script.config.dofs * -self.script.total_offset
+            ):
                 offset_dof_data.value[i] = dof_offset
             self.script.mtcs.rem.mtaos.cmd_offsetDOF.start.assert_any_call(
                 self.script.total_offset
