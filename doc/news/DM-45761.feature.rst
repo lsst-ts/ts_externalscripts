@@ -1,0 +1,4 @@
+- - Introduced a suite of scripts for taking sensitivity matrices and parameter marches with LSSTCam and LSSTComCam:
+    - `base_parameter_march.py`: Base class for running common operations.
+    - `parameter_march_lsstcam.py`: Script for taking parameter march images with Simonyi Telescope using LSSTCam.
+    - `parameter_march_comcam.py`: Script for taking parameter march images with Simonyi Telescope using LSSTComCam.
