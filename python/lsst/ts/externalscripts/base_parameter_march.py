@@ -128,7 +128,7 @@ class BaseParameterMarch(BaseBlockScript):
                     to use the same rotation angle throughout or an array specifying custom rotation angles.
                     If not provided, the script will determine the increments automatically.
                 default: 0.0
-                oneOf:
+                anyOf:
                   - type: number
                     description: >
                         A single rotation angle to be used throughout the parameter march.
