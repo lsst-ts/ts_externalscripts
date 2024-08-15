@@ -61,6 +61,14 @@ class TestParameterMarchComCam(
             }
         )
 
+        self.script.format_values = unittest.mock.AsyncMock()
+        self.script.format_values.return_value = (
+            [f"+{i*0.1:.2f} um" for i in range(5)],
+            [f"+{i*0.1:.2f} arcsec" for i in range(5, 10)],
+            [f"+{i*0.1:.2f} um" for i in range(10, 30)],
+            [f"+{i*0.1:.2f} um" for i in range(30, 50)],
+        )
+
     def mock_camera(self):
         """Mock camera instance and its methods."""
         self.script.comcam = mock.AsyncMock()
@@ -77,49 +85,48 @@ class TestParameterMarchComCam(
 
     async def test_configure(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
             "rotation_sequence": 50,
             "range": 1,
             "n_steps": 11,
+            "program": "BLOCK-TXXX",
         }
 
         async with self.make_script():
             await self.configure_script(**config)
 
+            assert self.script.config.az == 35
+            assert self.script.config.el == 15
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
             assert np.array_equal(self.script.config.dofs, [1] * 50)
             assert self.script.config.rotation_sequence == [50] * 11
-            assert self.script.config.step_sequence == [
-                -1,
-                -0.8,
-                -0.6,
-                -0.4,
-                -0.2,
-                0,
-                0.2,
-                0.4,
-                0.6,
-                0.8,
-                1,
-            ]
+            assert self.script.config.step_sequence == np.linspace(-1, 1, 11).tolist()
             assert self.script.config.range == 1
             assert self.script.config.n_steps == 11
+            assert self.script.config.program == "BLOCK-TXXX"
 
     async def test_configure_step_and_rotation_sequence(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
+            "program": "BLOCK-TXXX",
         }
 
         async with self.make_script():
             await self.configure_script(**config)
 
+            assert self.script.config.az == 35
+            assert self.script.config.el == 15
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
             assert np.array_equal(self.script.config.dofs, [1] * 50)
@@ -127,15 +134,19 @@ class TestParameterMarchComCam(
             assert self.script.config.n_steps == 5
             assert self.script.config.step_sequence == [0, 100, 200, 300, 400]
             assert self.script.config.rotation_sequence == [10, 20, 30, 40, 50]
+            assert self.script.config.program == "BLOCK-TXXX"
 
     async def test_configure_ignore(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
             "ignore": ["mtm1m3", "mtrotator"],
+            "program": "BLOCK-TXXX",
         }
 
         async with self.make_script():
@@ -145,6 +156,8 @@ class TestParameterMarchComCam(
 
             await self.configure_script(**config)
 
+            assert self.script.config.az == 35
+            assert self.script.config.el == 15
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
             assert np.array_equal(self.script.config.dofs, [1] * 50)
@@ -152,6 +165,7 @@ class TestParameterMarchComCam(
             assert self.script.config.n_steps == 5
             assert self.script.config.step_sequence == [0, 100, 200, 300, 400]
             assert self.script.config.rotation_sequence == [10, 20, 30, 40, 50]
+            assert self.script.config.program == "BLOCK-TXXX"
 
             # Verify that the ignored components are correctly set to False
             assert not self.script.mtcs.check.mtm1m3
@@ -160,14 +174,18 @@ class TestParameterMarchComCam(
     async def test_invalid_configuration(self):
         bad_configs = [
             {
+                "az": 35,
+                "el": 15,
                 "filter": "g",
                 "exp_time": 30.0,
-                "dofs": np.ones(51),
+                "dofs": [1] * 51,
                 "rotation_sequence": [10, 20, 30, 40, 50],
                 "step_sequence": [0, 100, 200, 300, 400],
                 "ignore": ["mtm1m3", "mtrotator"],
             },
             {
+                "az": 35,
+                "el": 15,
                 "filter": "g",
                 "exp_time": 30.0,
                 "dofs": [1] * 50,
@@ -184,11 +202,14 @@ class TestParameterMarchComCam(
 
     async def test_parameter_march(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
+            "program": "BLOCK-TXXX",
         }
 
         async with self.make_script():
@@ -198,23 +219,29 @@ class TestParameterMarchComCam(
             # Check if the hexapod moved the expected number of times
             assert (
                 self.script.mtcs.rem.mtaos.cmd_offsetDOF.start.call_count
-                == config["n_steps"] + 1
+                == self.script.config.n_steps + 1
             )
 
             # Check if the camera took the expected number of images
-            assert self.script.comcam.take_acq.call_count == config["n_steps"]
+            assert self.script.comcam.take_acq.call_count == self.script.config.n_steps
 
             # Check if the OCPS command was called
-            self.script.ocps.cmd_execute.set_start.assert_called_once()
+            assert (
+                self.script.ocps.cmd_execute.set_start.call_count
+                == self.script.config.n_steps
+            )
 
-    async def test_focus_sweep_sim_mode(self):
+    async def test_parameter_march_sim_mode(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
             "sim": True,
+            "program": "BLOCK-TXXX",
         }
 
         async with self.make_script():
@@ -224,14 +251,17 @@ class TestParameterMarchComCam(
             # Check if the hexapod moved the expected number of times
             assert (
                 self.script.mtcs.rem.mtaos.cmd_offsetDOF.start.call_count
-                == config["n_steps"] + 1
+                == self.script.config.n_steps + 1
             )
 
             # Check if the camera took the expected number of images
-            assert self.script.comcam.take_acq.call_count == config["n_steps"]
+            assert self.script.comcam.take_acq.call_count == self.script.config.n_steps
 
             # Check if the OCPS command was called
-            self.script.ocps.cmd_execute.set_start.assert_called_once()
+            assert (
+                self.script.ocps.cmd_execute.set_start.call_count
+                == self.script.config.n_steps
+            )
 
             # Verify that simulation mode is set correctly
             assert self.script.comcam.simulation_mode
@@ -243,12 +273,13 @@ class TestParameterMarchComCam(
             "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
+            "program": "BLOCK-TXXX",
         }
 
         async with self.make_script():
             await self.configure_script(**config)
 
-            # Simulate an error during the focus sweep to trigger cleanup
+            # Simulate an error during the parameter march to trigger cleanup
             self.script.iterations_started = True
             self.script.total_offset = 400  # Simulate some offset
             with mock.patch.object(
@@ -260,13 +291,13 @@ class TestParameterMarchComCam(
             await self.script.cleanup()
 
             # Ensure the hexapod is returned to the original position
-            offset_dof_data = self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
+            offset_dof_data = await self.script.mtcs.rem.mtaos.cmd_offsetDOF.DataType()
             for i, dof_offset in enumerate(
-                self.script.config.dofs * -self.script.total_offset
+                self.script.dofs * -self.script.total_offset
             ):
                 offset_dof_data.value[i] = dof_offset
             self.script.mtcs.rem.mtaos.cmd_offsetDOF.start.assert_any_call(
-                self.script.total_offset
+                data=offset_dof_data
             )
 
     async def test_executable(self):

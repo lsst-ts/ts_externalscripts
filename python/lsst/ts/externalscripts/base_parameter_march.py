@@ -60,6 +60,7 @@ class BaseParameterMarch(BaseBlockScript):
         self.ocps = None
 
         self.config = None
+        self.dofs = np.zeros(50)
 
         self.total_offset = 0.0
         self.iterations_started = False
@@ -102,6 +103,16 @@ class BaseParameterMarch(BaseBlockScript):
             description: Configuration for BaseParameterMarch.
             type: object
             properties:
+              az:
+                description: Azimuth position to point to.
+                type: number
+                minimum: 0
+                maximum: 360
+              el:
+                description: Elevation position to point to.
+                type: number
+                minimum: 0
+                maximum: 90
               filter:
                 description: Filter name or ID; if omitted the filter is not changed.
                 anyOf:
@@ -174,11 +185,11 @@ class BaseParameterMarch(BaseBlockScript):
                   type: string
             oneOf:
                 - required:
-                    - dof
+                    - dofs
                     - range
                     - n_steps
                 - required:
-                    - dof
+                    - dofs
                     - step_sequence
             additionalProperties: false
         """
@@ -224,10 +235,9 @@ class BaseParameterMarch(BaseBlockScript):
             config.range = config.step_sequence[-1] - config.step_sequence[0]
             config.n_steps = len(config.step_sequence)
         elif hasattr(config, "range"):
-            config.step_sequence = [
-                -config.range + 2 * i * config.range / (config.n_steps - 1)
-                for i in range(config.n_steps)
-            ]
+            config.step_sequence = np.linspace(
+                -config.range, config.range, config.n_steps
+            ).tolist()
 
         if hasattr(config, "rotation_sequence"):
             if isinstance(config.rotation_sequence, (int, float)):
@@ -242,6 +252,7 @@ class BaseParameterMarch(BaseBlockScript):
                 raise TypeError("rotation_sequence must be either a number or a list.")
 
         self.config = config
+        self.dofs = np.array(config.dofs)
 
         await super().configure(config=config)
 
@@ -324,8 +335,8 @@ class BaseParameterMarch(BaseBlockScript):
 
         start_position = self.config.step_sequence[0]
 
-        offset_values = start_position * self.config.dofs
-        cam_hex, m2_hex, m1m3_bend, m2_bend = self.format_values(offset_values)
+        offset_values = start_position * self.dofs
+        cam_hex, m2_hex, m1m3_bend, m2_bend = await self.format_values(offset_values)
 
         await self.checkpoint(
             f"Step 1/{self.config.n_steps} starting positions:\n"
@@ -337,7 +348,7 @@ class BaseParameterMarch(BaseBlockScript):
         self.log.info("Offset dofs to starting position.")
 
         # Apply dof vector with offset
-        offset_dof_data = self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
+        offset_dof_data = await self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
         for i, dof_offset in enumerate(offset_values):
             offset_dof_data.value[i] = dof_offset
         await self.tcs.rem.mtaos.cmd_offsetDOF.start(data=offset_dof_data)
@@ -361,8 +372,8 @@ class BaseParameterMarch(BaseBlockScript):
             )
 
             # Apply dof vector with offset
-            offset_dof_data = self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
-            for i, dof_offset in enumerate(self.config.dofs * offset):
+            offset_dof_data = await self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
+            for i, dof_offset in enumerate(self.dofs * offset):
                 offset_dof_data.value[i] = dof_offset
             await self.tcs.rem.mtaos.cmd_offsetDOF.start(data=offset_dof_data)
 
@@ -421,11 +432,11 @@ class BaseParameterMarch(BaseBlockScript):
                     f"Returning telescope to original position by moving "
                     f"{self.total_offset} back along dofs vector {self.config.dofs}."
                 )
-                offset_dof_data = self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
-                for i, dof_offset in enumerate(self.config.dofs * -self.total_offset):
+                offset_dof_data = await self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
+                for i, dof_offset in enumerate(self.dofs * -self.total_offset):
                     offset_dof_data.value[i] = dof_offset
                 await self.tcs.rem.mtaos.cmd_offsetDOF.start(data=offset_dof_data)
         except Exception:
             self.log.exception(
-                "Error while trying to return hexapod to its original position."
+                "Error while trying to return telescope to its original position."
             )

@@ -49,6 +49,8 @@ class ParameterMarchComCam(BaseParameterMarch):
         self.mtcs = None
         self.comcam = None
 
+        self.dz = 1500  # microns, offset for out-of-focus images
+
         self.instrument_name = "LSSTComCam"
 
     @property
@@ -95,13 +97,14 @@ class ParameterMarchComCam(BaseParameterMarch):
 
         self.log.info("Taking intra-focal image")
 
+        print(self.config)
         intra_visit_id = await self.camera.take_cwfs(
             exptime=self.config.exp_time,
             n=1,
             group_id=supplemented_group_id,
-            filter=self.filter,
+            filter=self.config.filter,
             reason="INTRA" + ("" if self.reason is None else f"_{self.reason}"),
-            program=self.program,
+            program=self.config.program,
         )
 
         self.log.debug("Moving to extra-focal position")
@@ -117,9 +120,9 @@ class ParameterMarchComCam(BaseParameterMarch):
             exptime=self.config.exp_time,
             n=1,
             group_id=supplemented_group_id,
-            filter=self.filter,
+            filter=self.config.filter,
             reason="EXTRA" + ("" if self.reason is None else f"_{self.reason}"),
-            program=self.program,
+            program=self.config.program,
         )
 
         self.log.info("Send processing request to RA OCPS.")
@@ -144,9 +147,9 @@ class ParameterMarchComCam(BaseParameterMarch):
             exptime=self.config.exp_time,
             n=1,
             group_id=self.group_id,
-            filter=self.filter,
+            filter=self.config.filter,
             reason="INFOCUS" + ("" if self.reason is None else f"_{self.reason}"),
-            program=self.program,
+            program=self.config.program,
         )
 
         try:
