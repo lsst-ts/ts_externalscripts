@@ -38,7 +38,6 @@ class TestParameterMarchComCam(
 
         self.mock_mtcs()
         self.mock_camera()
-        self.mock_tcs()
         self.mock_ocps()
 
         return (self.script,)
