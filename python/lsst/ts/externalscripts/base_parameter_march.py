@@ -129,10 +129,10 @@ class BaseParameterMarch(BaseBlockScript):
                     If not provided, the script will determine the increments automatically.
                 default: 0.0
                 oneOf:
-                    - type: number
+                  - type: number
                     description: >
                         A single rotation angle to be used throughout the parameter march.
-                    - type: array
+                  - type: array
                     items:
                         type: number
                     minItems: 2
