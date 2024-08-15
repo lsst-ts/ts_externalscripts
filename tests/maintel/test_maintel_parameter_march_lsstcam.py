@@ -80,7 +80,7 @@ class TestParameterMarchLSSTCam(
         config = {
             "filter": "g",
             "exp_time": 30.0,
-            "dofs": np.ones(50),
+            "dofs": [1] * 50,
             "rotation_sequence": 50,
             "range": 1,
             "n_steps": 11,
@@ -91,7 +91,7 @@ class TestParameterMarchLSSTCam(
 
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
-            assert np.array_equal(self.script.config.dofs, np.ones(50))
+            assert np.array_equal(self.script.config.dofs, [1] * 50)
             assert self.script.config.rotation_sequence == [50] * 11
             assert self.script.config.step_sequence == [
                 -1,
@@ -113,7 +113,7 @@ class TestParameterMarchLSSTCam(
         config = {
             "filter": "g",
             "exp_time": 30.0,
-            "dofs": np.ones(50),
+            "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
         }
@@ -123,7 +123,7 @@ class TestParameterMarchLSSTCam(
 
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
-            assert np.array_equal(self.script.config.dofs, np.ones(50))
+            assert np.array_equal(self.script.config.dofs, [1] * 50)
             assert self.script.config.range == 400
             assert self.script.config.n_steps == 5
             assert self.script.config.step_sequence == [0, 100, 200, 300, 400]
@@ -133,7 +133,7 @@ class TestParameterMarchLSSTCam(
         config = {
             "filter": "g",
             "exp_time": 30.0,
-            "dofs": np.ones(50),
+            "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
             "ignore": ["mtm1m3", "mtrotator"],
@@ -148,7 +148,7 @@ class TestParameterMarchLSSTCam(
 
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
-            assert np.array_equal(self.script.config.dofs, np.ones(50))
+            assert np.array_equal(self.script.config.dofs, [1] * 50)
             assert self.script.config.range == 400
             assert self.script.config.n_steps == 5
             assert self.script.config.step_sequence == [0, 100, 200, 300, 400]
@@ -171,7 +171,7 @@ class TestParameterMarchLSSTCam(
             {
                 "filter": "g",
                 "exp_time": 30.0,
-                "dofs": np.ones(50),
+                "dofs": [1] * 50,
                 "rotation_sequence": [10, 20, 30, 40, 50, 55],
                 "step_sequence": [0, 100, 200, 300, 400],
                 "ignore": ["mtm1m3", "mtrotator"],
@@ -187,7 +187,7 @@ class TestParameterMarchLSSTCam(
         config = {
             "filter": "g",
             "exp_time": 30.0,
-            "dofs": np.ones(50),
+            "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
         }
@@ -212,7 +212,7 @@ class TestParameterMarchLSSTCam(
         config = {
             "filter": "g",
             "exp_time": 30.0,
-            "dofs": np.ones(50),
+            "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
             "sim": True,
@@ -241,7 +241,7 @@ class TestParameterMarchLSSTCam(
         config = {
             "filter": "g",
             "exp_time": 30.0,
-            "dofs": np.ones(50),
+            "dofs": [1] * 50,
             "rotation_sequence": [10, 20, 30, 40, 50],
             "step_sequence": [0, 100, 200, 300, 400],
         }
