@@ -133,8 +133,8 @@ class ParameterMarchLSSTCam(BaseParameterMarch):
             exptime=self.config.exp_time,
             group_id=self.group_id,
             reason="INFOCUS" + ("" if self.reason is None else f"_{self.reason}"),
-            program=self.program,
-            filter=self.filter,
+            program=self.config.program,
+            filter=self.config.filter,
         )
 
     async def configure(self, config: types.SimpleNamespace) -> None:

@@ -86,6 +86,8 @@ class TestParameterMarchLSSTCam(
 
     async def test_configure(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
@@ -98,6 +100,8 @@ class TestParameterMarchLSSTCam(
         async with self.make_script():
             await self.configure_script(**config)
 
+            assert self.script.config.az == 35
+            assert self.script.config.el == 15
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
             assert np.array_equal(self.script.config.dofs, [1] * 50)
@@ -109,6 +113,8 @@ class TestParameterMarchLSSTCam(
 
     async def test_configure_step_and_rotation_sequence(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
@@ -120,6 +126,8 @@ class TestParameterMarchLSSTCam(
         async with self.make_script():
             await self.configure_script(**config)
 
+            assert self.script.config.az == 35
+            assert self.script.config.el == 15
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
             assert np.array_equal(self.script.config.dofs, [1] * 50)
@@ -131,6 +139,8 @@ class TestParameterMarchLSSTCam(
 
     async def test_configure_ignore(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
@@ -147,6 +157,8 @@ class TestParameterMarchLSSTCam(
 
             await self.configure_script(**config)
 
+            assert self.script.config.az == 35
+            assert self.script.config.el == 15
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
             assert np.array_equal(self.script.config.dofs, [1] * 50)
@@ -163,18 +175,22 @@ class TestParameterMarchLSSTCam(
     async def test_invalid_configuration(self):
         bad_configs = [
             {
+                "az": 35,
+                "el": 15,
                 "filter": "g",
                 "exp_time": 30.0,
-                "dofs": np.ones(51),
+                "dofs": [1] * 51,
                 "rotation_sequence": [10, 20, 30, 40, 50],
                 "step_sequence": [0, 100, 200, 300, 400],
                 "ignore": ["mtm1m3", "mtrotator"],
             },
             {
+                "az": 35,
+                "el": 15,
                 "filter": "g",
                 "exp_time": 30.0,
                 "dofs": [1] * 50,
-                "rotation_sequence": [10, 20, 30, 40, 50, 55],
+                "rotation_sequence": [10, 20, 30, 40, 50],
                 "range": 1,
                 "ignore": ["mtm1m3", "mtrotator"],
             },
@@ -187,6 +203,8 @@ class TestParameterMarchLSSTCam(
 
     async def test_parameter_march(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
@@ -213,6 +231,8 @@ class TestParameterMarchLSSTCam(
 
     async def test_parameter_march_sim_mode(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
@@ -243,6 +263,8 @@ class TestParameterMarchLSSTCam(
 
     async def test_cleanup(self):
         config = {
+            "az": 35,
+            "el": 15,
             "filter": "g",
             "exp_time": 30.0,
             "dofs": [1] * 50,
