@@ -1,0 +1,1 @@
+Fix ``ts_externalscripts`` doc page to correctly show ``ts_externalscripts`` instead of ``ts_standardscripts``.

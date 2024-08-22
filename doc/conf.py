@@ -2,10 +2,10 @@
 This configuration only affects single-package Sphinx documentation builds.
 """
 
-import lsst.ts.standardscripts  # noqa
+import lsst.ts.externalscripts  # noqa
 from documenteer.conf.pipelinespkg import *  # type: ignore # noqa
 
-project = "ts_standardscripts"
+project = "ts_externalscripts"
 html_theme_options["logotext"] = project  # type: ignore # noqa
 html_title = project
 html_short_title = project
