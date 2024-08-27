@@ -8,6 +8,30 @@ Version History
 
 .. towncrier release notes start
 
+v0.28.1 (2024-08-27)
+====================
+
+New Features
+------------
+
+- In `auxtel` add a SAL Script (`wep_checkout.py`) to perform daytime checkout of the wep code. (`DM-41644 <https://rubinobs.atlassian.net/browse/DM-41644>`_)
+- Update unit tests for BaseBlockScript to work with the latest version of salobj that adds support for block to BaseScript. (`DM-45637 <https://rubinobs.atlassian.net/browse/DM-45637>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- * Update latiss_wep_align.py to use ts_wep v10 (`DM-41643 <https://rubinobs.atlassian.net/browse/DM-41643>`_)
+- In auxtel/latiss_acquire_and_take_sequence.py, increase blind offset lower limit position. (`DM-45467 <https://rubinobs.atlassian.net/browse/DM-45467>`_)
+- In take_comcam_guider_image, log roi_spec. (`DM-45467 <https://rubinobs.atlassian.net/browse/DM-45467>`_)
+
+
+Documentation
+-------------
+
+- Fix ``ts_externalscripts`` doc page to correctly show ``ts_externalscripts`` instead of ``ts_standardscripts``. (`DM-41364 <https://rubinobs.atlassian.net/browse/DM-41364>`_)
+
+
 v0.28.0 (2024-07-30)
 ====================
 
