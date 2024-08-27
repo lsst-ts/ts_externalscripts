@@ -1,1 +1,0 @@
-Update unit tests for BaseBlockScript to work with the latest version of salobj that adds support for block to BaseScript.
