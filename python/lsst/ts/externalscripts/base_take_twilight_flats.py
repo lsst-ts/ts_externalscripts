@@ -46,6 +46,16 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
+    def tcs(self):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def configure_tcs(self):
+        """Abstract method to configure the TCS."""
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
     def camera(self):
         raise NotImplementedError()
 
@@ -80,22 +90,14 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                   - type: "null"
                 default: 20
                 description: Number of flats to take.
-              filter:
-                description: Filter name or ID; if omitted the filter is not changed.
-                anyOf:
-                  - type: string
-                  - type: integer
-                    minimum: 1
-                  - type: "null"
-                default: null
               dither:
-                description: Distance to dither between images in arcsec.
+                description: Distance to dither in between images in arcsec azimuth.
                 type: float
                 default: 0
               max_exp_time:
-                description: Distance to dither between images in arcsec.
+                description: Maximum exposure time allowed.
                 type: float
-                default: 120
+                default: 300
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
@@ -118,7 +120,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         return schema_dict
 
     @abc.abstractmethod
-    def get_sky_counts(self) -> str:
+    def get_sky_counts(self) -> float:
         """Abstract method to get the median sky counts from the last image.
 
         Returns
@@ -128,10 +130,14 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    @abc.abstractmethod
-    def perform_dither(self) -> str:
+    def offset_telescope(self):
         """Abstract method to dither the camera if desired."""
-        raise NotImplementedError()
+        await self.tcs.offset_azel(
+            az=self.config.dither,
+            el=0,
+            relative=True,
+            absorb=False,
+        )
 
     async def configure(self, config: types.SimpleNamespace):
         """Configure script components including camera.
@@ -142,6 +148,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             Script configuration, as defined by `schema`.
         """
 
+        await self.configure_tcs()
         await self.configure_camera()
 
         if hasattr(config, "ignore"):
@@ -160,7 +167,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         await super().configure(config)
 
-        self.client = self.make_consdb_client
+        self.client = self.make_consdb_client()
 
     @abc.abstractmethod
     def get_instrument_name(self):
@@ -274,7 +281,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             )
 
             if np.abs(self.config.dither) > 0:
-                self.perform_dither()
+                self.offset_telescope()
 
             await self.camera.take_flats(
                 exptime=exp_time,
