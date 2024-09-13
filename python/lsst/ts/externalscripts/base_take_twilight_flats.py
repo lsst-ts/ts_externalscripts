@@ -25,6 +25,9 @@ import types
 
 import numpy as np
 import yaml
+from astropy import coordinates
+from astropy import units as u
+from astroquery.vizier import Vizier
 from lsst.summit.utils import ConsDbClient
 from lsst.ts import salobj
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
@@ -98,6 +101,14 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 description: Maximum exposure time allowed.
                 type: float
                 default: 300
+              min_sun:
+                description: Lowest position of sun in degrees at which twilight flats can be taken.
+                type: float
+                default: -3.0
+              max_sun:
+                description: Highest position in degrees of sun at which twilight flats can be taken.
+                type: float
+                default: 0.0
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
@@ -130,7 +141,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def offset_telescope(self):
+    async def offset_telescope(self):
         """Abstract method to dither the camera if desired."""
         await self.tcs.offset_azel(
             az=self.config.dither,
@@ -238,6 +249,85 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return self.config.target_sky_counts * exp_time / sky_counts
 
+    def get_target_radec(self, distance_from_sun=180, target_el=45, time=None):
+        """
+        Returns the RADEC of the target area of the sky that's an azimuth
+        `distance_from_sun` away from the Sun, given `elevation`,
+        and at a given `time`.
+
+        Parameters
+        ----------
+        distance_from_sun : float, (-180, 180)
+            The distance from the Sun in degrees.
+            Positive angles go towards the North.
+        elevation : float
+            Target elevation for Sky Flats.
+        time : datetime
+            The time for the calculation in UTC.
+        """
+
+        az_sun, el_sun = self.tcs.get_sun_azel()
+
+        target_az = (az_sun + distance_from_sun) % 360
+
+        target_radec = self.tcs.radec_from_azel(target_az, target_el)
+
+        return target_radec
+
+    def get_empty_field(self, target, radius=5):
+        """
+        Query the "Deep blank field catalogue : J/MNRAS/427/679" in Vizier.
+
+        Parameters
+        ----------
+        target : astropy.coordinates.SkyCoord
+            Sky coordinates near the field
+        radius : float
+            Search radius in degrees.
+
+        Reference
+        ---------
+        http://cdsarc.u-strasbg.fr/viz-bin/Cat?J/MNRAS/427/679
+        """
+        _table = Vizier.query_region(
+            catalog="J/MNRAS/427/679/blank_fld",
+            coordinates=target,
+            radius=radius * u.deg,
+        )
+
+        if len(_table) == 0:
+            self.log.info(
+                f"Could not find a field near {target} " f"within {radius} deg radius"
+            )
+            return None
+
+        _table = _table["J/MNRAS/427/679/blank_fld"]
+
+        coords = coordinates.SkyCoord(
+            ra=_table["RAJ2000"],
+            dec=_table["DEJ2000"],
+            unit=(u.hourangle, u.deg),
+            frame=coordinates.ICRS,
+        )
+
+        arg = target.separation(coords).argmin()
+
+        return coords[arg]
+
+    def confirm_sun_location(self):
+        """Confirm sun's elevation is safe for taking twilight flats."""
+        sun_coordinates = self.tcs.get_sun_azel()
+        where_sun = "setting" if (sun_coordinates[0] > 180) else "rising"
+        self.log.debug(
+            f" The azimuth of the {where_sun} Sun is {sun_coordinates[0]:.2f} deg \n"
+            f" The elevation of the Sun is {sun_coordinates[1]:.2f} deg"
+        )
+
+        if (where_sun < self.config.min_sun) or (where_sun > self.config.max_sun):
+            raise Exception(
+                f"Sun elevation {where_sun} is outside appropriate elvation limits. Aborting."
+            )
+
     async def take_twilight_flats(self):
 
         # Setup instrument filter
@@ -250,6 +340,20 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             )
 
         group_id = self.group_id if self.obs_id is None else self.obs_id
+
+        self.confirm_sun_location()
+
+        target = self.get_target_radec()
+
+        # get an empty field
+        search_area_degrees = 10
+
+        empty_field_coords = self.get_empty_field(target, radius=search_area_degrees)
+        self.log.info(
+            f"ICRS Empty field coordinates:\n"
+            f"  RA  = {empty_field_coords.ra.to_string(u.hour, sep=':')} ;"
+            f" DEC = {empty_field_coords.dec.to_string(u.degree, alwayssign=True, sep=':')}"
+        )
 
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")
@@ -290,6 +394,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 program=self.program,
                 reason=self.reason,
             )
+
+            self.confirm_sun_location()
 
     async def assert_feasibility(self) -> None:
         """Verify that camera is in a feasible state to
