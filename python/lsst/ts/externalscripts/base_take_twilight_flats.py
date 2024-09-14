@@ -131,7 +131,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         return schema_dict
 
     @abc.abstractmethod
-    def get_sky_counts(self) -> float:
+    async def get_sky_counts(self) -> float:
         """Abstract method to get the median sky counts from the last image.
 
         Returns
@@ -368,7 +368,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         for i in range(self.config.n_flat):
 
-            sky_counts = self.get_sky_counts()
+            sky_counts = await self.get_sky_counts()
             self.log.info(
                 f"Flat just taken with exposure time {exp_time} had counts of {sky_counts}"
             )
