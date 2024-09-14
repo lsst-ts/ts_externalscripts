@@ -355,6 +355,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             f" DEC = {empty_field_coords.dec.to_string(u.degree, alwayssign=True, sep=':')}"
         )
 
+        # slew to desired field
+        await self.tcs.slew_icrs(empty_field_coords.ra, empty_field_coords.dec)
+
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")
         exp_time = 1
