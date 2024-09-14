@@ -111,7 +111,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
 
         return schema_dict
 
-    def get_sky_counts(self) -> float:
+    async def get_sky_counts(self) -> float:
         """Abstract method to get the median sky counts from the last image.
 
         Returns
@@ -119,7 +119,9 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         float
             Sky counts in electrons.
         """
-        raise NotImplementedError()
+        # query consDB with util once such a function exists
+        sky_counts = 0
+        return sky_counts
 
     def get_instrument_name(self) -> str:
         """Get instrument name.
