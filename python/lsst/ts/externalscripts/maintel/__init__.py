@@ -22,5 +22,7 @@
 from .make_comcam_calibrations import *
 from .take_comcam_guider_image import *
 from .take_ptc_flats_comcam import *
+from .take_twilight_flats_comcam import *
+from .take_twilight_flats_lsstcam import *
 from .track_target_sched import *
 from .warmup_hexapod import *
