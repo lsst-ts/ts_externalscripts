@@ -197,7 +197,7 @@ class TestParameterMarchComCam(
             assert self.script.config.exp_time == 30.0
             dofs_expected = np.zeros(50)
             dofs_expected[17] = 1
-            assert np.array_equal(self.script.config.dofs, dofs_expected)
+            assert np.array_equal(self.script.dofs, dofs_expected)
             assert self.script.config.range == 400
             assert self.script.config.n_steps == 5
             assert self.script.config.step_sequence == [0, 100, 200, 300, 400]
