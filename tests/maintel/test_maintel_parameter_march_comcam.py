@@ -171,6 +171,43 @@ class TestParameterMarchComCam(
             assert not self.script.mtcs.check.mtm1m3
             assert not self.script.mtcs.check.mtrotator
 
+    async def test_configure_dof_index(self):
+        config = {
+            "az": 35,
+            "el": 15,
+            "filter": "g",
+            "exp_time": 30.0,
+            "dof_index": 17,
+            "rotation_sequence": [10, 20, 30, 40, 50],
+            "step_sequence": [0, 100, 200, 300, 400],
+            "ignore": ["mtm1m3", "mtrotator"],
+            "program": "BLOCK-TXXX",
+        }
+
+        async with self.make_script():
+            # Mock the components_attr to contain the ignored components
+            self.script.mtcs.components_attr = ["mtm1m3", "mtrotator"]
+            self.script.camera.components_attr = []
+
+            await self.configure_script(**config)
+
+            assert self.script.config.az == 35
+            assert self.script.config.el == 15
+            assert self.script.config.filter == "g"
+            assert self.script.config.exp_time == 30.0
+            dofs_expected = np.zeros(50)
+            dofs_expected[17] = 1
+            assert np.array_equal(self.script.config.dofs, dofs_expected)
+            assert self.script.config.range == 400
+            assert self.script.config.n_steps == 5
+            assert self.script.config.step_sequence == [0, 100, 200, 300, 400]
+            assert self.script.config.rotation_sequence == [10, 20, 30, 40, 50]
+            assert self.script.config.program == "BLOCK-TXXX"
+
+            # Verify that the ignored components are correctly set to False
+            assert not self.script.mtcs.check.mtm1m3
+            assert not self.script.mtcs.check.mtrotator
+
     async def test_invalid_configuration(self):
         bad_configs = [
             {

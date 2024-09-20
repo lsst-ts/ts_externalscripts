@@ -133,6 +133,14 @@ class BaseParameterMarch(BaseBlockScript):
                   type: number
                 minItems: 50
                 maxItems: 50
+              dof_index:
+                description: >
+                    Index of the degree of freedom to adjust. This is used to select only
+                    one specific degree of freedom to adjust when the dofs
+                    array is not provided.
+                type: integer
+                minimum: 0
+                maximum: 49
               rotation_sequence:
                 description: >
                     Rotation sequence used for the parameter march. This can either be a single number
@@ -190,6 +198,13 @@ class BaseParameterMarch(BaseBlockScript):
                     - n_steps
                 - required:
                     - dofs
+                    - step_sequence
+                - required:
+                    - dof_index
+                    - range
+                    - n_steps
+                - required:
+                    - dof_index
                     - step_sequence
             additionalProperties: false
         """
@@ -252,7 +267,11 @@ class BaseParameterMarch(BaseBlockScript):
                 raise TypeError("rotation_sequence must be either a number or a list.")
 
         self.config = config
-        self.dofs = np.array(config.dofs)
+        if hasattr(config, "dofs"):
+            self.dofs = np.array(config.dofs)
+        elif hasattr(config, "dof_index"):
+            self.dofs = np.zeros(50)
+            self.dofs[config.dof_index] = 1.0
 
         await super().configure(config=config)
 
