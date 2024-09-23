@@ -28,7 +28,6 @@ import types
 import yaml
 from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
-from lsst.ts.observatory.control.maintel.mtcs import MTCS
 
 from ..base_parameter_march import BaseParameterMarch
 
@@ -46,16 +45,11 @@ class ParameterMarchComCam(BaseParameterMarch):
     def __init__(self, index, descr="Perform a parameter march with ComCam.") -> None:
         super().__init__(index=index, descr=descr)
 
-        self.mtcs = None
         self.comcam = None
 
         self.dz = 1500  # microns, offset for out-of-focus images
 
         self.instrument_name = "LSSTComCam"
-
-    @property
-    def tcs(self):
-        return self.mtcs
 
     @property
     def camera(self):
@@ -156,18 +150,6 @@ class ParameterMarchComCam(BaseParameterMarch):
             await ocps_execute_task
         except Exception:
             self.log.exception("Executing OCPS task failed. Ignoring.")
-
-    async def configure_tcs(self) -> None:
-        """Handle creating the MTCS object and waiting remote to start."""
-        if self.mtcs is None:
-            self.log.debug("Creating MTCS.")
-            self.mtcs = MTCS(
-                domain=self.domain,
-                log=self.log,
-            )
-            await self.mtcs.start_task
-        else:
-            self.log.debug("MTCS already defined, skipping.")
 
     async def configure_camera(self) -> None:
         """Handle creating the camera object and waiting remote to start."""

@@ -28,6 +28,7 @@ import types
 import numpy as np
 import yaml
 from lsst.ts import salobj
+from lsst.ts.observatory.control.maintel.mtcs import MTCS
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 
 
@@ -58,6 +59,7 @@ class BaseParameterMarch(BaseBlockScript):
         super().__init__(index=index, descr=descr)
 
         self.ocps = None
+        self.mtcs = None
 
         self.config = None
         self.dofs = np.zeros(50)
@@ -66,14 +68,20 @@ class BaseParameterMarch(BaseBlockScript):
         self.iterations_started = False
 
     @property
-    @abc.abstractmethod
     def tcs(self):
-        raise NotImplementedError()
+        return self.mtcs
 
-    @abc.abstractmethod
-    async def configure_tcs(self):
-        """Abstract method to configure the TCS."""
-        raise NotImplementedError()
+    async def configure_tcs(self) -> None:
+        """Handle creating the MTCS object and waiting remote to start."""
+        if self.mtcs is None:
+            self.log.debug("Creating MTCS.")
+            self.mtcs = MTCS(
+                domain=self.domain,
+                log=self.log,
+            )
+            await self.mtcs.start_task
+        else:
+            self.log.debug("MTCS already defined, skipping.")
 
     @property
     @abc.abstractmethod
@@ -263,8 +271,6 @@ class BaseParameterMarch(BaseBlockScript):
                         f"rotation_sequence length {len(config.rotation_sequence)} "
                         f"does not match n_steps {config.n_steps}."
                     )
-            else:
-                raise TypeError("rotation_sequence must be either a number or a list.")
 
         self.config = config
         if hasattr(config, "dofs"):
@@ -293,6 +299,7 @@ class BaseParameterMarch(BaseBlockScript):
             self.tcs.assert_all_enabled(), self.camera.assert_all_enabled()
         )
 
+    @staticmethod
     async def format_values(self, offset_values: np.ndarray) -> np.ndarray:
         """Format the values for display.
 

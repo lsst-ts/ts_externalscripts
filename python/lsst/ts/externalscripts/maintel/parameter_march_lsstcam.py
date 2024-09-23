@@ -26,7 +26,6 @@ import types
 import yaml
 from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
-from lsst.ts.observatory.control.maintel.mtcs import MTCS
 
 from ..base_parameter_march import BaseParameterMarch
 
@@ -50,24 +49,8 @@ class ParameterMarchLSSTCam(BaseParameterMarch):
         self.instrument_name = "LSSTCam"
 
     @property
-    def tcs(self):
-        return self.mtcs
-
-    @property
     def camera(self):
         return self.lsstcam
-
-    async def configure_tcs(self) -> None:
-        """Handle creating the MTCS object and waiting remote to start."""
-        if self.mtcs is None:
-            self.log.debug("Creating MTCS.")
-            self.mtcs = MTCS(
-                domain=self.domain,
-                log=self.log,
-            )
-            await self.mtcs.start_task
-        else:
-            self.log.debug("MTCS already defined, skipping.")
 
     async def configure_camera(self) -> None:
         """Handle creating the camera object and waiting remote to start."""
