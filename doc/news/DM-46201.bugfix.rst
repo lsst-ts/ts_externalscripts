@@ -1,0 +1,2 @@
+Update BaseMakeCalibrations.take_image_type to correctly handle setting group_id whith the latest version of BaseScript.
+
