@@ -131,5 +131,4 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
         -------
         instrument_filter: `string`
         """
-        filter = self.config.filter
-        return f"{filter}"
+        return f"{self.config.filter}"
