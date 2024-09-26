@@ -93,7 +93,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
                   - type: integer
                     minimum: 1
                   - type: "null"
-                default: null
+                default: "empty_1"
             required: ["filter"]
             additionalProperties: false
         """
