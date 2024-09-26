@@ -63,7 +63,10 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
         if self.comcam is None:
             self.log.debug("Creating Camera.")
             self.comcam = ComCam(
-                self.domain, intended_usage=ComCamUsages.TakeImage, log=self.log
+                self.domain,
+                intended_usage=ComCamUsages.TakeImage,
+                log=self.log,
+                tcs_ready_to_take_data=self.tcs.ready_to_take_data,
             )
             await self.comcam.start_task
         else:
