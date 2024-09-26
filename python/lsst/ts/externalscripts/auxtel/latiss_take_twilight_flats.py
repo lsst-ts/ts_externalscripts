@@ -86,7 +86,6 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
                   - type: integer
                     minimum: 1
                   - type: "null"
-                default: "SDSSr_65mm"
               grating:
                 description: Grating name; if omitted the grating is not changed.
                 anyOf:
@@ -95,6 +94,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
                     minimum: 1
                   - type: "null"
                 default: null
+            required: ["filter"]
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
