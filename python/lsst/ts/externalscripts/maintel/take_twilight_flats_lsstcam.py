@@ -88,7 +88,7 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
                   - type: integer
                     minimum: 1
                   - type: "null"
-                default: "r_03"
+            required: ["filter"]
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
