@@ -36,8 +36,6 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         self.atcs = None
         self.latiss = None
 
-        self.instrument_name = "LATISS"
-
     @property
     def tcs(self):
         return self.atcs
@@ -124,7 +122,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         -------
         instrument_name: `string`
         """
-        return self.instrument_name
+        return "LATISS"
 
     def get_instrument_configuration(self) -> dict:
         return dict(
