@@ -63,7 +63,10 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
         if self.lsstcam is None:
             self.log.debug("Creating Camera.")
             self.lsstcam = LSSTCam(
-                self.domain, intended_usage=LSSTCamUsages.TakeImage, log=self.log
+                self.domain,
+                intended_usage=LSSTCamUsages.TakeImage,
+                log=self.log,
+                tcs_ready_to_take_data=self.tcs.ready_to_take_data,
             )
             await self.lsstcam.start_task
         else:
