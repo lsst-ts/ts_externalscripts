@@ -52,14 +52,14 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
     def tcs(self):
         raise NotImplementedError()
 
-    @abc.abstractmethod
-    async def configure_tcs(self):
-        """Abstract method to configure the TCS."""
-        raise NotImplementedError()
-
     @property
     @abc.abstractmethod
     def camera(self):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def configure_tcs(self):
+        """Abstract method to configure the TCS."""
         raise NotImplementedError()
 
     async def configure_camera(self):
