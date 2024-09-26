@@ -141,6 +141,4 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         -------
         instrument_filter: `string`
         """
-        filter = self.config.filter
-        grating = self.config.grating
-        return f"{filter}~{grating}"
+        return f"{self.config.filter}~{self.config.grating}"
