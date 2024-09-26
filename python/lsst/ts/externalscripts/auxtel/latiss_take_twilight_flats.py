@@ -42,6 +42,10 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
     def tcs(self):
         return self.atcs
 
+    @property
+    def camera(self):
+        return self.latiss
+
     async def configure_tcs(self) -> None:
         """Handle creating the ATCS object and waiting remote to start."""
         if self.atcs is None:
@@ -53,10 +57,6 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             await self.atcs.start_task
         else:
             self.log.debug("ATCS already defined, skipping.")
-
-    @property
-    def camera(self):
-        return self.latiss
 
     async def configure_camera(self) -> None:
         """Handle creating the camera object and waiting remote to start."""
