@@ -36,8 +36,6 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
         self.mtcs = None
         self.comcam = None
 
-        self.instrument_name = "LSSTComCam"
-
     @property
     def tcs(self):
         return self.mtcs
@@ -119,7 +117,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
         -------
         instrument_name: `string`
         """
-        return self.instrument_name
+        return "LSSTComCam"
 
     def get_instrument_configuration(self) -> dict:
         return dict(
