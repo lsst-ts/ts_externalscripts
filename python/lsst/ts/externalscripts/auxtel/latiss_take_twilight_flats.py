@@ -61,7 +61,10 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         if self.latiss is None:
             self.log.debug("Creating Camera.")
             self.latiss = LATISS(
-                self.domain, intended_usage=LATISSUsages.TakeImage, log=self.log
+                self.domain,
+                intended_usage=LATISSUsages.TakeImage,
+                log=self.log,
+                tcs_ready_to_take_data=self.tcs.ready_to_take_data,
             )
             await self.latiss.start_task
         else:
