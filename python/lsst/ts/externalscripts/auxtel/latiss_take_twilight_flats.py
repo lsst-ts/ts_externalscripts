@@ -94,12 +94,6 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
                     minimum: 1
                   - type: "null"
                 default: null
-              linear_stage:
-                description: Linear stage position; if omitted the linear stage is not moved.
-                anyOf:
-                  - type: number
-                  - type: "null"
-                default: null
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
