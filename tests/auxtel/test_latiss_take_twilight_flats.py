@@ -38,7 +38,7 @@ class TestTakeTwilightFlatsLatiss(
         config = {
             "filter": "SDSSr_65mm",
             "n_flat": 15,
-            "dither": 10,
+            "dither": 10.0,
         }
 
         async with self.make_script():
@@ -49,7 +49,7 @@ class TestTakeTwilightFlatsLatiss(
             assert self.script.config.linear_stage == "null"
             assert self.script.config.target_sky_counts == 15000
             assert self.script.config.n_flat == 15
-            assert self.script.config.dither == 10
+            assert self.script.config.dither == 10.0
             assert self.script.config.max_exp_time == 300
 
     async def test_invalid_configuration(self):
