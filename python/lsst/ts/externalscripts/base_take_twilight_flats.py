@@ -326,11 +326,11 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             f" The elevation of the Sun is {sun_coordinates[1]:.2f} deg"
         )
 
-        if (where_sun < self.config.min_sun_elevation) or (
-            where_sun > self.config.max_sun_elevation
+        if (sun_coordinates[1] < self.config.min_sun_elevation) or (
+            sun_coordinates[1] > self.config.max_sun_elevation
         ):
             raise Exception(
-                f"Sun elevation {where_sun} is outside appropriate elvation limits. Aborting."
+                f"Sun elevation {sun_coordinates} is outside appropriate elvation limits. Aborting."
             )
 
     async def take_twilight_flats(self):
