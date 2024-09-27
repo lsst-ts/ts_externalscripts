@@ -337,7 +337,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         if (sun_coordinates[1] < self.config.min_sun_elevation) or (
             sun_coordinates[1] > self.config.max_sun_elevation
         ):
-            raise Exception(
+            raise AssertionError(
                 f"Sun elevation {sun_coordinates} is outside appropriate elvation limits. Aborting."
             )
 
