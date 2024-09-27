@@ -208,8 +208,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         await super().configure(config)
 
-        self.client = self.make_consdb_client()
-
     def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
         """Set script metadata, including estimated duration."""
 
