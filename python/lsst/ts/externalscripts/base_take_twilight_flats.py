@@ -154,33 +154,35 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 description: Number of flats to take.
               dither:
                 description: Distance to dither in between images in arcsec azimuth.
-                type: float
-                default: 0
+                type: number
+                default: 0.0
               max_exp_time:
                 description: Maximum exposure time allowed.
-                type: float
-                default: 300
+                type: number
+                default: 300.0
               min_exp_time:
                 description: Minimum exposure time allowed.
-                type: float
-                default: 1
+                type: number
+                default: 1.0
               min_sun_elevation:
                 description: Lowest position of sun in degrees at which twilight flats can be taken.
-                type: float
+                type: number
                 default: -3.0
               max_sun_elevation:
                 description: Highest position in degrees of sun at which twilight flats can be taken.
-                type: float
+                type: number
                 default: 0.0
               distance_from_sun:
                 description: The distance from the Sun in degrees. Positive angles go towards the North.
-                type: float
+                type: number
                 minimum: -180.0
                 maximum: 180.0
-                default: 180.0
+                default: 179.0
               target_el:
-                description: Target elevation for sky flats
-                type: float
+                description: Target elevation for sky flats.
+                type: number
+                minimum: 0.0
+                maximum: 90.0
                 default: 45.0
               ignore:
                 description: >-
