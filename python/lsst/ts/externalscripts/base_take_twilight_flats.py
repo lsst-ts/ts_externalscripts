@@ -154,6 +154,16 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 description: Highest position in degrees of sun at which twilight flats can be taken.
                 type: float
                 default: 0.0
+              distance_from_sun:
+                description: The distance from the Sun in degrees. Positive angles go towards the North.
+                type: float
+                minimum: -180.0
+                maximum: 180.0
+                default: 180.0
+              target_el:
+                description: Target elevation for sky flats
+                type: float
+                default: 45.0
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
@@ -252,7 +262,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return self.config.target_sky_counts * exp_time / sky_counts
 
-    def get_target_radec(self, distance_from_sun=180, target_el=45, time=None):
+    def get_target_radec(self):
         """
         Returns the RADEC of the target area of the sky that's an azimuth
         `distance_from_sun` away from the Sun, given `elevation`,
@@ -265,15 +275,13 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             Positive angles go towards the North.
         elevation : float
             Target elevation for Sky Flats.
-        time : datetime
-            The time for the calculation in UTC.
         """
 
         az_sun, el_sun = self.tcs.get_sun_azel()
 
-        target_az = (az_sun + distance_from_sun) % 360
+        target_az = (az_sun + self.config.distance_from_sun) % 360
 
-        target_radec = self.tcs.radec_from_azel(target_az, target_el)
+        target_radec = self.tcs.radec_from_azel(target_az, self.config.target_el)
 
         return target_radec
 
