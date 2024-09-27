@@ -142,6 +142,10 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 description: Maximum exposure time allowed.
                 type: float
                 default: 300
+              min_exp_time:
+                description: Minimum exposure time allowed.
+                type: float
+                default: 1
               min_sun:
                 description: Lowest position of sun in degrees at which twilight flats can be taken.
                 type: float
@@ -214,7 +218,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         n_flats = self.config.n_flat
 
         # Initialize estimate flat exposure time
-        target_flat_exptime = 30
+        target_flat_exptime = (self.config.max_exp_time + self.config.min_exp_time) / 2
 
         # Setup time for the camera (readout and shutter time)
         setup_time_per_image = self.camera.read_out_time + self.camera.shutter_time
