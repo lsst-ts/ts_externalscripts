@@ -392,9 +392,16 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             exp_time = self.get_new_exptime(sky_counts, exp_time)
 
             if exp_time > self.config.max_exp_time:
-                raise Exception(
+                self.log.warning(
                     f"Calculated exposure time {exp_time} above max exposure time. Aborting."
                 )
+                break
+
+            if exp_time < self.config.min_exp_time:
+                self.log.warning(
+                    f"Calculated exposure time {exp_time} below min exposure time. Aborting."
+                )
+                break
 
             await self.checkpoint(
                 f"Taking flat {i + 1} of {self.config.n_flat} with exposure time {exp_time}."
