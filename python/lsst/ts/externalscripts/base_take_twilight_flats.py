@@ -110,8 +110,16 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def setup_instrument_filter(self) -> str:
-        """Abstract method to set the instrument filter."""
+    async def setup_instrument(self, ra, dec) -> str:
+        """Abstract method to set the instrument filter.
+
+        Parameters
+        ----------
+        ra : float
+            RA of target field.
+        dec : float
+            Dec of target field.
+        """
         raise NotImplementedError()
 
     @classmethod
@@ -348,9 +356,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
     async def take_twilight_flats(self):
 
-        # Setup instrument filter
-        await self.setup_instrument_filter()
-
         group_id = self.group_id if self.obs_id is None else self.obs_id
 
         self.assert_sun_location()
@@ -367,8 +372,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             f" DEC = {empty_field_coords.dec.to_string(u.degree, alwayssign=True, sep=':')}"
         )
 
-        # slew to desired field
-        await self.tcs.slew_icrs(empty_field_coords.ra, empty_field_coords.dec)
+        # Setup instrument filter and slwe to desired field
+        await self.setup_instrument(empty_field_coords.ra, empty_field_coords.dec)
 
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")
