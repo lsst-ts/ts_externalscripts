@@ -325,7 +325,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return coords[arg]
 
-    def confirm_sun_location(self):
+    def assert_sun_location(self):
         """Confirm sun's elevation is safe for taking twilight flats."""
         sun_coordinates = self.tcs.get_sun_azel()
         where_sun = "setting" if (sun_coordinates[0] > 180) else "rising"
@@ -354,7 +354,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         group_id = self.group_id if self.obs_id is None else self.obs_id
 
-        self.confirm_sun_location()
+        self.assert_sun_location()
 
         target = self.get_target_radec()
 
@@ -418,7 +418,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 reason=self.reason,
             )
 
-            self.confirm_sun_location()
+            self.assert_sun_location()
 
     async def assert_feasibility(self) -> None:
         """Verify that camera is in a feasible state to
