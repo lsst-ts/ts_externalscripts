@@ -154,7 +154,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             Dec of target field.
         """
         # slew to desired field
-        await self.tcs.slew_icrs(ra, dec)
+        await self.atcs.slew_icrs(ra, dec)
 
         if self.latiss.get_current_filter() == self.get_instrument_filter():
             self.log.warning(
@@ -162,4 +162,4 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
                 f"Continuing."
             )
         else:
-            await self.camera.setup_instrument(filter=self.get_instrument_filter())
+            await self.latiss.setup_instrument(filter=self.get_instrument_filter())
