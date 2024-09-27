@@ -142,3 +142,24 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         instrument_filter: `string`
         """
         return f"{self.config.filter}~{self.config.grating}"
+
+    async def setup_instrument(self, ra, dec):
+        """Method to set the instrument filter and slew to desired field.
+
+        Parameters
+        ----------
+        ra : float
+            RA of target field.
+        dec : float
+            Dec of target field.
+        """
+        # slew to desired field
+        await self.tcs.slew_icrs(ra, dec)
+
+        if self.latiss.get_current_filter() == self.get_instrument_filter():
+            self.log.warning(
+                f"Filter is already set to {self.get_instrument_filter()}. "
+                f"Continuing."
+            )
+        else:
+            await self.camera.setup_instrument(filter=self.get_instrument_filter())
