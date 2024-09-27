@@ -374,9 +374,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")
         exp_time = 1
-        await self.camera.take_flats(
+        await self.camera.take_acq(
             exptime=exp_time,
-            nflats=1,
+            n=1,
             group_id=group_id,
             program=self.program,
             reason=self.reason,
@@ -403,9 +403,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             if np.abs(self.config.dither) > 0:
                 self.offset_telescope()
 
-            await self.camera.take_flats(
+            await self.camera.take_acq(
                 exptime=exp_time,
-                nflats=1,
+                n=1,
                 group_id=group_id,
                 program=self.program,
                 reason=self.reason,
