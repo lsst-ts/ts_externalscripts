@@ -109,6 +109,11 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    async def setup_instrument_filter(self) -> str:
+        """Abstract method to set the instrument filter."""
+        raise NotImplementedError()
+
     @classmethod
     def get_schema(cls):
         schema_yaml = """
@@ -344,13 +349,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
     async def take_twilight_flats(self):
 
         # Setup instrument filter
-        try:
-            await self.camera.setup_instrument(filter=self.get_instrument_filter())
-        except salobj.AckError:
-            self.log.warning(
-                f"Filter is already set to {self.get_instrument_filter()}. "
-                f"Continuing."
-            )
+        await self.setup_instrument_filter()
 
         group_id = self.group_id if self.obs_id is None else self.obs_id
 
