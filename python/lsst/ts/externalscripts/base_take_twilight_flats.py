@@ -69,6 +69,46 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    async def get_sky_counts(self) -> float:
+        """Abstract method to get the median sky counts from the last image.
+
+        Returns
+        -------
+        float
+            Sky counts in electrons.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_instrument_name(self):
+        """Abstract method to be defined in subclasses to provide the
+        instrument name.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_instrument_configuration(self) -> dict:
+        """Abstract method to get the instrument configuration.
+
+        Returns
+        -------
+        dict
+            Dictionary with instrument configuration.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_instrument_filter(self) -> str:
+        """Abstract method to get the instrument filter configuration.
+
+        Returns
+        -------
+        str
+            Instrument filter configuration.
+        """
+        raise NotImplementedError()
+
     @classmethod
     def get_schema(cls):
         schema_yaml = """
@@ -131,17 +171,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return schema_dict
 
-    @abc.abstractmethod
-    async def get_sky_counts(self) -> float:
-        """Abstract method to get the median sky counts from the last image.
-
-        Returns
-        -------
-        float
-            Sky counts in electrons.
-        """
-        raise NotImplementedError()
-
     async def offset_telescope(self):
         """Abstract method to dither the camera if desired."""
         await self.tcs.offset_azel(
@@ -180,35 +209,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         await super().configure(config)
 
         self.client = self.make_consdb_client()
-
-    @abc.abstractmethod
-    def get_instrument_name(self):
-        """Abstract method to be defined in subclasses to provide the
-        instrument name.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def get_instrument_configuration(self) -> dict:
-        """Abstract method to get the instrument configuration.
-
-        Returns
-        -------
-        dict
-            Dictionary with instrument configuration.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def get_instrument_filter(self) -> str:
-        """Abstract method to get the instrument filter configuration.
-
-        Returns
-        -------
-        str
-            Instrument filter configuration.
-        """
-        raise NotImplementedError()
 
     def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
         """Set script metadata, including estimated duration."""
