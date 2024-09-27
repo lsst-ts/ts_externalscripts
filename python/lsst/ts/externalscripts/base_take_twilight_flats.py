@@ -146,11 +146,11 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 description: Minimum exposure time allowed.
                 type: float
                 default: 1
-              min_sun:
+              min_sun_elevation:
                 description: Lowest position of sun in degrees at which twilight flats can be taken.
                 type: float
                 default: -3.0
-              max_sun:
+              max_sun_elevation:
                 description: Highest position in degrees of sun at which twilight flats can be taken.
                 type: float
                 default: 0.0
@@ -326,7 +326,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             f" The elevation of the Sun is {sun_coordinates[1]:.2f} deg"
         )
 
-        if (where_sun < self.config.min_sun) or (where_sun > self.config.max_sun):
+        if (where_sun < self.config.min_sun_elevation) or (
+            where_sun > self.config.max_sun_elevation
+        ):
             raise Exception(
                 f"Sun elevation {where_sun} is outside appropriate elvation limits. Aborting."
             )
