@@ -20,6 +20,8 @@
 
 __all__ = ["TakeTwilightFlatsLSSTCam"]
 
+import asyncio
+
 import yaml
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS
@@ -132,3 +134,74 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
         instrument_filter: `string`
         """
         return f"{self.config.filter}"
+
+    async def setup_instrument(self, ra, dec):
+        """Method to set the instrument filter and slew to desired field.
+
+        Parameters
+        ----------
+        ra : float
+            RA of target field.
+        dec : float
+            Dec of target field.
+        """
+        current_filter = await self.comcam.get_current_filter()
+
+        self.tracking_started = True
+
+        if current_filter != self.config.filter:
+            self.log.debug(
+                f"Filter change required: {current_filter} -> {self.config.filter}"
+            )
+            await self._handle_slew_and_change_filter()
+        else:
+            self.log.debug(
+                f"Already in the desired filter ({current_filter}), slewing and tracking."
+            )
+
+        await self.mtcs.slew_icrs(
+            ra=ra,
+            dec=dec,
+        )
+
+    async def _handle_slew_and_change_filter(self):
+        """Handle slewing and changing filter at the same time.
+
+        For ComCam (and MainCam) we need to send the rotator to zero and keep
+        it there while the filter is changing.
+        """
+
+        tasks_slew_with_fixed_rot = [
+            asyncio.create_task(
+                self.mtcs.slew_icrs(
+                    ra=self.config.ra,
+                    dec=self.config.dec,
+                )
+            ),
+            asyncio.create_task(self._wait_rotator_reach_filter_change_angle()),
+        ]
+
+        await self.mtcs.process_as_completed(tasks_slew_with_fixed_rot)
+
+        await self.lsstcam.setup_filter(filter=self.config.band_filter)
+
+    async def _wait_rotator_reach_filter_change_angle(self):
+        """Wait until the rotator reach the filter change angle."""
+
+        while True:
+            rotator_position = await self.mtcs.rem.mtrotator.tel_rotation.next(
+                flush=True, timeout=self.mtcs.fast_timeout
+            )
+
+            if (
+                abs(rotator_position.actualPosition - self.angle_filter_change)
+                < self.tolerance_angle_filter_change
+            ):
+                self.log.debug("Rotator inside tolerance range.")
+                break
+            else:
+                self.log.debug(
+                    "Rotator not in position: "
+                    f"{rotator_position.actualPosition} -> {self.angle_filter_change}"
+                )
+                await asyncio.sleep(self.mtcs.tel_settle_time)
