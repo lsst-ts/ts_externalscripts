@@ -22,15 +22,20 @@ __all__ = ["BaseTakeTwilightFlats"]
 
 import abc
 import types
+import warnings
 
 import numpy as np
 import yaml
 from astropy import coordinates
 from astropy import units as u
 from astroquery.vizier import Vizier
-from lsst.summit.utils import ConsDbClient
 from lsst.ts import salobj
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
+
+try:
+    from lsst.summit.utils import ConsDbClient
+except ImportError:
+    warnings.warn("Cannot import required libraries. Script will not work.")
 
 
 class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
