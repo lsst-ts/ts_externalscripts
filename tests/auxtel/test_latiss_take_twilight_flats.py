@@ -3,7 +3,7 @@ import unittest.mock as mock
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.auxtel.take_twilight_flats_latiss import (
+from lsst.ts.externalscripts.auxtel.latiss_take_twilight_flats import (
     TakeTwilightFlatsLatiss,
 )
 
