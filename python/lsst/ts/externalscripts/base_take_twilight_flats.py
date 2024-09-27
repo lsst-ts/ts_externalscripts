@@ -172,7 +172,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         return schema_dict
 
     async def offset_telescope(self):
-        """Abstract method to dither the camera if desired."""
+        """Dither the camera between exposures if desired."""
         await self.tcs.offset_azel(
             az=self.config.dither,
             el=0,
