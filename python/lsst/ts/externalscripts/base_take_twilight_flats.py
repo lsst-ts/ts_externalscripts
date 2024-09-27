@@ -235,7 +235,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         metadata.filter = self.get_instrument_filter()
 
     def get_new_exptime(self, sky_counts, exp_time):
-        """Configure script components including camera.
+        """Calculate exposure time for next image.
 
         Parameters
         ----------
