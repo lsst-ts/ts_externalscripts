@@ -106,6 +106,10 @@ class TestTakeTwilightFlatsLSSTCam(
             # 16 flats
             assert self.scripts.lsstcam.take_twilight_flats.call_count == 16
 
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_executable.",
+    )
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "maintel" / "take_twilight_flats_lsstcam.py"

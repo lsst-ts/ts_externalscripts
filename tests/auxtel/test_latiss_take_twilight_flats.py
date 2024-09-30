@@ -109,6 +109,10 @@ class TestTakeTwilightFlatsLatiss(
             # 16 flats
             assert self.script.latiss.take_twilight_flats.call_count == 16
 
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_executable.",
+    )
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "auxtel" / "latiss_take_twilight_flats.py"
