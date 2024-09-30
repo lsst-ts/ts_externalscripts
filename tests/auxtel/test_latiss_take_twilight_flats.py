@@ -1,11 +1,20 @@
 import unittest
 import unittest.mock as mock
+import warnings
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.auxtel.latiss_take_twilight_flats import (
     TakeTwilightFlatsLatiss,
 )
+
+try:
+    from lsst.summit.utils import ConsDbClient
+
+    CONSDB_AVAILABLE = True
+except ImportError:
+    CONSDB_AVAILABLE = False
+    warnings.warn("Cannot import summit utils. Most tests will be skipped.")
 
 
 class TestTakeTwilightFlatsLatiss(
@@ -33,6 +42,18 @@ class TestTakeTwilightFlatsLatiss(
         self.script.latiss.assert_all_enabled = mock.AsyncMock()
         self.script.latiss.take_focus = mock.AsyncMock(return_value=[1234])
 
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_consdb.",
+    )
+    async def test_consdb(self):
+
+        self.client = ConsDbClient()
+
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_configure.",
+    )
     async def test_configure(self):
 
         config = {
@@ -52,6 +73,10 @@ class TestTakeTwilightFlatsLatiss(
             assert self.script.config.dither == 10.0
             assert self.script.config.max_exp_time == 300
 
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_invalid_configuration.",
+    )
     async def test_invalid_configuration(self):
         bad_configs = [
             {
@@ -66,6 +91,10 @@ class TestTakeTwilightFlatsLatiss(
                 with pytest.raises(salobj.ExpectedError):
                     await self.configure_script(**bad_config)
 
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_take_twilight_flats.",
+    )
     async def test_take_twilight_flats(self):
         config = {
             "filter": "SDSSr_65mm",
@@ -82,5 +111,5 @@ class TestTakeTwilightFlatsLatiss(
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
-        script_path = scripts_dir / "auxtel" / "take_twilight_flats_latiss.py"
+        script_path = scripts_dir / "auxtel" / "latiss_take_twilight_flats.py"
         await self.check_executable(script_path)

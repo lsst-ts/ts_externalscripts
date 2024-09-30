@@ -1,11 +1,20 @@
 import unittest
 import unittest.mock as mock
+import warnings
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.maintel.take_twilight_flats_lsstcam import (
     TakeTwilightFlatsLSSTCam,
 )
+
+try:
+    from lsst.summit.utils import ConsDbClient
+
+    CONSDB_AVAILABLE = True
+except ImportError:
+    CONSDB_AVAILABLE = False
+    warnings.warn("Cannot import summit utils. Most tests will be skipped.")
 
 
 class TestTakeTwilightFlatsLSSTCam(
@@ -33,6 +42,18 @@ class TestTakeTwilightFlatsLSSTCam(
         self.script.lsstcam.assert_all_enabled = mock.AsyncMock()
         self.script.lsstcam.take_focus = mock.AsyncMock(return_value=[1234])
 
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_consdb.",
+    )
+    async def test_consdb(self):
+
+        self.client = ConsDbClient()
+
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_configure.",
+    )
     async def test_configure(self):
 
         config = {
@@ -50,6 +71,10 @@ class TestTakeTwilightFlatsLSSTCam(
             assert self.script.config.dither == 10
             assert self.script.config.max_exp_time == 300
 
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_invalid_configuration.",
+    )
     async def test_invalid_configuration(self):
         bad_configs = [
             {
@@ -63,6 +88,10 @@ class TestTakeTwilightFlatsLSSTCam(
                 with pytest.raises(salobj.ExpectedError):
                     await self.configure_script(**bad_config)
 
+    @unittest.skipIf(
+        CONSDB_AVAILABLE is False,
+        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_take_twilight_flats.",
+    )
     async def test_take_twilight_flats(self):
         config = {
             "filter": "r_03",
