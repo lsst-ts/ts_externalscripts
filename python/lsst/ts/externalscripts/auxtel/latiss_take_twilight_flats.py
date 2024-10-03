@@ -143,7 +143,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         """
         return f"{self.config.filter}~{self.config.grating}"
 
-    async def setup_instrument(self, ra, dec):
+    async def track_radec_and_setup_instrument(self, ra, dec):
         """Method to set the instrument filter and slew to desired field.
 
         Parameters
