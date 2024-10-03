@@ -50,7 +50,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         self.long_timeout = 30
 
-        self.client = ConsDbClient()
+        self.latest_exposure_id = None
+
+        self.client = ConsDbClient("http://consdb-pq.consdb:8080/consdb")
 
     @property
     @abc.abstractmethod
@@ -389,13 +391,15 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")
         exp_time = 1
-        await self.camera.take_acq(
+        flat_image = await self.camera.take_acq(
             exptime=exp_time,
             n=1,
             group_id=group_id,
             program=self.program,
             reason=self.reason,
         )
+
+        self.latest_exposure_id = int(flat_image[0])
 
         for i in range(self.config.n_flat):
 
@@ -425,13 +429,15 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             if np.abs(self.config.dither) > 0:
                 self.offset_telescope()
 
-            await self.camera.take_acq(
+            flat_image = await self.camera.take_acq(
                 exptime=exp_time,
                 n=1,
                 group_id=group_id,
                 program=self.program,
                 reason=self.reason,
             )
+
+            self.latest_exposure_id = int(flat_image[0])
 
             self.assert_sun_location()
 
