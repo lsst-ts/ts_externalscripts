@@ -373,14 +373,18 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         search_area_degrees = 10
 
         empty_field_coords = self.get_empty_field(target, radius=search_area_degrees)
-        self.log.info(
-            f"ICRS Empty field coordinates:\n"
-            f"  RA  = {empty_field_coords.ra.to_string(u.hour, sep=':')} ;"
-            f" DEC = {empty_field_coords.dec.to_string(u.degree, alwayssign=True, sep=':')}"
-        )
+        if empty_field_coords is not None:
+            self.log.info(
+                f"ICRS Empty field coordinates:\n"
+                f"  RA  = {empty_field_coords.ra.to_string(u.hour, sep=':')} ;"
+                f" DEC = {empty_field_coords.dec.to_string(u.degree, alwayssign=True, sep=':')}"
+            )
 
-        # Setup instrument filter and slwe to desired field
-        await self.setup_instrument(empty_field_coords.ra, empty_field_coords.dec)
+            # Setup instrument filter and slew to desired field
+            await self.setup_instrument(empty_field_coords.ra, empty_field_coords.dec)
+        else:
+            self.log.info("No empty field found. Continuing with default coords.")
+            await self.setup_instrument(target.ra, target.dec)
 
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")
