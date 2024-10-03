@@ -167,7 +167,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
               min_sun_elevation:
                 description: Lowest position of sun in degrees at which twilight flats can be taken.
                 type: number
-                default: -3.0
+                default: -18.0
               max_sun_elevation:
                 description: Highest position in degrees of sun at which twilight flats can be taken.
                 type: number
