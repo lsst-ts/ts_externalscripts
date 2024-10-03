@@ -114,8 +114,10 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         float
             Sky counts in electrons.
         """
-        # query consDB with util once such a function exists
-        sky_counts = 0
+        timeout = 30
+        query = f"SELECT * from cbd_latiss.visit1_quicklook where exposure_id = {self.latest_exposure_id}"
+        item = "post_isr_pixel_median"
+        sky_counts = self.client.wait_for_item_in_row(query, item, timeout)
         return sky_counts
 
     def get_instrument_name(self) -> str:

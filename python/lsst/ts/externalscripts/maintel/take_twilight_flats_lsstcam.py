@@ -108,7 +108,7 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
         float
             Sky counts in electrons.
         """
-        # query consDB with util once such a function exists
+        # query consDB with util once such the LSSTCam schema exists
         sky_counts = 0
         return sky_counts
 
