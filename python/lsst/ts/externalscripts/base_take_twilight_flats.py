@@ -209,7 +209,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
     async def offset_telescope(self):
         """Dither the camera between exposures if desired."""
-        await self.atcs.offset_azel(
+        await self.tcs.offset_azel(
             az=self.config.dither,
             el=0,
             relative=True,
