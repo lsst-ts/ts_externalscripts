@@ -117,8 +117,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def setup_instrument(self, ra, dec) -> str:
-        """Abstract method to set the instrument filter.
+    async def track_radec_and_setup_instrument(self, ra, dec):
+        """Abstract method to set the instrument. Change the filter
+        and slew and track target.
 
         Parameters
         ----------
@@ -383,10 +384,12 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             )
 
             # Setup instrument filter and slew to desired field
-            await self.setup_instrument(empty_field_coords.ra, empty_field_coords.dec)
+            await self.track_radec_and_setup_instrument(
+                empty_field_coords.ra, empty_field_coords.dec
+            )
         else:
             self.log.info("No empty field found. Continuing with default coords.")
-            await self.setup_instrument(target.ra, target.dec)
+            await self.track_radec_and_setup_instrument(target.ra, target.dec)
 
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")
