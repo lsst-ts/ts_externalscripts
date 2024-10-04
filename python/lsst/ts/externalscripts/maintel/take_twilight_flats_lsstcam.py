@@ -185,4 +185,4 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
 
         await self.mtcs.process_as_completed(tasks_slew_with_fixed_rot)
 
-        await self.lsstcam.setup_filter(filter=self.config.band_filter)
+        await self.lsstcam.setup_filter(filter=self.config.filter)

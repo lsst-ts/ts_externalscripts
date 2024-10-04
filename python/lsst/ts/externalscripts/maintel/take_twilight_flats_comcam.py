@@ -163,7 +163,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             self.log.debug(
                 f"Filter change required: {current_filter} -> {self.config.filter}"
             )
-            await self._handle_slew_and_change_filter()
+            await self.comcam.setup_filter(filter=self.config.filter)
         else:
             self.log.debug(
                 f"Already in the desired filter ({current_filter}), slewing and tracking."
@@ -174,24 +174,3 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             dec=dec,
             rot_type=RotType.PhysicalSky,
         )
-
-    async def _handle_slew_and_change_filter(self):
-        """Handle slewing and changing filter at the same time.
-
-        For ComCam (and MainCam) we need to send the rotator to zero and keep
-        it there while the filter is changing.
-        """
-
-        tasks_slew_with_fixed_rot = [
-            asyncio.create_task(
-                self.mtcs.slew_icrs(
-                    ra=self.config.ra,
-                    dec=self.config.dec,
-                    rot_type=RotType.PhysicalSky,
-                )
-            ),
-        ]
-
-        await self.mtcs.process_as_completed(tasks_slew_with_fixed_rot)
-
-        await self.comcam.setup_filter(filter=self.config.band_filter)
