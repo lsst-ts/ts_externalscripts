@@ -21,6 +21,8 @@
 __all__ = ["BaseTakeTwilightFlats"]
 
 import abc
+import asyncio
+import functools
 import types
 import warnings
 
@@ -299,7 +301,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return target_radec
 
-    def get_empty_field(self, target, radius=5):
+    async def get_twilight_flat_sky_coords(self, target, radius=5):
         """
         Query the "Deep blank field catalogue : J/MNRAS/427/679" in Vizier.
 
@@ -310,23 +312,31 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         radius : float
             Search radius in degrees.
 
+        Returns
+        ----------
+        ra : astropy.coordinates.SkyCoord
+            Right ascension of the twilight flats
+        dec : astropy.coordinates.SkyCoord
+            Declination of the twilight flats
+
         Reference
         ---------
         http://cdsarc.u-strasbg.fr/viz-bin/Cat?J/MNRAS/427/679
         """
-        _table = Vizier.query_region(
+        query_region = functools.partial(
+            Vizier.query_region,
             catalog="J/MNRAS/427/679/blank_fld",
             coordinates=target,
             radius=radius * u.deg,
         )
 
+        _table = await asyncio.get_event_loop().run_in_executor(None, query_region)
+
         if len(_table) == 0:
             self.log.info(
-                f"Could not find a field near {target} " f"within {radius} deg radius"
+                f"Could not find a field near {target} within {radius} deg radius"
             )
-            return None
-
-        _table = _table["J/MNRAS/427/679/blank_fld"]
+            return target.ra, target.dec
 
         coords = coordinates.SkyCoord(
             ra=_table["RAJ2000"],
@@ -337,7 +347,13 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         arg = target.separation(coords).argmin()
 
-        return coords[arg]
+        self.log.info(
+            f"ICRS Empty field coordinates:\n"
+            f"  RA  = {coords[arg].ra.to_string(u.hour, sep=':')} ;"
+            f" DEC = {coords[arg].dec.to_string(u.degree, alwayssign=True, sep=':')}"
+        )
+
+        return coords[arg].ra, coords[arg].dec
 
     def assert_sun_location(self):
         """Confirm sun's elevation is safe for taking twilight flats."""
@@ -364,21 +380,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         # get an empty field
         search_area_degrees = 10
 
-        empty_field_coords = self.get_empty_field(target, radius=search_area_degrees)
-        if empty_field_coords is not None:
-            self.log.info(
-                f"ICRS Empty field coordinates:\n"
-                f"  RA  = {empty_field_coords.ra.to_string(u.hour, sep=':')} ;"
-                f" DEC = {empty_field_coords.dec.to_string(u.degree, alwayssign=True, sep=':')}"
-            )
+        ra, dec = await self.get_empty_field(target, radius=search_area_degrees)
 
-            # Setup instrument filter and slew to desired field
-            await self.track_radec_and_setup_instrument(
-                empty_field_coords.ra, empty_field_coords.dec
-            )
-        else:
-            self.log.info("No empty field found. Continuing with default coords.")
-            await self.track_radec_and_setup_instrument(target.ra, target.dec)
+        await self.track_radec_and_setup_instrument(ra, dec)
 
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")
