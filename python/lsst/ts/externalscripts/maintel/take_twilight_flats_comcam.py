@@ -187,30 +187,8 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
                     dec=self.config.dec,
                 )
             ),
-            asyncio.create_task(self._wait_rotator_reach_filter_change_angle()),
         ]
 
         await self.mtcs.process_as_completed(tasks_slew_with_fixed_rot)
 
         await self.comcam.setup_filter(filter=self.config.band_filter)
-
-    async def _wait_rotator_reach_filter_change_angle(self):
-        """Wait until the rotator reach the filter change angle."""
-
-        while True:
-            rotator_position = await self.mtcs.rem.mtrotator.tel_rotation.next(
-                flush=True, timeout=self.mtcs.fast_timeout
-            )
-
-            if (
-                abs(rotator_position.actualPosition - self.angle_filter_change)
-                < self.tolerance_angle_filter_change
-            ):
-                self.log.debug("Rotator inside tolerance range.")
-                break
-            else:
-                self.log.debug(
-                    "Rotator not in position: "
-                    f"{rotator_position.actualPosition} -> {self.angle_filter_change}"
-                )
-                await asyncio.sleep(self.mtcs.tel_settle_time)
