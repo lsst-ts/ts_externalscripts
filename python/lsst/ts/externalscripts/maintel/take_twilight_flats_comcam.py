@@ -26,6 +26,7 @@ import functools
 import yaml
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS
+from lsst.ts.observatory.control.utils import RotType
 
 from ..base_take_twilight_flats import BaseTakeTwilightFlats
 
@@ -185,6 +186,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
                 self.mtcs.slew_icrs(
                     ra=self.config.ra,
                     dec=self.config.dec,
+                    rot_type=RotType.Physical,
                 )
             ),
         ]

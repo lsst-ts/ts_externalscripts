@@ -25,6 +25,7 @@ import asyncio
 import yaml
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS
+from lsst.ts.observatory.control.utils import RotType
 
 from ..base_take_twilight_flats import BaseTakeTwilightFlats
 
@@ -176,6 +177,7 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
                 self.mtcs.slew_icrs(
                     ra=self.config.ra,
                     dec=self.config.dec,
+                    rot_type=RotType.Physical,
                 )
             ),
         ]
