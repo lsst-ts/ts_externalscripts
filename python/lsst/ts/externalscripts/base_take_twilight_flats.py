@@ -208,15 +208,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return schema_dict
 
-    async def offset_telescope(self):
-        """Dither the camera between exposures if desired."""
-        await self.tcs.offset_azel(
-            az=self.config.dither,
-            el=0,
-            relative=True,
-            absorb=False,
-        )
-
     async def configure(self, config: types.SimpleNamespace):
         """Configure script components including camera.
 
@@ -431,7 +422,12 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             )
 
             if np.abs(self.config.dither) > 0:
-                self.offset_telescope()
+                await self.tcs.offset_azel(
+                    az=self.config.dither,
+                    el=0,
+                    relative=True,
+                    absorb=False,
+                )
 
             # TODO: change from take_acq to take_sflat (DM-46675)
             flat_image = await self.camera.take_acq(
