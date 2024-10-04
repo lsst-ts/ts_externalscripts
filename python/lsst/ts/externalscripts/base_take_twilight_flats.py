@@ -350,7 +350,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         assert (sun_coordinates[1] < self.config.min_sun_elevation) or (
             sun_coordinates[1] > self.config.max_sun_elevation
-        ), f"Sun elevation {sun_coordinates} is outside appropriate elvation limits. Aborting."
+        ), f"Sun elevation {sun_coordinates} is outside appropriate elevation limits. \
+            Must be below {self.config.min_sun_elevation} or above {self.config.max_sun_elevation}."
 
     async def take_twilight_flats(self):
 
