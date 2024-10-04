@@ -20,6 +20,9 @@
 
 __all__ = ["TakeTwilightFlatsLatiss"]
 
+import asyncio
+import functools
+
 import yaml
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
@@ -117,7 +120,13 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         timeout = 30
         query = f"SELECT * from cbd_latiss.visit1_quicklook where exposure_id = {self.latest_exposure_id}"
         item = "post_isr_pixel_median"
-        sky_counts = self.client.wait_for_item_in_row(query, item, timeout)
+        get_counts = functools.partial(
+            self.client.wait_for_item_in_row,
+            query=query,
+            item=item,
+            timeout=timeout,
+        )
+        sky_counts = await asyncio.get_running_loop().run_in_executor(None, get_counts)
         return sky_counts
 
     def get_instrument_name(self) -> str:

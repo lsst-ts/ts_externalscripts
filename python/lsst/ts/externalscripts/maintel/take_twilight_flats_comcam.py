@@ -21,6 +21,7 @@
 __all__ = ["TakeTwilightFlatsComCam"]
 
 import asyncio
+import functools
 
 import yaml
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
@@ -111,7 +112,13 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
         timeout = 30
         query = f"SELECT * from cbd_lsstcomcam.visit1_quicklook where exposure_id = {self.latest_exposure_id}"
         item = "post_isr_pixel_median_median"
-        sky_counts = self.client.wait_for_item_in_row(query, item, timeout)
+        get_counts = functools.partial(
+            self.client.wait_for_item_in_row,
+            query=query,
+            item=item,
+            timeout=timeout,
+        )
+        sky_counts = await asyncio.get_running_loop().run_in_executor(None, get_counts)
         return sky_counts
 
     def get_instrument_name(self) -> str:
