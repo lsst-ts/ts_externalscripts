@@ -172,6 +172,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
         await self.mtcs.slew_icrs(
             ra=ra,
             dec=dec,
+            rot_type=RotType.PhysicalSky,
         )
 
     async def _handle_slew_and_change_filter(self):
