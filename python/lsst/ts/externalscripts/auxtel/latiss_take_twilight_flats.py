@@ -26,6 +26,7 @@ import functools
 import yaml
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
+from lsst.ts.observatory.control.utils import RotType
 
 from ..base_take_twilight_flats import BaseTakeTwilightFlats
 
@@ -165,7 +166,11 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             Dec of target field.
         """
         # slew to desired field
-        await self.atcs.slew_icrs(ra, dec)
+        await self.atcs.slew_icrs(
+            ra,
+            dec,
+            rot_type=RotType.PhysicalSky,
+        )
 
         if self.latiss.get_current_filter() == self.get_instrument_filter():
             self.log.warning(

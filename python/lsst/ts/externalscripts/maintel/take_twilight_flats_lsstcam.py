@@ -109,7 +109,7 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
         float
             Sky counts in electrons.
         """
-        # query consDB with util once such the LSSTCam schema exists
+        # TODO: query consDB with util once such the LSSTCam schema exists
         sky_counts = 0
         return sky_counts
 
@@ -177,7 +177,7 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
                 self.mtcs.slew_icrs(
                     ra=self.config.ra,
                     dec=self.config.dec,
-                    rot_type=RotType.Physical,
+                    rot_type=RotType.PhysicalSky,
                 )
             ),
         ]
