@@ -409,13 +409,15 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
             if exp_time > self.config.max_exp_time:
                 self.log.warning(
-                    f"Calculated exposure time {exp_time} above max exposure time. Aborting."
+                    f"Calculated exposure time {exp_time} above max exposure time \
+                        {self.config.max_exp_time}. Stopping."
                 )
                 break
 
             if exp_time < self.config.min_exp_time:
                 self.log.warning(
-                    f"Calculated exposure time {exp_time} below min exposure time. Aborting."
+                    f"Calculated exposure time {exp_time} below min exposure time \
+                        {self.config.min_exp_time}. Stopping."
                 )
                 break
 
