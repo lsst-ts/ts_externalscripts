@@ -178,7 +178,7 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
                 self.mtcs.slew_icrs(
                     ra=self.config.ra,
                     dec=self.config.dec,
-                    rot_type=RotType.PhysicalSky,
+                    rot_type=RotType.Physical,
                 )
             ),
         ]
