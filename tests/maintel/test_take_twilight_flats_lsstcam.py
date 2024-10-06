@@ -1,20 +1,11 @@
 import unittest
 import unittest.mock as mock
-import warnings
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.maintel.take_twilight_flats_lsstcam import (
     TakeTwilightFlatsLSSTCam,
 )
-
-try:
-    from lsst.summit.utils import ConsDbClient
-
-    CONSDB_AVAILABLE = True
-except ImportError:
-    CONSDB_AVAILABLE = False
-    warnings.warn("Cannot import summit utils. Most tests will be skipped.")
 
 
 class TestTakeTwilightFlatsLSSTCam(
@@ -23,17 +14,20 @@ class TestTakeTwilightFlatsLSSTCam(
     async def basic_make_script(self, index):
         self.script = TakeTwilightFlatsLSSTCam(index=index)
 
-        self.mock_atcs()
+        self.mock_mtcs()
         self.mock_camera()
+        self.mock_consdb()
+        self.mock_vizier()
 
         return (self.script,)
 
     def mock_mtcs(self):
-        """Mock ATCS instances and its methods."""
-        self.script.atcs = mock.AsyncMock()
-        self.script.atcs.assert_liveliness = mock.AsyncMock()
-        self.script.atcs.assert_all_enabled = mock.AsyncMock()
-        self.script.atcs.offset_aos_lut = mock.AsyncMock()
+        """Mock MTCS instances and its methods."""
+        self.script.mtcs = mock.AsyncMock()
+        self.script.mtcs.assert_liveliness = mock.AsyncMock()
+        self.script.mtcs.assert_all_enabled = mock.AsyncMock()
+        self.script.mtcs.offset_aos_lut = mock.AsyncMock()
+        self.script.mtcs.get_sun_azel = mock.AsyncMock(return_value=(-3.0, 90.0))
 
     def mock_camera(self):
         """Mock camera instance and its methods."""
@@ -41,19 +35,18 @@ class TestTakeTwilightFlatsLSSTCam(
         self.script.lsstcam.assert_liveliness = mock.AsyncMock()
         self.script.lsstcam.assert_all_enabled = mock.AsyncMock()
         self.script.lsstcam.take_focus = mock.AsyncMock(return_value=[1234])
+        self.script.lsstcam.take_acq = mock.AsyncMock(return_value=([32, 0]))
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_consdb.",
-    )
-    async def test_consdb(self):
+    def mock_consdb(self):
+        """Mock consdb and its methods."""
+        self.script.client = mock.Mock()
+        self.script.client.wait_for_item_in_row = mock.Mock(return_value=15000)
 
-        self.client = ConsDbClient()
+    def mock_vizier(self):
+        """Mock Vizier catalog"""
+        self.script.vizier = mock.Mock()
+        self.script.vizier.query_region = mock.Mock(return_value=[])
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_configure.",
-    )
     async def test_configure(self):
 
         config = {
@@ -71,10 +64,6 @@ class TestTakeTwilightFlatsLSSTCam(
             assert self.script.config.dither == 10
             assert self.script.config.max_exp_time == 300
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_invalid_configuration.",
-    )
     async def test_invalid_configuration(self):
         bad_configs = [
             {
@@ -88,10 +77,6 @@ class TestTakeTwilightFlatsLSSTCam(
                 with pytest.raises(salobj.ExpectedError):
                     await self.configure_script(**bad_config)
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_take_twilight_flats.",
-    )
     async def test_take_twilight_flats(self):
         config = {
             "filter": "r_03",
@@ -104,12 +89,8 @@ class TestTakeTwilightFlatsLSSTCam(
             await self.run_script()
 
             # 16 flats
-            assert self.scripts.lsstcam.take_twilight_flats.call_count == 16
+            assert self.script.lsstcam.take_acq.call_count == 16
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_executable.",
-    )
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "maintel" / "take_twilight_flats_lsstcam.py"

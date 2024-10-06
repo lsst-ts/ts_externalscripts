@@ -1,20 +1,11 @@
 import unittest
 import unittest.mock as mock
-import warnings
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.auxtel.latiss_take_twilight_flats import (
     TakeTwilightFlatsLatiss,
 )
-
-try:
-    from lsst.summit.utils import ConsDbClient
-
-    CONSDB_AVAILABLE = True
-except ImportError:
-    CONSDB_AVAILABLE = False
-    warnings.warn("Cannot import summit utils. Most tests will be skipped.")
 
 
 class TestTakeTwilightFlatsLatiss(
@@ -25,6 +16,8 @@ class TestTakeTwilightFlatsLatiss(
 
         self.mock_atcs()
         self.mock_camera()
+        self.mock_consdb()
+        self.mock_vizier()
 
         return (self.script,)
 
@@ -34,6 +27,7 @@ class TestTakeTwilightFlatsLatiss(
         self.script.atcs.assert_liveliness = mock.AsyncMock()
         self.script.atcs.assert_all_enabled = mock.AsyncMock()
         self.script.atcs.offset_aos_lut = mock.AsyncMock()
+        self.script.atcs.get_sun_azel = mock.AsyncMock(return_value=(-3.0, 90.0))
 
     def mock_camera(self):
         """Mock camera instance and its methods."""
@@ -41,19 +35,18 @@ class TestTakeTwilightFlatsLatiss(
         self.script.latiss.assert_liveliness = mock.AsyncMock()
         self.script.latiss.assert_all_enabled = mock.AsyncMock()
         self.script.latiss.take_focus = mock.AsyncMock(return_value=[1234])
+        self.script.latiss.take_acq = mock.AsyncMock(return_value=([32, 0]))
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_consdb.",
-    )
-    async def test_consdb(self):
+    def mock_consdb(self):
+        """Mock consdb and its methods."""
+        self.script.client = mock.Mock()
+        self.script.client.wait_for_item_in_row = mock.Mock(return_value=15000)
 
-        self.client = ConsDbClient()
+    def mock_vizier(self):
+        """Mock Vizier catalog"""
+        self.script.vizier = mock.Mock()
+        self.script.vizier.query_region = mock.Mock(return_value=[])
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_configure.",
-    )
     async def test_configure(self):
 
         config = {
@@ -66,17 +59,12 @@ class TestTakeTwilightFlatsLatiss(
             await self.configure_script(**config)
 
             assert self.script.config.filter == "SDSSr_65mm"
-            assert self.script.config.grating == "null"
-            assert self.script.config.linear_stage == "null"
+            assert self.script.config.grating == "empty_1"
             assert self.script.config.target_sky_counts == 15000
             assert self.script.config.n_flat == 15
             assert self.script.config.dither == 10.0
             assert self.script.config.max_exp_time == 300
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_invalid_configuration.",
-    )
     async def test_invalid_configuration(self):
         bad_configs = [
             {
@@ -91,10 +79,6 @@ class TestTakeTwilightFlatsLatiss(
                 with pytest.raises(salobj.ExpectedError):
                     await self.configure_script(**bad_config)
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_take_twilight_flats.",
-    )
     async def test_take_twilight_flats(self):
         config = {
             "filter": "SDSSr_65mm",
@@ -107,12 +91,8 @@ class TestTakeTwilightFlatsLatiss(
             await self.run_script()
 
             # 16 flats
-            assert self.script.latiss.take_twilight_flats.call_count == 16
+            assert self.script.latiss.take_acq.call_count == 16
 
-    @unittest.skipIf(
-        CONSDB_AVAILABLE is False,
-        f"ConsDB package availibility is {CONSDB_AVAILABLE}. Skipping test_executable.",
-    )
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "auxtel" / "latiss_take_twilight_flats.py"
