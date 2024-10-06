@@ -111,7 +111,8 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             Sky counts in electrons.
         """
         timeout = 30
-        query = f"SELECT * from cbd_lsstcomcam.visit1_quicklook where exposure_id = {self.latest_exposure_id}"
+        query = f"SELECT * from cbd_lsstcomcam.exposure_quicklook \
+            where exposure_id = {self.latest_exposure_id}"
         item = "post_isr_pixel_median_median"
         get_counts = functools.partial(
             self.client.wait_for_item_in_row,

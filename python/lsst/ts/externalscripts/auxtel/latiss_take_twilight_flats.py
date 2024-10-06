@@ -68,7 +68,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
                 self.domain,
                 intended_usage=LATISSUsages.TakeImage,
                 log=self.log,
-                tcs_ready_to_take_data=self.tcs.ready_to_take_data,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
             )
             await self.latiss.start_task
         else:
@@ -119,7 +119,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             Sky counts in electrons.
         """
         timeout = 30
-        query = f"SELECT * from cbd_latiss.visit1_quicklook where exposure_id = {self.latest_exposure_id}"
+        query = f"SELECT * from cbd_latiss.exposure_quicklook where exposure_id = {self.latest_exposure_id}"
         item = "post_isr_pixel_median"
         get_counts = functools.partial(
             self.client.wait_for_item_in_row,
@@ -166,7 +166,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             Dec of target field.
         """
         # slew to desired field
-        await self.atcs.slew_icrs(
+        await self.tcs.slew_icrs(
             ra,
             dec,
             rot_type=RotType.PhysicalSky,

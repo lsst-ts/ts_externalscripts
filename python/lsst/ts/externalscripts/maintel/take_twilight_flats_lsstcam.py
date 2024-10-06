@@ -21,6 +21,7 @@
 __all__ = ["TakeTwilightFlatsLSSTCam"]
 
 import asyncio
+import functools
 
 import yaml
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
@@ -109,8 +110,16 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
         float
             Sky counts in electrons.
         """
-        # TODO: query consDB with util once such the LSSTCam schema exists
-        sky_counts = 0
+        timeout = 30
+        query = f"SELECT * from cbd_lsstcam.exposure_quicklook where exposure_id = {self.latest_exposure_id}"
+        item = "post_isr_pixel_median_median"
+        get_counts = functools.partial(
+            self.client.wait_for_item_in_row,
+            query=query,
+            item=item,
+            timeout=timeout,
+        )
+        sky_counts = await asyncio.get_running_loop().run_in_executor(None, get_counts)
         return sky_counts
 
     def get_instrument_name(self) -> str:
@@ -146,7 +155,7 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
         dec : float
             Dec of target field.
         """
-        current_filter = await self.comcam.get_current_filter()
+        current_filter = await self.lsstcam.get_current_filter()
 
         self.tracking_started = True
 
@@ -154,7 +163,7 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
             self.log.debug(
                 f"Filter change required: {current_filter} -> {self.config.filter}"
             )
-            await self._handle_slew_and_change_filter()
+            await self._handle_slew_and_change_filter(ra, dec)
         else:
             self.log.debug(
                 f"Already in the desired filter ({current_filter}), slewing and tracking."
@@ -166,7 +175,7 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
             rot_type=RotType.PhysicalSky,
         )
 
-    async def _handle_slew_and_change_filter(self):
+    async def _handle_slew_and_change_filter(self, ra, dec):
         """Handle slewing and changing filter at the same time.
 
         For ComCam (and MainCam) we need to send the rotator to zero and keep
@@ -176,8 +185,8 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
         tasks_slew_with_fixed_rot = [
             asyncio.create_task(
                 self.mtcs.slew_icrs(
-                    ra=self.config.ra,
-                    dec=self.config.dec,
+                    ra=ra,
+                    dec=dec,
                     rot_type=RotType.Physical,
                 )
             ),
