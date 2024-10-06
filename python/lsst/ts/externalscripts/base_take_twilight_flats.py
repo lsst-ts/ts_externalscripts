@@ -54,7 +54,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         self.latest_exposure_id = None
 
-        self.client = ConsDbClient("http://consdb-pq.consdb:8080/consdb")
+        self.client = None
+
+        self.vizier = None
 
     @property
     @abc.abstractmethod
@@ -65,6 +67,14 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def camera(self):
         raise NotImplementedError()
+
+    @property
+    def consdb(self):
+        return self.client
+
+    @property
+    def catalog(self):
+        return self.vizier
 
     @abc.abstractmethod
     async def configure_tcs(self):
@@ -77,6 +87,22 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         in subclasses.
         """
         raise NotImplementedError()
+
+    def configure_consdb(self):
+        """Method to configure the consdb client."""
+        if self.client is None:
+            self.log.debug("Creating consdb client.")
+            self.client = ConsDbClient("http://consdb-pq.consdb:8080/consdb")
+        else:
+            self.log.debug("Client already defined, skipping.")
+
+    def configure_catalog(self):
+        """Method to configure the catalog."""
+        if self.vizier is None:
+            self.log.debug("Creating Vizier catalog.")
+            self.vizier = Vizier
+        else:
+            self.log.debug("Catalog already defined, skipping.")
 
     @abc.abstractmethod
     async def get_sky_counts(self) -> float:
@@ -221,6 +247,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         await self.configure_tcs()
         await self.configure_camera()
+        self.configure_consdb()
+        self.configure_catalog()
 
         if hasattr(config, "ignore"):
             for comp in config.ignore:
@@ -278,7 +306,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return self.config.target_sky_counts * exp_time / sky_counts
 
-    def get_target_radec(self):
+    async def get_target_radec(self):
         """
         Returns the RADEC of the target area of the sky that's an azimuth
         `distance_from_sun` away from the Sun, given `elevation`,
@@ -293,11 +321,11 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             Target elevation for Sky Flats.
         """
 
-        az_sun, el_sun = self.tcs.get_sun_azel()
+        az_sun, el_sun = await self.tcs.get_sun_azel()
 
         target_az = (az_sun + self.config.distance_from_sun) % 360
 
-        target_radec = self.tcs.radec_from_azel(target_az, self.config.target_el)
+        target_radec = await self.tcs.radec_from_azel(target_az, self.config.target_el)
 
         return target_radec
 
@@ -324,7 +352,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         http://cdsarc.u-strasbg.fr/viz-bin/Cat?J/MNRAS/427/679
         """
         query_region = functools.partial(
-            Vizier.query_region,
+            self.vizier.query_region,
             catalog="J/MNRAS/427/679/blank_fld",
             coordinates=target,
             radius=radius * u.deg,
@@ -355,9 +383,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return coords[arg].ra, coords[arg].dec
 
-    def assert_sun_location(self):
+    async def assert_sun_location(self):
         """Confirm sun's elevation is safe for taking twilight flats."""
-        sun_coordinates = self.tcs.get_sun_azel()
+        sun_coordinates = await self.tcs.get_sun_azel()
         where_sun = "setting" if (sun_coordinates[0] > 180) else "rising"
         self.log.debug(
             f" The azimuth of the {where_sun} Sun is {sun_coordinates[0]:.2f} deg \n"
@@ -370,17 +398,19 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             Must be below {self.config.min_sun_elevation} or above {self.config.max_sun_elevation}."
 
     async def take_twilight_flats(self):
-
+        """Take the sequence of twilight flats twilight flats."""
         group_id = self.group_id if self.obs_id is None else self.obs_id
 
-        self.assert_sun_location()
+        await self.assert_sun_location()
 
-        target = self.get_target_radec()
+        target = await self.get_target_radec()
 
         # get an empty field
         search_area_degrees = 10
 
-        ra, dec = await self.get_empty_field(target, radius=search_area_degrees)
+        ra, dec = await self.get_twilight_flat_sky_coords(
+            target, radius=search_area_degrees
+        )
 
         await self.track_radec_and_setup_instrument(ra, dec)
 
@@ -395,6 +425,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             program=self.program,
             reason=self.reason,
         )
+        self.log.debug("First image taken")
 
         self.latest_exposure_id = int(flat_image[0])
 
@@ -422,7 +453,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 break
 
             await self.checkpoint(
-                f"Taking flat {i + 1} of {self.config.n_flat} with exposure time {exp_time}."
+                f"Taking flat {i+1} of {self.config.n_flat} with exposure time {exp_time}."
             )
 
             if np.abs(self.config.dither) > 0:
@@ -441,10 +472,11 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 program=self.program,
                 reason=self.reason,
             )
+            self.log.debug(f"Just took image {i} of {self.config.n_flat}")
 
             self.latest_exposure_id = int(flat_image[0])
 
-            self.assert_sun_location()
+            await self.assert_sun_location()
 
     async def assert_feasibility(self) -> None:
         """Verify that camera is in a feasible state to
