@@ -774,7 +774,6 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             f"Received acknowledgement of ocps command for {image_type} pipetask."
         )
 
-        ack.print_vars()
         job_id = json.loads(ack.result)["job_id"]
 
         # Wait for the command completion acknowledgement.
@@ -783,7 +782,9 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             f"Received command completion acknowledgement from ocps for {image_type}."
         )
         if ack.ack != salobj.SalRetCode.CMD_COMPLETE:
-            ack.print_vars()
+            self.log.debug(
+                f"OCPS job not complete, received {ack}. Continuing to wait for job result."
+            )
         # Wait for the job result message that matches the job id we're
         # interested in ignoring any others (from other remotes).
         # This needs to follow the first acknowledgement
