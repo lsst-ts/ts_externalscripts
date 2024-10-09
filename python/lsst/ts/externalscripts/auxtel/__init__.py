@@ -25,6 +25,7 @@ from .latiss_acquire import *
 from .latiss_acquire_and_take_sequence import *
 from .latiss_cwfs_align import *
 from .latiss_intra_extra_focal_data import *
+from .latiss_take_twilight_flats import *
 from .latiss_wep_align import *
 from .make_latiss_calibrations import *
 from .wep_checkout import *
