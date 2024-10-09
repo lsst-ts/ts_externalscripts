@@ -441,9 +441,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             if exp_time > self.config.max_exp_time:
                 self.log.warning(
                     f"Calculated exposure time {exp_time} above max exposure time \
-                        {self.config.max_exp_time}. Stopping."
+                        {self.config.max_exp_time} s. Taking images with exposure \
+                            time {self.config.max_exp_time}."
                 )
-                break
 
             if exp_time < self.config.min_exp_time:
                 self.log.warning(
