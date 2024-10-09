@@ -63,7 +63,7 @@ class TestTakeTwilightFlatsLatiss(
             assert self.script.config.target_sky_counts == 15000
             assert self.script.config.n_flat == 15
             assert self.script.config.dither == 10.0
-            assert self.script.config.max_exp_time == 300
+            assert self.script.config.max_exp_time == 30
 
     async def test_invalid_configuration(self):
         bad_configs = [
