@@ -190,7 +190,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
               max_exp_time:
                 description: Maximum exposure time allowed.
                 type: number
-                default: 300.0
+                default: 30.0
               min_exp_time:
                 description: Minimum exposure time allowed.
                 type: number
