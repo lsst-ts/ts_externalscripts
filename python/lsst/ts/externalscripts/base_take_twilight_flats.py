@@ -444,6 +444,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                         {self.config.max_exp_time} s. Taking images with exposure \
                             time {self.config.max_exp_time}."
                 )
+                exp_time = self.config.max_exp_time
 
             if exp_time < self.config.min_exp_time:
                 self.log.warning(
