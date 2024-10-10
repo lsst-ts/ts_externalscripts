@@ -255,21 +255,25 @@ class BaseParameterMarch(BaseBlockScript):
                     )
 
         if hasattr(config, "step_sequence"):
-            config.range = config.step_sequence[-1] - config.step_sequence[0]
-            config.n_steps = len(config.step_sequence)
+            self.step_sequence = config.step_sequence
+            self.range = self.step_sequence[-1] - self.step_sequence[0]
+            self.n_steps = len(self.step_sequence)
         elif hasattr(config, "range"):
-            config.step_sequence = np.linspace(
-                -config.range, config.range, config.n_steps
+            self.range = config.range
+            self.n_steps = config.n_steps
+            self.step_sequence = np.linspace(
+                -self.range, self.range, self.n_steps
             ).tolist()
 
         if hasattr(config, "rotation_sequence"):
-            if isinstance(config.rotation_sequence, (int, float)):
-                config.rotation_sequence = [config.rotation_sequence] * config.n_steps
-            elif isinstance(config.rotation_sequence, list):
-                if len(config.rotation_sequence) != config.n_steps:
+            self.rotation_sequence = self.rotation_sequence
+            if isinstance(self.rotation_sequence, (int, float)):
+                self.rotation_sequence = [self.rotation_sequence] * self.n_steps
+            elif isinstance(self.rotation_sequence, list):
+                if len(self.rotation_sequence) != self.n_steps:
                     raise ValueError(
-                        f"rotation_sequence length {len(config.rotation_sequence)} "
-                        f"does not match n_steps {config.n_steps}."
+                        f"rotation_sequence length {len(self.rotation_sequence)} "
+                        f"does not match n_steps {self.n_steps}."
                     )
 
         self.config = config
