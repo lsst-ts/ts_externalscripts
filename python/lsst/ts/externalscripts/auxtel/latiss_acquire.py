@@ -78,10 +78,16 @@ class LatissAcquire(salobj.BaseScript):
 
         atcs_usage = None if add_remotes else ATCSUsages.DryTest
 
-        self.latiss = LATISS(
-            domain=self.domain, intended_usage=latiss_usage, log=self.log
-        )
         self.atcs = ATCS(domain=self.domain, intended_usage=atcs_usage, log=self.log)
+
+        tcs_ready_to_take_data = self.atcs.ready_to_take_data if add_remotes else None
+
+        self.latiss = LATISS(
+            domain=self.domain,
+            intended_usage=latiss_usage,
+            log=self.log,
+            tcs_ready_to_take_data=tcs_ready_to_take_data,
+        )
 
         self.image_in_oods_timeout = 15.0
 

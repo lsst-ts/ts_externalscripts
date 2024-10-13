@@ -62,7 +62,11 @@ class CorrectPointing(BaseScript):
 
         if remotes:
             self.atcs = ATCS(domain=self.domain, log=self.log)
-            self.latiss = LATISS(domain=self.domain, log=self.log)
+            self.latiss = LATISS(
+                domain=self.domain,
+                log=self.log,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+            )
         else:
             self.atcs = ATCS(
                 domain=self.domain, log=self.log, intended_usage=ATCSUsages.DryTest
