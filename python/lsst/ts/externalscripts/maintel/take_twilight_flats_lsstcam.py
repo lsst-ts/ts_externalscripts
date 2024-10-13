@@ -195,3 +195,31 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
         await self.mtcs.process_as_completed(tasks_slew_with_fixed_rot)
 
         await self.lsstcam.setup_filter(filter=self.config.filter)
+
+    async def slew_azel_and_setup_instrument(self, az, el):
+        """Abstract method to set the instrument. Change the filter
+        and slew and track target.
+
+        Parameters
+        ----------
+        az : float
+            Azimuth of target field.
+        el : float
+            Elevation of target field.
+        """
+        current_filter = await self.lsstcam.get_current_filter()
+
+        if current_filter != self.config.filter:
+            self.log.debug(
+                f"Filter change required: {current_filter} -> {self.config.filter}"
+            )
+            await self.lsstcam.setup_filter(filter=self.config.filter)
+        else:
+            self.log.debug(
+                f"Already in the desired filter ({current_filter}), slewing."
+            )
+
+        await self.mtcs.point_azel(
+            az=az,
+            el=el,
+        )

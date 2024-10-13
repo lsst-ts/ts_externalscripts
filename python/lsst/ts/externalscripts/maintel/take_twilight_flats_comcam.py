@@ -175,3 +175,31 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             dec=dec,
             rot_type=RotType.PhysicalSky,
         )
+
+    async def slew_azel_and_setup_instrument(self, az, el):
+        """Abstract method to set the instrument. Change the filter
+        and slew and track target.
+
+        Parameters
+        ----------
+        az : float
+            Azimuth of target field.
+        el : float
+            Elevation of target field.
+        """
+        current_filter = await self.comcam.get_current_filter()
+
+        if current_filter != self.config.filter:
+            self.log.debug(
+                f"Filter change required: {current_filter} -> {self.config.filter}"
+            )
+            await self.comcam.setup_filter(filter=self.config.filter)
+        else:
+            self.log.debug(
+                f"Already in the desired filter ({current_filter}), slewing."
+            )
+
+        await self.mtcs.point_azel(
+            az=az,
+            el=el,
+        )

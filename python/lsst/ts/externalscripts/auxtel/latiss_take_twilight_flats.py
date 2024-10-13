@@ -179,3 +179,28 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             )
         else:
             await self.latiss.setup_instrument(filter=self.get_instrument_filter())
+
+    async def slew_azel_and_setup_instrument(self, az, el):
+        """Abstract method to set the instrument. Change the filter
+        and slew and track target.
+
+        Parameters
+        ----------
+        az : float
+            Azimuth of target field.
+        el : float
+            Elevation of target field.
+        """
+        # slew to desired field
+        await self.tcs.point_azel(
+            az,
+            el,
+        )
+
+        if self.latiss.get_current_filter() == self.get_instrument_filter():
+            self.log.warning(
+                f"Filter is already set to {self.get_instrument_filter()}. "
+                f"Continuing."
+            )
+        else:
+            await self.latiss.setup_instrument(filter=self.get_instrument_filter())

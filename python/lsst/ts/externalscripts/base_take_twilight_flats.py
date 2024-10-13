@@ -158,6 +158,20 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    async def slew_azel_and_setup_instrument(self, az, el):
+        """Abstract method to set the instrument. Change the filter
+        and slew and track target.
+
+        Parameters
+        ----------
+        az : float
+            Azimuth of target field.
+        el : float
+            Elevation of target field.
+        """
+        raise NotImplementedError()
+
     @classmethod
     def get_schema(cls):
         schema_yaml = """
@@ -215,6 +229,10 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 minimum: 0.0
                 maximum: 90.0
                 default: 45.0
+              tracking:
+                description: If True, track sky. If False, keep az and el constant.
+                type: boolean
+                default: True
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
@@ -312,13 +330,10 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         `distance_from_sun` away from the Sun, given `elevation`,
         and at a given `time`.
 
-        Parameters
+        Returns
         ----------
-        distance_from_sun : float, (-180, 180)
-            The distance from the Sun in degrees.
-            Positive angles go towards the North.
-        elevation : float
-            Target elevation for Sky Flats.
+        target_radec :
+            target ra dec
         """
 
         az_sun, el_sun = await self.tcs.get_sun_azel()
@@ -328,6 +343,24 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         target_radec = await self.tcs.radec_from_azel(target_az, self.config.target_el)
 
         return target_radec
+
+    async def get_target_az(self):
+        """
+        Returns the AZ of the target area of the sky that's an azimuth
+        `distance_from_sun` away from the Sun, given `elevation`,
+        and at a given `time`.
+
+        returns
+        ----------
+        target_az : float, (-180, 180)
+            The target azimuth in degrees
+        """
+
+        az_sun, el_sun = await self.tcs.get_sun_azel()
+
+        target_az = (az_sun + self.config.distance_from_sun) % 360
+
+        return target_az
 
     async def get_twilight_flat_sky_coords(self, target, radius=5):
         """
@@ -408,11 +441,16 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         # get an empty field
         search_area_degrees = 10
 
-        ra, dec = await self.get_twilight_flat_sky_coords(
-            target, radius=search_area_degrees
-        )
+        if self.config.tracking:
+            ra, dec = await self.get_twilight_flat_sky_coords(
+                target, radius=search_area_degrees
+            )
 
-        await self.track_radec_and_setup_instrument(ra, dec)
+            await self.track_radec_and_setup_instrument(ra, dec)
+        else:
+            az = await self.get_target_az()
+
+            await self.slew_azel_and_setup_instrument(az, self.config.target_el)
 
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")
