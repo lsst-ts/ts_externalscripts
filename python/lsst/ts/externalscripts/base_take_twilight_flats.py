@@ -24,7 +24,6 @@ import abc
 import asyncio
 import functools
 import types
-import warnings
 
 import numpy as np
 import yaml
@@ -34,10 +33,12 @@ from astroquery.vizier import Vizier
 from lsst.ts import salobj
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 
+"""
 try:
     from lsst.summit.utils import ConsDbClient
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
+"""
 
 
 class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
@@ -88,6 +89,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    '''
     def configure_consdb(self):
         """Method to configure the consdb client."""
         if self.client is None:
@@ -95,6 +97,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             self.client = ConsDbClient("http://consdb-pq.consdb:8080/consdb")
         else:
             self.log.debug("Client already defined, skipping.")
+    '''
 
     def configure_catalog(self):
         """Method to configure the catalog."""
