@@ -72,7 +72,7 @@ class ParameterMarchLSSTCam(BaseParameterMarch):
             Script metadata topic.
         """
 
-        metadata.duration = self.config.n_steps * (
+        metadata.duration = self.n_steps * (
             self.config.exp_time + self.camera.read_out_time + self.camera.shutter_time
         )
 

@@ -65,7 +65,7 @@ class ParameterMarchComCam(BaseParameterMarch):
         """
 
         metadata.duration = (
-            self.config.n_steps
+            self.n_steps
             * 3
             * (
                 self.config.exp_time

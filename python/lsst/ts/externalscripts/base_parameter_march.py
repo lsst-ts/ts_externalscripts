@@ -363,13 +363,13 @@ class BaseParameterMarch(BaseBlockScript):
     async def parameter_march(self) -> None:
         """Perform the parameter_march operation."""
 
-        start_position = self.config.step_sequence[0]
+        start_position = self.step_sequence[0]
 
         offset_values = start_position * self.dofs
         cam_hex, m2_hex, m1m3_bend, m2_bend = await self.format_values(offset_values)
 
         await self.checkpoint(
-            f"Step 1/{self.config.n_steps} starting positions:\n"
+            f"Step 1/{self.n_steps} starting positions:\n"
             f"Cam Hexapod: {cam_hex}\n"
             f"M2 Hexapod: {m2_hex}\n"
             f"M1M3 Bend: {m1m3_bend}\n"
@@ -387,18 +387,16 @@ class BaseParameterMarch(BaseBlockScript):
         self.iterations_started = True
 
         # Move rotator
-        await self.track_target_with_rotation(self.config.rotation_sequence[0])
+        await self.track_target_with_rotation(self.rotation_sequence[0])
 
         await self.take_images()
 
-        for self.iterations_executed in range(1, self.config.n_steps):
-            await self.checkpoint(
-                f"Step {self.iterations_executed+1}/{self.config.n_steps}."
-            )
+        for self.iterations_executed in range(1, self.n_steps):
+            await self.checkpoint(f"Step {self.iterations_executed+1}/{self.n_steps}.")
             # Calculate the offset for the current step
             offset = (
-                self.config.step_sequence[self.iterations_executed]
-                - self.config.step_sequence[self.iterations_executed - 1]
+                self.step_sequence[self.iterations_executed]
+                - self.step_sequence[self.iterations_executed - 1]
             )
 
             # Apply dof vector with offset
@@ -412,7 +410,7 @@ class BaseParameterMarch(BaseBlockScript):
 
             # Move rotator
             await self.track_target_with_rotation(
-                self.config.rotation_sequence[self.iterations_executed]
+                self.rotation_sequence[self.iterations_executed]
             )
 
             # Take images at the current dof position
@@ -460,7 +458,7 @@ class BaseParameterMarch(BaseBlockScript):
             if self.iterations_started:
                 self.log.info(
                     f"Returning telescope to original position by moving "
-                    f"{self.total_offset} back along dofs vector {self.config.dofs}."
+                    f"{self.total_offset} back along dofs vector {self.dofs}."
                 )
                 offset_dof_data = await self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
                 for i, dof_offset in enumerate(self.dofs * -self.total_offset):
