@@ -20,15 +20,24 @@
 
 __all__ = ["TakeTwilightFlatsLatiss"]
 
-import asyncio
-import functools
+import warnings
 
+import numpy as np
 import yaml
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
 from lsst.ts.observatory.control.utils import RotType
 
 from ..base_take_twilight_flats import BaseTakeTwilightFlats
+
+try:
+    from lsst.summit.utils import BestEffortIsr
+    from lsst.ts.observing.utilities.auxtel.latiss.getters import (
+        get_image_sync as get_image,
+    )
+    from lsst.ts.observing.utilities.auxtel.latiss.utils import parse_visit_id
+except ImportError:
+    warnings.warn("Cannot import required libraries. Script will not work.")
 
 
 class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
@@ -118,16 +127,22 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         float
             Sky counts in electrons.
         """
-        timeout = 30
-        query = f"SELECT * from cbd_latiss.exposure_quicklook where exposure_id = {self.latest_exposure_id}"
-        item = "post_isr_pixel_median"
-        get_counts = functools.partial(
-            self.client.wait_for_item_in_row,
-            query=query,
-            item=item,
-            timeout=timeout,
+        best_effort_isr = BestEffortIsr()
+        timeout_get_image = 30
+
+        # Get latest image
+        latest_exposure = await get_image(
+            parse_visit_id(self.latest_exposure_id),
+            best_effort_isr,
+            timeout=timeout_get_image,
         )
-        sky_counts = await asyncio.get_running_loop().run_in_executor(None, get_counts)
+
+        # Measure median, mean and std across the image.
+        foo = latest_exposure.getMaskedImage()
+        masked_array = np.ma.masked_array(foo.image.array, mask=foo.mask.array)
+
+        sky_counts = np.ma.median(masked_array)
+
         return sky_counts
 
     def get_instrument_name(self) -> str:

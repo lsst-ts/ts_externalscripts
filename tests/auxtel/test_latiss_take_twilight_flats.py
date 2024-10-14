@@ -1,11 +1,21 @@
+import os
 import unittest
 import unittest.mock as mock
+import warnings
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.auxtel.latiss_take_twilight_flats import (
     TakeTwilightFlatsLatiss,
 )
+
+try:
+    from lsst.summit.utils import BestEffortIsr
+
+    BEST_ISR_AVAILABLE = True
+except ImportError:
+    warnings.warn("Cannot import required libraries. Script will not work.")
+    BEST_ISR_AVAILABLE = False
 
 
 class TestTakeTwilightFlatsLatiss(
@@ -79,12 +89,20 @@ class TestTakeTwilightFlatsLatiss(
                 with pytest.raises(salobj.ExpectedError):
                     await self.configure_script(**bad_config)
 
+    @unittest.skipIf(
+        BEST_ISR_AVAILABLE is False,
+        f"Best_Effort_ISR is {BEST_ISR_AVAILABLE}."
+        f"Skipping test_take_twilight_flats.",
+    )
     async def test_take_twilight_flats(self):
         config = {
             "filter": "SDSSr_65mm",
             "n_flat": 15,
             "dither": 10,
         }
+
+        # First make sure the best effort package is present
+        assert os.path.exists(BestEffortIsr.__file__)
 
         async with self.make_script():
             await self.configure_script(**config)
