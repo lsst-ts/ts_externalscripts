@@ -439,8 +439,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
     async def take_twilight_flats(self):
         """Take the sequence of twilight flats twilight flats."""
-        group_id = self.group_id if self.obs_id is None else self.obs_id
-
         self.assert_sun_location()
 
         target = self.get_target_radec()
@@ -466,7 +464,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         flat_image = await self.camera.take_acq(
             exptime=exp_time,
             n=1,
-            group_id=group_id,
+            group_id=self.obs_id,
             program=self.program,
             reason=self.reason,
         )
@@ -514,7 +512,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             flat_image = await self.camera.take_acq(
                 exptime=exp_time,
                 n=1,
-                group_id=group_id,
+                group_id=self.obs_id,
                 program=self.program,
                 reason=self.reason,
             )
