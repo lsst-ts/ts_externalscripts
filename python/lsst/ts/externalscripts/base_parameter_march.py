@@ -266,7 +266,7 @@ class BaseParameterMarch(BaseBlockScript):
             ).tolist()
 
         if hasattr(config, "rotation_sequence"):
-            self.rotation_sequence = self.rotation_sequence
+            self.rotation_sequence = config.rotation_sequence
             if isinstance(self.rotation_sequence, (int, float)):
                 self.rotation_sequence = [self.rotation_sequence] * self.n_steps
             elif isinstance(self.rotation_sequence, list):
