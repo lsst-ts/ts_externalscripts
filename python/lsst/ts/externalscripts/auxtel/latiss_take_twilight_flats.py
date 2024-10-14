@@ -80,6 +80,10 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
                 tcs_ready_to_take_data=self.atcs.ready_to_take_data,
             )
             await self.latiss.start_task
+            await self.latiss.setup_instrument(
+                filter=self.config.filter,
+                grating=self.config.grating,
+            )
         else:
             self.log.debug("Camera already defined, skipping.")
 
@@ -183,7 +187,10 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             rot_type=RotType.PhysicalSky,
         )
 
-        await self.latiss.setup_instrument(filter=self.get_instrument_filter())
+        await self.latiss.setup_instrument(
+            filter=self.config.filter,
+            grating=self.config.grating,
+        )
 
     async def slew_azel_and_setup_instrument(self, az, el):
         """Abstract method to set the instrument. Change the filter
@@ -202,10 +209,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             el,
         )
 
-        if self.latiss.get_current_filter() == self.get_instrument_filter():
-            self.log.warning(
-                f"Filter is already set to {self.get_instrument_filter()}. "
-                f"Continuing."
-            )
-        else:
-            await self.latiss.setup_instrument(filter=self.get_instrument_filter())
+        await self.latiss.setup_instrument(
+            filter=self.config.filter,
+            grating=self.config.grating,
+        )
