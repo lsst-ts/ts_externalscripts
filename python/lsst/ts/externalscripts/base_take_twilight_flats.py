@@ -419,9 +419,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return coords[arg].ra, coords[arg].dec
 
-    async def assert_sun_location(self):
+    def assert_sun_location(self):
         """Confirm sun's elevation is safe for taking twilight flats."""
-        sun_coordinates = await self.tcs.get_sun_azel()
+        sun_coordinates = self.tcs.get_sun_azel()
         where_sun = "setting" if (sun_coordinates[0] > 180) else "rising"
         self.log.debug(
             f" The azimuth of the {where_sun} Sun is {sun_coordinates[0]:.2f} deg \n"
@@ -437,7 +437,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         """Take the sequence of twilight flats twilight flats."""
         group_id = self.group_id if self.obs_id is None else self.obs_id
 
-        await self.assert_sun_location()
+        self.assert_sun_location()
 
         target = await self.get_target_radec()
 
