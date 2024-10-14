@@ -108,7 +108,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             self.log.debug("Catalog already defined, skipping.")
 
     @abc.abstractmethod
-    async def get_sky_counts(self) -> float:
+    def get_sky_counts(self) -> float:
         """Abstract method to get the median sky counts from the last image.
 
         Returns
@@ -474,7 +474,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         for i in range(self.config.n_flat):
 
-            sky_counts = await self.get_sky_counts()
+            sky_counts = self.get_sky_counts()
             self.log.info(
                 f"Flat just taken with exposure time {exp_time} had counts of {sky_counts}"
             )

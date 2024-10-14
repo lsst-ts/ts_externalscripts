@@ -119,7 +119,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
 
         return schema_dict
 
-    async def get_sky_counts(self) -> float:
+    def get_sky_counts(self) -> float:
         """Abstract method to get the median sky counts from the last image.
 
         Returns
@@ -131,7 +131,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         timeout_get_image = 30
 
         # Get latest image
-        latest_exposure = await get_image(
+        latest_exposure = get_image(
             parse_visit_id(self.latest_exposure_id),
             best_effort_isr,
             timeout=timeout_get_image,
