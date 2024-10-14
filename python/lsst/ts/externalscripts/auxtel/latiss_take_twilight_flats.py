@@ -80,10 +80,6 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
                 tcs_ready_to_take_data=self.atcs.ready_to_take_data,
             )
             await self.latiss.start_task
-            await self.latiss.setup_instrument(
-                filter=self.config.filter,
-                grating=self.config.grating,
-            )
         else:
             self.log.debug("Camera already defined, skipping.")
 
