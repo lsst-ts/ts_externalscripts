@@ -327,7 +327,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return self.config.target_sky_counts * exp_time / sky_counts
 
-    async def get_target_radec(self):
+    def get_target_radec(self):
         """
         Returns the RADEC of the target area of the sky that's an azimuth
         `distance_from_sun` away from the Sun, given `elevation`,
@@ -339,15 +339,15 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             target ra dec
         """
 
-        az_sun, el_sun = await self.tcs.get_sun_azel()
+        az_sun, el_sun = self.tcs.get_sun_azel()
 
         target_az = (az_sun + self.config.distance_from_sun) % 360
 
-        target_radec = await self.tcs.radec_from_azel(target_az, self.config.target_el)
+        target_radec = self.tcs.radec_from_azel(target_az, self.config.target_el)
 
         return target_radec
 
-    async def get_target_az(self):
+    def get_target_az(self):
         """
         Returns the AZ of the target area of the sky that's an azimuth
         `distance_from_sun` away from the Sun, given `elevation`,
@@ -359,7 +359,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             The target azimuth in degrees
         """
 
-        az_sun, el_sun = await self.tcs.get_sun_azel()
+        az_sun, el_sun = self.tcs.get_sun_azel()
 
         target_az = (az_sun + self.config.distance_from_sun) % 360
 
@@ -439,7 +439,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         self.assert_sun_location()
 
-        target = await self.get_target_radec()
+        target = self.get_target_radec()
 
         # get an empty field
         search_area_degrees = 10
@@ -451,7 +451,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
             await self.track_radec_and_setup_instrument(ra, dec)
         else:
-            az = await self.get_target_az()
+            az = self.get_target_az()
 
             await self.slew_azel_and_setup_instrument(az, self.config.target_el)
 
