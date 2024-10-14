@@ -75,7 +75,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             self.log.debug("Creating Camera.")
             self.latiss = LATISS(
                 self.domain,
-                intended_usage=LATISSUsages.TakeImage,
+                intended_usage=LATISSUsages.TakeImageFull,
                 log=self.log,
                 tcs_ready_to_take_data=self.atcs.ready_to_take_data,
             )
