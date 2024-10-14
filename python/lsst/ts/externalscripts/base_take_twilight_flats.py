@@ -464,7 +464,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         flat_image = await self.camera.take_acq(
             exptime=exp_time,
             n=1,
-            group_id=self.obs_id,
+            group_id=self.group_id,
             program=self.program,
             reason=self.reason,
         )
@@ -512,7 +512,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             flat_image = await self.camera.take_acq(
                 exptime=exp_time,
                 n=1,
-                group_id=self.obs_id,
+                group_id=self.group_id,
                 program=self.program,
                 reason=self.reason,
             )
