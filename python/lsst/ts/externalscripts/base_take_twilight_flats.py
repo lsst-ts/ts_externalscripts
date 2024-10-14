@@ -268,7 +268,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         await self.configure_tcs()
         await self.configure_camera()
-        self.configure_consdb()
+        # self.configure_consdb()
         self.configure_catalog()
 
         if hasattr(config, "ignore"):
