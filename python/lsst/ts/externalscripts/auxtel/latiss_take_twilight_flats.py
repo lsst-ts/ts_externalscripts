@@ -183,13 +183,7 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             rot_type=RotType.PhysicalSky,
         )
 
-        if self.latiss.get_current_filter() == self.get_instrument_filter():
-            self.log.warning(
-                f"Filter is already set to {self.get_instrument_filter()}. "
-                f"Continuing."
-            )
-        else:
-            await self.latiss.setup_instrument(filter=self.get_instrument_filter())
+        await self.latiss.setup_instrument(filter=self.get_instrument_filter())
 
     async def slew_azel_and_setup_instrument(self, az, el):
         """Abstract method to set the instrument. Change the filter
