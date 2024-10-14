@@ -432,10 +432,13 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             f" The elevation of the Sun is {sun_coordinates[1]:.2f} deg"
         )
 
-        assert (sun_coordinates[1] < self.config.min_sun_elevation) or (
+        if (sun_coordinates[1] < self.config.min_sun_elevation) or (
             sun_coordinates[1] > self.config.max_sun_elevation
-        ), f"Sun elevation {sun_coordinates} is outside appropriate elevation limits. \
+        ):
+            raise RuntimeError(
+                f"Sun elevation {sun_coordinates} is outside appropriate elevation limits. \
             Must be below {self.config.min_sun_elevation} or above {self.config.max_sun_elevation}."
+            )
 
     async def take_twilight_flats(self):
         """Take the sequence of twilight flats twilight flats."""
@@ -520,7 +523,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
             self.latest_exposure_id = int(flat_image[0])
 
-            await self.assert_sun_location()
+            self.assert_sun_location()
 
     async def assert_feasibility(self) -> None:
         """Verify that camera is in a feasible state to
