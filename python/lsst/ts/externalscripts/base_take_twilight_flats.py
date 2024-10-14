@@ -402,6 +402,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             )
             return target.ra, target.dec
 
+        self.log.debug(f"Table is {_table}")
+
         coords = coordinates.SkyCoord(
             ra=_table["RAJ2000"],
             dec=_table["DEJ2000"],
