@@ -103,11 +103,11 @@ class TestParameterMarchComCam(
             assert self.script.config.el == 15
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
-            assert np.array_equal(self.script.config.dofs, [1] * 50)
-            assert self.script.config.rotation_sequence == [50] * 11
-            assert self.script.config.step_sequence == np.linspace(-1, 1, 11).tolist()
-            assert self.script.config.range == 1
-            assert self.script.config.n_steps == 11
+            assert np.array_equal(self.script.dofs, [1] * 50)
+            assert self.script.rotation_sequence == [50] * 11
+            assert self.script.step_sequence == np.linspace(-1, 1, 11).tolist()
+            assert self.script.range == 1
+            assert self.script.n_steps == 11
             assert self.script.config.program == "BLOCK-TXXX"
 
     async def test_configure_step_and_rotation_sequence(self):
@@ -129,11 +129,11 @@ class TestParameterMarchComCam(
             assert self.script.config.el == 15
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
-            assert np.array_equal(self.script.config.dofs, [1] * 50)
-            assert self.script.config.range == 400
-            assert self.script.config.n_steps == 5
-            assert self.script.config.step_sequence == [0, 100, 200, 300, 400]
-            assert self.script.config.rotation_sequence == [10, 20, 30, 40, 50]
+            assert np.array_equal(self.script.dofs, [1] * 50)
+            assert self.script.range == 400
+            assert self.script.n_steps == 5
+            assert self.script.step_sequence == [0, 100, 200, 300, 400]
+            assert self.script.rotation_sequence == [10, 20, 30, 40, 50]
             assert self.script.config.program == "BLOCK-TXXX"
 
     async def test_configure_ignore(self):
@@ -160,11 +160,11 @@ class TestParameterMarchComCam(
             assert self.script.config.el == 15
             assert self.script.config.filter == "g"
             assert self.script.config.exp_time == 30.0
-            assert np.array_equal(self.script.config.dofs, [1] * 50)
-            assert self.script.config.range == 400
-            assert self.script.config.n_steps == 5
-            assert self.script.config.step_sequence == [0, 100, 200, 300, 400]
-            assert self.script.config.rotation_sequence == [10, 20, 30, 40, 50]
+            assert np.array_equal(self.script.dofs, [1] * 50)
+            assert self.script.range == 400
+            assert self.script.n_steps == 5
+            assert self.script.step_sequence == [0, 100, 200, 300, 400]
+            assert self.script.rotation_sequence == [10, 20, 30, 40, 50]
             assert self.script.config.program == "BLOCK-TXXX"
 
             # Verify that the ignored components are correctly set to False
@@ -198,10 +198,10 @@ class TestParameterMarchComCam(
             dofs_expected = np.zeros(50)
             dofs_expected[17] = 1
             assert np.array_equal(self.script.dofs, dofs_expected)
-            assert self.script.config.range == 400
-            assert self.script.config.n_steps == 5
-            assert self.script.config.step_sequence == [0, 100, 200, 300, 400]
-            assert self.script.config.rotation_sequence == [10, 20, 30, 40, 50]
+            assert self.script.range == 400
+            assert self.script.n_steps == 5
+            assert self.script.step_sequence == [0, 100, 200, 300, 400]
+            assert self.script.rotation_sequence == [10, 20, 30, 40, 50]
             assert self.script.config.program == "BLOCK-TXXX"
 
             # Verify that the ignored components are correctly set to False
@@ -256,16 +256,15 @@ class TestParameterMarchComCam(
             # Check if the hexapod moved the expected number of times
             assert (
                 self.script.mtcs.rem.mtaos.cmd_offsetDOF.start.call_count
-                == self.script.config.n_steps + 1
+                == self.script.n_steps + 1
             )
 
             # Check if the camera took the expected number of images
-            assert self.script.comcam.take_acq.call_count == self.script.config.n_steps
+            assert self.script.comcam.take_acq.call_count == self.script.n_steps
 
             # Check if the OCPS command was called
             assert (
-                self.script.ocps.cmd_execute.set_start.call_count
-                == self.script.config.n_steps
+                self.script.ocps.cmd_execute.set_start.call_count == self.script.n_steps
             )
 
     async def test_parameter_march_sim_mode(self):
@@ -288,16 +287,15 @@ class TestParameterMarchComCam(
             # Check if the hexapod moved the expected number of times
             assert (
                 self.script.mtcs.rem.mtaos.cmd_offsetDOF.start.call_count
-                == self.script.config.n_steps + 1
+                == self.script.n_steps + 1
             )
 
             # Check if the camera took the expected number of images
-            assert self.script.comcam.take_acq.call_count == self.script.config.n_steps
+            assert self.script.comcam.take_acq.call_count == self.script.n_steps
 
             # Check if the OCPS command was called
             assert (
-                self.script.ocps.cmd_execute.set_start.call_count
-                == self.script.config.n_steps
+                self.script.ocps.cmd_execute.set_start.call_count == self.script.n_steps
             )
 
             # Verify that simulation mode is set correctly
