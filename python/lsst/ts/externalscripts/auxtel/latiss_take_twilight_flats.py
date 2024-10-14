@@ -138,8 +138,10 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         )
 
         # Measure median, mean and std across the image.
-        foo = latest_exposure.getMaskedImage()
-        masked_array = np.ma.masked_array(foo.image.array, mask=foo.mask.array)
+        masked_image = latest_exposure.getMaskedImage()
+        masked_array = np.ma.masked_array(
+            masked_image.image.array, mask=masked_image.mask.array
+        )
 
         sky_counts = np.ma.median(masked_array)
 
