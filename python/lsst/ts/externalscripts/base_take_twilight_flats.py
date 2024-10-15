@@ -185,14 +185,18 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             type: object
             properties:
               target_sky_counts:
-                description: >
-                  Target sky intensity in electron counts for the twilight flats.
                 anyOf:
                   - type: integer
                     minimum: 1
                   - type: "null"
                 default: 15000
                 description: Target mean electron count for twilight flats.
+              max_counts:
+                description: Maximum counts tolerable in a sky flat
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                default: 60000
               n_flat:
                 anyOf:
                   - type: integer
@@ -324,8 +328,18 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         float
             Calculated new exposure time.
         """
+        new_exp_time = self.config.target_sky_counts * exp_time / sky_counts
 
-        return self.config.target_sky_counts * exp_time / sky_counts
+        if new_exp_time < self.config.min_exp_time:
+            if (
+                self.config.max_counts * exp_time / sky_counts
+                > self.config.min_exp_time
+            ):
+                # return a short exposure time if the max counts
+                # won't be exceeded
+                return self.config.min_exp_time * 1.01
+
+        return new_exp_time
 
     def get_target_radec(self):
         """
@@ -437,7 +451,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         ):
             raise RuntimeError(
                 f"Sun elevation {sun_coordinates} is outside appropriate elevation limits. \
-            Must be below {self.config.min_sun_elevation} or above {self.config.max_sun_elevation}."
+            Must be above {self.config.min_sun_elevation} or below {self.config.max_sun_elevation}."
             )
 
     async def take_twilight_flats(self):
