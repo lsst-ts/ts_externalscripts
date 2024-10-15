@@ -489,7 +489,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         self.latest_exposure_id = int(flat_image[0])
 
-        for i in range(self.config.n_flat):
+        i = 0
+
+        while i < self.config.n_flat:
 
             sky_counts = self.get_sky_counts()
             self.log.info(
@@ -533,11 +535,46 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 program=self.program,
                 reason=self.reason,
             )
-            self.log.debug(f"Just took image {i} of {self.config.n_flat}")
 
             self.latest_exposure_id = int(flat_image[0])
 
+            self.log.debug(f"Just took image {i} of {self.config.n_flat}")
+
             self.assert_sun_location()
+
+            i += 1
+
+            exp_repeat_time = 2
+
+            if exp_time < exp_repeat_time:
+                # take fast repeated images if the exposure time is short
+                nrepeats = 4
+
+                for k in range(nrepeats):
+
+                    if np.abs(self.config.dither) > 0:
+                        await self.tcs.offset_azel(
+                            az=self.config.dither,
+                            el=0,
+                            relative=True,
+                            absorb=False,
+                        )
+
+                    # TODO: change from take_acq to take_sflat (DM-46675)
+                    flat_image = await self.camera.take_acq(
+                        exptime=exp_time,
+                        n=1,
+                        group_id=self.group_id,
+                        program=self.program,
+                        reason=self.reason,
+                    )
+
+                    self.latest_exposure_id = int(flat_image[0])
+
+                    i += 1
+                    self.log.debug(f"Just took image {i} of {self.config.n_flat}")
+
+                    self.assert_sun_location()
 
     async def assert_feasibility(self) -> None:
         """Verify that camera is in a feasible state to
