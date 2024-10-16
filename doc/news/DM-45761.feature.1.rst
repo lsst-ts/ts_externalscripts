@@ -1,0 +1,1 @@
+Introduced `parameter_march_lsstcam.py`: Script for taking parameter march images with Simonyi Telescope using LSSTCam.
