@@ -59,6 +59,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         self.vizier = None
 
+        self.where_sun = None
+
     @property
     @abc.abstractmethod
     def tcs(self):
@@ -339,7 +341,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 # won't be exceeded
                 return self.config.min_exp_time * 1.01
 
-        return new_exp_time
+        return round(new_exp_time, 2)
 
     def get_target_radec(self):
         """
@@ -440,9 +442,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
     def assert_sun_location(self):
         """Confirm sun's elevation is safe for taking twilight flats."""
         sun_coordinates = self.tcs.get_sun_azel()
-        where_sun = "setting" if (sun_coordinates[0] > 180) else "rising"
+        self.where_sun = "setting" if (sun_coordinates[0] > 180) else "rising"
         self.log.debug(
-            f" The azimuth of the {where_sun} Sun is {sun_coordinates[0]:.2f} deg \n"
+            f" The azimuth of the {self.where_sun} Sun is {sun_coordinates[0]:.2f} deg \n"
             f" The elevation of the Sun is {sun_coordinates[1]:.2f} deg"
         )
 
@@ -485,6 +487,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             program=self.program,
             reason=self.reason,
         )
+
         self.log.debug("First image taken")
 
         self.latest_exposure_id = int(flat_image[0])
@@ -546,7 +549,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
             exp_repeat_time = 2
 
-            if exp_time < exp_repeat_time:
+            if (exp_time < exp_repeat_time) and (self.where_sun != "rising"):
                 # take fast repeated images if the exposure time is short
                 nrepeats = 4
 
