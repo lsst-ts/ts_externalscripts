@@ -860,24 +860,7 @@ Telescope offsets [arcsec]: {(len(tel_offset) * '{:0.1f}, ').format(*tel_offset)
 
         await self.atcs.assert_all_enabled()
         await self.latiss.assert_all_enabled()
-
-        self.log.debug("Check ATAOS corrections are enabled.")
-        ataos_corrections = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
-            timeout=self.atcs.fast_timeout
-        )
-
-        assert (
-            ataos_corrections.hexapod
-            and ataos_corrections.m1
-            and ataos_corrections.atspectrograph
-        ), (
-            "Not all required ATAOS corrections are enabled. "
-            "The following loops must all be closed (True), but are currently: "
-            f"Hexapod: {ataos_corrections.hexapod}, "
-            f"M1: {ataos_corrections.m1}, "
-            f"ATSpectrograph: {ataos_corrections.atspectrograph}. "
-            "Enable corrections with the ATAOS 'enableCorrection' command before proceeding.",
-        )
+        await self.atcs.assert_ataos_corrections_enabled()
 
     async def run(self) -> None:
         """Execute script.
