@@ -1,6 +1,7 @@
-# This file is part of ts_externalcripts.
+#!/usr/bin/env python
+# This file is part of ts_externalscripts
 #
-# Developed for the Rubin Observatory Telescope and Site System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -19,10 +20,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .make_comcam_calibrations import *
-from .take_comcam_guider_image import *
-from .take_ptc_flats_comcam import *
-from .take_twilight_flats_comcam import *
-from .take_twilight_flats_lsstcam import *
-from .track_target_sched import *
-from .warmup_hexapod import *
+import asyncio
+
+from lsst.ts.externalscripts.auxtel import TakeTwilightFlatsLatiss
+
+asyncio.run(TakeTwilightFlatsLatiss.amain())
