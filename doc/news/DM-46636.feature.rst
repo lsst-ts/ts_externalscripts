@@ -1,0 +1,1 @@
+In ``maintel/warmup_hexapod.py``, add 5s to the step time delay for metadata estimation.
