@@ -54,7 +54,6 @@ class TakeRotatedComCam(TakeAOSSequenceComCam):
             index=index, descr="Take AOS sequence at rotated positions with ComCam."
         )
         self.angles = None
-        self.working_rot_angle = 0
         # Timeout for slewing (in seconds).
         self.slew_timeout = 240.0
 
@@ -85,7 +84,7 @@ class TakeRotatedComCam(TakeAOSSequenceComCam):
                 minimum: -90
                 maximum: 90
               - type: string
-          name:
+          target_name:
             description: Name of the target object.
             type: string
           angles:
@@ -100,7 +99,7 @@ class TakeRotatedComCam(TakeAOSSequenceComCam):
         required:
           - ra
           - dec
-          - name
+          - target_name
           - angles
         """
         additional_schema = yaml.safe_load(additional_schema_yaml)
@@ -124,7 +123,7 @@ class TakeRotatedComCam(TakeAOSSequenceComCam):
         # Since we are defaulting to RotType.Physical, metadata rotation system
         # should be MOUNT
         metadata.rotationSystem = MetadataRotSys.MOUNT
-        metadata.cameraAngle = None
+        metadata.cameraAngle = float(self.angles[0])
         metadata.summary = f"Rotator angles: {self.angles}"
 
     async def configure(self, config):
@@ -139,7 +138,7 @@ class TakeRotatedComCam(TakeAOSSequenceComCam):
         self.config = config
         self.angles = config.angles
         self.slew_timeout = getattr(config, "slew_timeout", self.slew_timeout)
-        self.log.info(f"Configured with target name={self.config.name}")
+        self.log.info(f"Configured with target name={self.config.target_name}")
 
     async def run_block(self):
         """Execute script operations."""
@@ -147,23 +146,22 @@ class TakeRotatedComCam(TakeAOSSequenceComCam):
 
         for angle in self.angles:
             self.log.info(
-                f"Slewing to target {self.config.name} with rotator angle {angle} degrees."
+                f"Slewing to target {self.config.target_name} with rotator angle {angle} degrees."
             )
-            self.working_rot_angle = angle
 
             await self.checkpoint(
-                f"[{self.config.name}; "
+                f"[{self.config.target_name}; "
                 f"ra={self.config.ra}, dec={self.config.dec};"
-                f"rot={self.working_rot_angle:0.2f}]::"
+                f"rot={angle:0.2f}]::"
                 f"Slewing to rotator angle {angle} degrees."
             )
 
             await self.mtcs.slew_icrs(
                 ra=self.config.ra,
                 dec=self.config.dec,
-                rot=self.working_rot_angle,
+                rot=angle,
                 rot_type=RotType.Physical,
-                target_name=self.config.name,
+                target_name=self.config.target_name,
                 az_wrap_strategy=WrapStrategy.NOUNWRAP,
             )
 
@@ -172,17 +170,17 @@ class TakeRotatedComCam(TakeAOSSequenceComCam):
             )
 
             await self.checkpoint(
-                f"[{self.config.name}; "
+                f"[{self.config.target_name}; "
                 f"ra={self.config.ra}, dec={self.config.dec};"
-                f"rot={self.working_rot_angle:0.2f}]::"
+                f"rot={angle:0.2f}]::"
                 f"Take aos sequence at angle {angle} degrees."
             )
 
             await self.take_aos_sequence()
 
             await self.checkpoint(
-                f"[{self.config.name}; "
+                f"[{self.config.target_name}; "
                 f"ra={self.config.ra}, dec={self.config.dec};"
-                f"rot={self.working_rot_angle:0.2f}]::"
+                f"rot={angle:0.2f}]::"
                 f"Done aos sequence at angle {angle} degrees."
             )
