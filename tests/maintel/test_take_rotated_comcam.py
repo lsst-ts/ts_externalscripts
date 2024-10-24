@@ -26,7 +26,9 @@ from lsst.ts.externalscripts.maintel import TakeRotatedComCam
 from lsst.ts.idl.enums.Script import ScriptState
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
+from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.maintel import Mode
+from lsst.ts.xml.enums.ATPtg import WrapStrategy
 
 
 class TestTakeRotatedComCam(
@@ -47,18 +49,14 @@ class TestTakeRotatedComCam(
             log=self.script.log,
         )
 
-        # Mock necessary methods
         self.script.mtcs.slew_icrs = unittest.mock.AsyncMock()
         self.script.mtcs.wait_for_inposition = unittest.mock.AsyncMock()
         self.script.mtcs.assert_feasibility = unittest.mock.AsyncMock()
         self.script.mtcs.ready_to_take_data = unittest.mock.AsyncMock()
-
         self.script.mtcs.offset_camera_hexapod = unittest.mock.AsyncMock()
         self.script.camera.expose = unittest.mock.AsyncMock()
         self.script.camera.setup_instrument = unittest.mock.AsyncMock()
         self.script.camera.ready_to_take_data = unittest.mock.AsyncMock()
-
-        # Mock take_aos_sequence to count calls
         self.script.take_aos_sequence = unittest.mock.AsyncMock()
 
         return (self.script,)
@@ -120,7 +118,6 @@ class TestTakeRotatedComCam(
                 mode=mode,
             )
 
-            # No need to wrap methods; use the mocks directly
             await self.run_script()
 
             self.assertEqual(self.script.state.state, ScriptState.DONE)
@@ -150,11 +147,6 @@ class TestTakeRotatedComCam(
                 f"expected {expected_take_sequence_calls}",
             )
 
-            # Import required enums
-            from lsst.ts.observatory.control.utils import RotType
-            from lsst.ts.xml.enums.ATPtg import WrapStrategy
-
-            # Check that slew_icrs was called with correct arguments
             for call_args in self.script.mtcs.slew_icrs.await_args_list:
                 called_args, called_kwargs = call_args
                 self.assertEqual(called_kwargs["ra"], ra)
