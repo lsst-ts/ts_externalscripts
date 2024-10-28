@@ -359,6 +359,7 @@ class BaseParameterMarch(BaseBlockScript):
         await self.tcs.stop_tracking()
         await asyncio.sleep(1.0)
         await self.tcs.start_tracking()
+        await self.tcs.check_tracking()
 
     async def parameter_march(self) -> None:
         """Perform the parameter_march operation."""
