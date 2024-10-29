@@ -177,6 +177,13 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    async def setup_instrument(self):
+        """Abstract method to set the instrument. Change the filter
+        and slew and track target.
+        """
+        raise NotImplementedError()
+
     @classmethod
     def get_schema(cls):
         schema_yaml = """
@@ -242,6 +249,11 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 description: If True, track sky. If False, keep az and el constant.
                 type: boolean
                 default: True
+              position_telescope:
+                description: If True, position telescope relative to the sun. \
+                    If False, assume the telescope is in correct position.
+                type: boolean
+                default: True
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
@@ -249,7 +261,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 type: array
                 items:
                   type: string
-
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
@@ -282,10 +293,13 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 if comp in self.camera.components_attr:
                     self.log.debug(f"Ignoring Camera component {comp}.")
                     setattr(self.camera.check, comp, False)
+                elif comp in self.tcs.components_attr:
+                    self.log.debug(f"Ignoring component {comp}.")
+                    setattr(self.tcs.check, comp, False)
                 else:
                     self.log.warning(
                         f"Component {comp} not in CSC Group. "
-                        f"Must be one of {self.camera.components_attr}. "
+                        f"Must be one of {self.camera.components_attr} or  {self.tcs.components_attr}."
                         f"Ignoring."
                     )
 
@@ -465,16 +479,19 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         # get an empty field
         search_area_degrees = 0.05
 
-        if self.config.tracking:
-            ra, dec = await self.get_twilight_flat_sky_coords(
-                target, radius=search_area_degrees
-            )
+        if self.config.position_telescope:
+            if self.config.tracking:
+                ra, dec = await self.get_twilight_flat_sky_coords(
+                    target, radius=search_area_degrees
+                )
 
-            await self.track_radec_and_setup_instrument(ra, dec)
+                await self.track_radec_and_setup_instrument(ra, dec)
+            else:
+                az = self.get_target_az()
+
+                await self.slew_azel_and_setup_instrument(az, self.config.target_el)
         else:
-            az = self.get_target_az()
-
-            await self.slew_azel_and_setup_instrument(az, self.config.target_el)
+            await self.setup_instrument()
 
         # Take one 1s flat to calibrate the exposure time
         self.log.info("Taking 1s flat to calibrate exposure time.")

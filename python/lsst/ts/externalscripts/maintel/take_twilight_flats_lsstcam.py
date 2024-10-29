@@ -223,3 +223,21 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
             az=az,
             el=el,
         )
+
+    async def setup_instrument(self):
+        """Abstract method to set the instrument. Change the filter
+        and slew and track target.
+        """
+        current_filter = await self.lsstcam.get_current_filter()
+
+        if current_filter != self.config.filter:
+            self.log.debug(
+                f"Filter change required: {current_filter} -> {self.config.filter}"
+            )
+            await self.lsstcam.setup_filter(filter=self.config.filter)
+        else:
+            self.log.debug(
+                f"Already in the desired filter ({current_filter}), slewing."
+            )
+
+        await self.mtcs.start_tracking()
