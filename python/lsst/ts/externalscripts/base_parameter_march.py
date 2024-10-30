@@ -154,7 +154,6 @@ class BaseParameterMarch(BaseBlockScript):
                     Rotation sequence used for the parameter march. This can either be a single number
                     to use the same rotation angle throughout or an array specifying custom rotation angles.
                     If not provided, the script will determine the increments automatically.
-                default: 0.0
                 anyOf:
                   - type: number
                     description: >
