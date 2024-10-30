@@ -275,6 +275,8 @@ class BaseParameterMarch(BaseBlockScript):
                         f"rotation_sequence length {len(self.rotation_sequence)} "
                         f"does not match n_steps {self.n_steps}."
                     )
+        else:
+            self.rotation_sequence = None
 
         self.config = config
         if hasattr(config, "dofs"):
@@ -388,7 +390,8 @@ class BaseParameterMarch(BaseBlockScript):
         self.iterations_started = True
 
         # Move rotator
-        await self.track_target_with_rotation(self.rotation_sequence[0])
+        if self.rotation_sequence is not None:
+            await self.track_target_with_rotation(self.rotation_sequence[0])
 
         await self.take_images()
 
@@ -410,9 +413,10 @@ class BaseParameterMarch(BaseBlockScript):
             self.total_offset += offset
 
             # Move rotator
-            await self.track_target_with_rotation(
-                self.rotation_sequence[self.iterations_executed]
-            )
+            if self.rotation_sequence is not None:
+                await self.track_target_with_rotation(
+                    self.rotation_sequence[self.iterations_executed]
+                )
 
             # Take images at the current dof position
             await self.take_images()
