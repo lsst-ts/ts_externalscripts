@@ -114,8 +114,8 @@ class BaseParameterMarch(BaseBlockScript):
               az:
                 description: Azimuth position to point to.
                 type: number
-                minimum: 0
-                maximum: 360
+                minimum: -260
+                maximum: 260
               el:
                 description: Elevation position to point to.
                 type: number
