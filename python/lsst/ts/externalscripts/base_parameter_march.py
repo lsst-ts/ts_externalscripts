@@ -300,9 +300,7 @@ class BaseParameterMarch(BaseBlockScript):
         """Verify that the telescope and camera are in a feasible state to
         execute the script.
         """
-        await asyncio.gather(
-            self.tcs.assert_all_enabled(), self.camera.assert_all_enabled()
-        )
+        await self.tcs.assert_all_enabled()
 
     @staticmethod
     async def format_values(offset_values: np.ndarray) -> np.ndarray:

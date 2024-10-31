@@ -83,6 +83,9 @@ class ParameterMarchComCam(BaseParameterMarch):
         """Take triplet (intra focal, extra focal and in-focus)
         image sequence.
         """
+        await asyncio.sleep(self.config.exptime)
+        return
+
         self.log.debug("Moving to intra-focal position")
 
         await self.mtcs.offset_camera_hexapod(x=0, y=0, z=-self.dz, u=0, v=0)
@@ -105,7 +108,7 @@ class ParameterMarchComCam(BaseParameterMarch):
 
         # Hexapod offsets are relative, so need to move 2x the offset
         # to get from the intra- to the extra-focal position.
-        z_offset = (self.dz * 2.0)
+        z_offset = self.dz * 2.0
         await self.mtcs.offset_camera_hexapod(x=0, y=0, z=z_offset, u=0, v=0)
 
         self.log.info("Taking extra-focal image")
