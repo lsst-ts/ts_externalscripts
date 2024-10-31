@@ -368,20 +368,7 @@ class BaseParameterMarch(BaseBlockScript):
         offset_values = start_position * self.dofs
         cam_hex, m2_hex, m1m3_bend, m2_bend = await self.format_values(offset_values)
 
-        await self.checkpoint(
-            f"Step 1/{self.n_steps} starting positions:\n"
-            f"Cam Hexapod: {cam_hex}\n"
-            f"M2 Hexapod: {m2_hex}\n"
-            f"M1M3 Bend: {m1m3_bend}\n"
-            f"M2 Bend: {m2_bend}."
-        )
-        self.log.info("Offset dofs to starting position.")
-
-        # Apply dof vector with offset
-        offset_dof_data = self.tcs.rem.mtaos.cmd_offsetDOF.DataType()
-        for i, dof_offset in enumerate(offset_values):
-            offset_dof_data.value[i] = dof_offset
-        await self.tcs.rem.mtaos.cmd_offsetDOF.start(data=offset_dof_data)
+        await self.checkpoint(f"Step 1/{self.n_steps} starting positions:\n")
         self.total_offset += start_position
 
         self.iterations_started = True
