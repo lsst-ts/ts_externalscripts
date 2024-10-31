@@ -83,7 +83,7 @@ class ParameterMarchComCam(BaseParameterMarch):
         """Take triplet (intra focal, extra focal and in-focus)
         image sequence.
         """
-        await asyncio.sleep(self.config.exptime)
+        await asyncio.sleep(self.config.exp_time)
         return
 
         self.log.debug("Moving to intra-focal position")
