@@ -357,7 +357,7 @@ class BaseParameterMarch(BaseBlockScript):
         )
         await self.tcs.stop_tracking()
         await asyncio.sleep(5.0)
-        self.tcs.ignore.mtdome = True
+        self.tcs.check.mtdome = True
         await self.tcs.start_tracking()
         await self.tcs.check_tracking(track_duration=1.0)
 
