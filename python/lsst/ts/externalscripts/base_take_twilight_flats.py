@@ -293,13 +293,13 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 if comp in self.camera.components_attr:
                     self.log.debug(f"Ignoring Camera component {comp}.")
                     setattr(self.camera.check, comp, False)
-                elif comp in self.tcs.components_attr:
+                elif comp in ["MTDome, MTDomeTrajectory"]:
                     self.log.debug(f"Ignoring component {comp}.")
                     setattr(self.tcs.check, comp, False)
                 else:
                     self.log.warning(
                         f"Component {comp} not in CSC Group. "
-                        f"Must be one of {self.camera.components_attr} or  {self.tcs.components_attr}."
+                        f"Must be one of {self.camera.components_attr} or  MTDome, MTDomeTrajectory."
                         f"Ignoring."
                     )
 
@@ -470,6 +470,20 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             Must be above {self.config.min_sun_elevation} or below {self.config.max_sun_elevation}."
             )
 
+    def assert_sun_distance(self):
+        sun_coordinates = self.tcs.get_sun_azel()
+        current_az = await getattr(self.remote, f"evt_{self.event}").next(
+            flush=False, timeout=self.config.event_timeout
+        )
+
+        min_sun_az_distance = 60
+
+        if np.abs(sun_coordinates[0] - current_az) < min_sun_az_distance:
+            raise RuntimeError(
+                f"Sun elevation {sun_coordinates} is outside appropriate elevation limits. \
+            Must be above {self.config.min_sun_elevation} or below {self.config.max_sun_elevation}."
+            )
+
     async def take_twilight_flats(self):
         """Take the sequence of twilight flats twilight flats."""
         self.assert_sun_location()
@@ -491,6 +505,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
                 await self.slew_azel_and_setup_instrument(az, self.config.target_el)
         else:
+            self.assert_sun_distance()
             await self.setup_instrument()
 
         # Take one 1s flat to calibrate the exposure time

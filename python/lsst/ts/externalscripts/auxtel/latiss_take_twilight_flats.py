@@ -214,7 +214,6 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
         """Abstract method to set the instrument. Change the filter
         and start tracking.
         """
-        # slew to desired field
         await self.tcs.start_tracking()
 
         await self.latiss.setup_instrument(
