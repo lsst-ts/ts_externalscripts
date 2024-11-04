@@ -580,6 +580,14 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
                     self.assert_sun_location()
 
+        await self.camera.take_darks(
+            exptime=30,
+            ndarks=2,
+            group_id=self.group_id,
+            program=self.program,
+            reason=self.reason,
+        )
+
     async def assert_feasibility(self) -> None:
         """Verify that camera is in a feasible state to
         execute the script.

@@ -85,7 +85,7 @@ class ParameterMarchComCam(BaseParameterMarch):
         """
         self.log.debug("Moving to intra-focal position")
 
-        await self.mtcs.offset_camera_hexapod(x=0, y=0, z=self.dz, u=0, v=0)
+        await self.mtcs.offset_camera_hexapod(x=0, y=0, z=-self.dz, u=0, v=0)
 
         supplemented_group_id = self.next_supplemented_group_id()
 
@@ -105,7 +105,7 @@ class ParameterMarchComCam(BaseParameterMarch):
 
         # Hexapod offsets are relative, so need to move 2x the offset
         # to get from the intra- to the extra-focal position.
-        z_offset = -(self.dz * 2.0)
+        z_offset = self.dz * 2.0
         await self.mtcs.offset_camera_hexapod(x=0, y=0, z=z_offset, u=0, v=0)
 
         self.log.info("Taking extra-focal image")
@@ -121,7 +121,7 @@ class ParameterMarchComCam(BaseParameterMarch):
 
         self.log.info("Send processing request to RA OCPS.")
         config = {
-            "LSSTComCamSim-FROM-OCS_DONUTPAIR": f"{intra_visit_id[0]},{extra_visit_id[0]}"
+            "LSSTComCam-FROM-OCS_DONUTPAIR": f"{intra_visit_id[0]},{extra_visit_id[0]}"
         }
         ocps_execute_task = asyncio.create_task(
             self.ocps.cmd_execute.set_start(
@@ -133,7 +133,7 @@ class ParameterMarchComCam(BaseParameterMarch):
         self.log.debug("Moving to in-focus position")
 
         # Move the hexapod back to in focus position
-        await self.mtcs.offset_camera_hexapod(x=0, y=0, z=self.dz, u=0, v=0)
+        await self.mtcs.offset_camera_hexapod(x=0, y=0, z=-self.dz, u=0, v=0)
 
         self.log.info("Taking in-focus image")
 

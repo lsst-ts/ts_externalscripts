@@ -154,7 +154,6 @@ class BaseParameterMarch(BaseBlockScript):
                     Rotation sequence used for the parameter march. This can either be a single number
                     to use the same rotation angle throughout or an array specifying custom rotation angles.
                     If not provided, the script will determine the increments automatically.
-                default: 0.0
                 anyOf:
                   - type: number
                     description: >
@@ -275,6 +274,8 @@ class BaseParameterMarch(BaseBlockScript):
                         f"rotation_sequence length {len(self.rotation_sequence)} "
                         f"does not match n_steps {self.n_steps}."
                     )
+        else:
+            self.rotation_sequence = None
 
         self.config = config
         if hasattr(config, "dofs"):
@@ -351,14 +352,16 @@ class BaseParameterMarch(BaseBlockScript):
         return cam_hex_values, m2_hex_values, m1m3_bend_values, m2_bend_values
 
     async def track_target_with_rotation(self, rotation_angle) -> None:
+        await self.tcs.offset_rot(0.0)
         await self.tcs.point_azel(
             az=self.config.az,
             el=self.config.el,
             rot_tel=rotation_angle,
         )
         await self.tcs.stop_tracking()
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(5.0)
         await self.tcs.start_tracking()
+        await self.tcs.check_tracking(track_duration=1.0)
 
     async def parameter_march(self) -> None:
         """Perform the parameter_march operation."""
@@ -387,9 +390,14 @@ class BaseParameterMarch(BaseBlockScript):
         self.iterations_started = True
 
         # Move rotator
-        await self.track_target_with_rotation(self.rotation_sequence[0])
+        if self.rotation_sequence is not None:
+            await self.track_target_with_rotation(self.rotation_sequence[0])
 
         await self.take_images()
+
+        rot_offsets = [
+            rot - self.rotation_sequence[0] for rot in self.rotation_sequence
+        ]
 
         for self.iterations_executed in range(1, self.n_steps):
             await self.checkpoint(f"Step {self.iterations_executed+1}/{self.n_steps}.")
@@ -408,10 +416,18 @@ class BaseParameterMarch(BaseBlockScript):
             # Store the total offset
             self.total_offset += offset
 
-            # Move rotator
-            await self.track_target_with_rotation(
-                self.rotation_sequence[self.iterations_executed]
+            rotation = await self.tcs.rem.mtrotator.tel_rotation.next(
+                flush=True, timeout=self.tcs.long_timeout
             )
+            rot_tracking_correction = (
+                rotation.actualPosition
+                - self.rotation_sequence[self.iterations_executed - 1]
+            )
+
+            await self.tcs.offset_rot(
+                rot_offsets[self.iterations_executed] - rot_tracking_correction
+            )
+            await self.tcs.check_tracking(track_duration=1.0)
 
             # Take images at the current dof position
             await self.take_images()
@@ -464,6 +480,8 @@ class BaseParameterMarch(BaseBlockScript):
                 for i, dof_offset in enumerate(self.dofs * -self.total_offset):
                     offset_dof_data.value[i] = dof_offset
                 await self.tcs.rem.mtaos.cmd_offsetDOF.start(data=offset_dof_data)
+            await self.tcs.offset_rot(0.0)
+
         except Exception:
             self.log.exception(
                 "Error while trying to return telescope to its original position."
