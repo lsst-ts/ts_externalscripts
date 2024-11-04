@@ -113,14 +113,20 @@ class BaseParameterMarch(BaseBlockScript):
             properties:
               az:
                 description: Azimuth position to point to.
-                type: number
-                minimum: 0
-                maximum: 360
+                anyOf:
+                  - type: number
+                    minimum: 0
+                    maximum: 360
+                  - type: "null"
+                default: null
               el:
                 description: Elevation position to point to.
-                type: number
-                minimum: 0
-                maximum: 90
+                anyOf:
+                  - type: number
+                    minimum: 0
+                    maximum: 90
+                  - type: "null"
+                default: null
               filter:
                 description: Filter name or ID; if omitted the filter is not changed.
                 anyOf:
@@ -261,7 +267,7 @@ class BaseParameterMarch(BaseBlockScript):
             self.range = config.range
             self.n_steps = config.n_steps
             self.step_sequence = np.linspace(
-                -self.range, self.range, self.n_steps
+                -self.range / 2, self.range / 2, self.n_steps
             ).tolist()
 
         if hasattr(config, "rotation_sequence"):
@@ -393,11 +399,11 @@ class BaseParameterMarch(BaseBlockScript):
         if self.rotation_sequence is not None:
             await self.track_target_with_rotation(self.rotation_sequence[0])
 
-        await self.take_images()
+            rot_offsets = [
+                rot - self.rotation_sequence[0] for rot in self.rotation_sequence
+            ]
 
-        rot_offsets = [
-            rot - self.rotation_sequence[0] for rot in self.rotation_sequence
-        ]
+        await self.take_images()
 
         for self.iterations_executed in range(1, self.n_steps):
             await self.checkpoint(f"Step {self.iterations_executed+1}/{self.n_steps}.")
@@ -416,18 +422,19 @@ class BaseParameterMarch(BaseBlockScript):
             # Store the total offset
             self.total_offset += offset
 
-            rotation = await self.tcs.rem.mtrotator.tel_rotation.next(
-                flush=True, timeout=self.tcs.long_timeout
-            )
-            rot_tracking_correction = (
-                rotation.actualPosition
-                - self.rotation_sequence[self.iterations_executed - 1]
-            )
+            if self.rotation_sequence is not None:
+                rotation = await self.tcs.rem.mtrotator.tel_rotation.next(
+                    flush=True, timeout=self.tcs.long_timeout
+                )
+                rot_tracking_correction = (
+                    rotation.actualPosition
+                    - self.rotation_sequence[self.iterations_executed - 1]
+                )
 
-            await self.tcs.offset_rot(
-                rot_offsets[self.iterations_executed] - rot_tracking_correction
-            )
-            await self.tcs.check_tracking(track_duration=1.0)
+                await self.tcs.offset_rot(
+                    rot_offsets[self.iterations_executed] - rot_tracking_correction
+                )
+                await self.tcs.check_tracking(track_duration=1.0)
 
             # Take images at the current dof position
             await self.take_images()
@@ -480,7 +487,8 @@ class BaseParameterMarch(BaseBlockScript):
                 for i, dof_offset in enumerate(self.dofs * -self.total_offset):
                     offset_dof_data.value[i] = dof_offset
                 await self.tcs.rem.mtaos.cmd_offsetDOF.start(data=offset_dof_data)
-            await self.tcs.offset_rot(0.0)
+            if self.rotation_sequence is not None:
+                await self.tcs.offset_rot(0.0)
 
         except Exception:
             self.log.exception(
