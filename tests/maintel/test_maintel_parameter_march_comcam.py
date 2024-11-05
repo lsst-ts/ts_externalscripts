@@ -103,7 +103,7 @@ class TestParameterMarchComCam(
             assert self.script.config.exp_time == 30.0
             assert np.array_equal(self.script.dofs, [1] * 50)
             assert self.script.rotation_sequence == [50] * 11
-            assert self.script.step_sequence == np.linspace(-1, 1, 11).tolist()
+            assert self.script.step_sequence == np.linspace(-0.5, 0.5, 11).tolist()
             assert self.script.range == 1
             assert self.script.n_steps == 11
             assert self.script.config.program == "BLOCK-TXXX"
