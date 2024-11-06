@@ -238,6 +238,14 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 minimum: 0.0
                 maximum: 90.0
                 default: 45.0
+              target_az:
+                description: Target azimuth for sky flats.
+                type: number
+                default: 90
+              point_directly:
+                description: If True, point at target az el. If False, point relative to sun.
+                type: boolean
+                default: False
               tracking:
                 description: If True, track sky. If False, keep az and el constant.
                 type: boolean
@@ -355,9 +363,26 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             target ra dec
         """
 
+        min_sun_distance = 60
+
         az_sun, el_sun = self.tcs.get_sun_azel()
 
-        target_az = (az_sun + self.config.distance_from_sun) % 360
+        if self.config.point_directly:
+            if np.abs(az_sun - (self.config.target_az % 360)) < min_sun_distance:
+                raise RuntimeError(
+                    f"Distance from sun {az_sun - (self.config.target_az % 360)} is \
+                        less than {min_sun_distance}. Stopping."
+                )
+
+            target_az = self.config.target_az
+        else:
+            if np.abs(self.config.distance_from_sun) < min_sun_distance:
+                raise RuntimeError(
+                    f"Distance from sun {self.config.distance_from_sun} is less than {min_sun_distance}. \
+                        Stopping."
+                )
+
+            target_az = (az_sun + self.config.distance_from_sun) % 360
 
         target_radec = self.tcs.radec_from_azel(target_az, self.config.target_el)
 
