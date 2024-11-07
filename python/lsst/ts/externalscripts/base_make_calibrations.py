@@ -17,6 +17,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["BaseMakeCalibrations"]
 
@@ -71,6 +72,8 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             "DEFECTS",
             "PTC",
         ]
+
+        self.background_tasks = []
 
         # Pipetask methods to get parameters for calibrations generation
         self.pipetask_parameters = dict(
@@ -347,6 +350,10 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 type: integer
                 default: 120
                 descriptor: Timeout value, in seconds, for OODS.
+            background_task_timeout:
+                type: integer
+                default: 30
+                descriptor: Timeout value, in seconds, for background tasks
             note:
                 description: A descriptive note about the images being taken.
                 type: string
@@ -1403,6 +1410,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         process = await asyncio.create_subprocess_shell(cmd)
         stdout, stderr = await process.communicate()
         self.log.debug(f"Process returned: {process.returncode}")
+
         if process.returncode != 0:
             self.log.debug(stdout)
             self.log.error(stderr)
@@ -1547,6 +1555,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         # Basic sets of calibrations first : biases, darks, and flats.
         # After the loop is done, do defects and PTC.
         for im_type in image_types:
+
             # 1. Take images with the instrument, only for "BIAS,
             # "DARK", or "FLAT".
             if im_type == "BIAS":
@@ -1557,8 +1566,8 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 await self.checkpoint(f"Taking {self.config.n_flat} flats.")
 
             # TODO: Before taking flats with LATISS (and also
-            # with LSSTComCam), check that the telescope is in
-            # position to do so. See DM-31496, DM-31497.
+            #  with LSSTComCam), check that the telescope is in
+            #  position to do so. See DM-31496, DM-31497.
             exposure_ids_list = await self.take_images(im_type)
 
             # Discard the first N exposures taken (DM-36422)
@@ -1570,100 +1579,9 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 f"Images taken: {self.exposure_ids[im_type]}; type: {im_type}"
             )
 
-            if self.config.generate_calibrations:
-                # 2. Call the calibration pipetask via the OCPS
-                # to make a combined
-                self.log.info(
-                    "Generating calibration from the images taken "
-                    "as part of this script."
-                )
-                response_ocps_calib_pipetask = await self.call_pipetask(im_type)
-                job_id_calib = response_ocps_calib_pipetask["jobId"]
-            else:
-                self.log.info(
-                    f"A combined {im_type} will not be generated from the "
-                    "images taken as part of this script. Any needed input "
-                    "calibrations by the verification pipetasks will be "
-                    "sought in their input calibrations."
-                )
-                job_id_calib = None
-
-            # 3. Verify the combined calibration (implemented so far for bias,
-            # dark, and flat), and certify it if the verification
-            # tests pass and it was generated.
-            if self.config.do_verify:
-                try:
-                    if self.config.generate_calibrations:
-                        response_ocps_verify_pipetask = await self.verify_calib(
-                            im_type, job_id_calib
-                        )
-                        # Check that the task running cp_verify
-                        # did not fail.
-                        job_id_verify = response_ocps_verify_pipetask["jobId"]
-                        # Check verification statistics
-                        report_check_verify_stats = await self.check_verification_stats(
-                            im_type, job_id_verify, job_id_calib
-                        )
-                        # Inform the user about the results from
-                        # running cp_verify.
-                        # TODO: If verification failed, issue an
-                        # alarm in the watcher: DM-33898.
-                        await self.analyze_report_check_verify_stats(
-                            im_type,
-                            report_check_verify_stats,
-                            job_id_verify,
-                            job_id_calib,
-                        )
-                        # If the verification tests passed,
-                        # certify the combined calibrations.
-                        if report_check_verify_stats["CERTIFY_CALIB"]:
-                            await self.certify_calib(im_type, job_id_calib)
-                        # If tests did not pass, end the loop, as
-                        # certified calibrations are needed to cons
-                        # construct subsequent calibrations
-                        # (bias->dark->flat).
-                        else:
-                            break
-                    else:
-                        # If combined calibrations are not being generated
-                        # from the individual images just taken, and if
-                        # do_verify=True, the verification task
-                        # will run the tests using calibrations in its
-                        # input collections as reference.
-                        # Note that there is no certification of combined
-                        # calibrations here, because we are not generating
-                        # them.
-                        # job_id_calib should be None
-                        assert job_id_calib is None, "'job_id_calib' is not 'None'."
-                        response_ocps_verify_pipetask = await self.verify_calib(
-                            im_type, job_id_calib
-                        )
-                        job_id_verify = response_ocps_verify_pipetask["jobId"]
-                        # Check verification statistics
-                        report_check_verify_stats = await self.check_verification_stats(
-                            im_type, job_id_verify, job_id_calib
-                        )
-                        # Inform the user about the results from running
-                        # cp_verify.
-                        # TODO: If verification failed, issue an alarm
-                        # in the watcher: DM-33898
-                        await self.analyze_report_check_verify_stats(
-                            im_type,
-                            report_check_verify_stats,
-                            job_id_verify,
-                            job_id_calib,
-                        )
-                except Exception:
-                    self.log.exception("Error in do_verify. Ignoring...")
-            # do verify is False
-            else:
-                if self.config.generate_calibrations:
-                    self.log.info(
-                        "'do_verify' is set to 'False' and "
-                        "'generate_calibrations' to 'True'. "
-                        f"{im_type} will be automatically certified."
-                    )
-                    await self.certify_calib(im_type, job_id_calib)
+            # Create a task that processes calibration and verification
+            task = asyncio.create_task(self.process_images(im_type))
+            self.background_tasks.append(task)
 
         # After taking the basic images (biases, darks, and flats) do
         # defects and PTC if requested.
@@ -1683,26 +1601,252 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
 
         if len(calib_types):
             for calib_type in calib_types:
-                try:
-                    # Run the pipetask
-                    response_ocps_calib_pipetask = await self.call_pipetask(calib_type)
-                    job_id_calib = response_ocps_calib_pipetask["jobId"]
-                    # Certify the calibrations in self.config.calib_collection
-                    # The quick gain estimation does not need to be certified.
-                    self.log.info(
-                        f"Verification for {calib_type} is not implemented yet "
-                        f"in this script. {calib_type} will be automatically certified."
-                    )
-                    if calib_type != "GAIN":
-                        await self.certify_calib(calib_type, job_id_calib)
+                task = asyncio.create_task(self.process_calibration(calib_type))
+                self.background_tasks.append(task)
 
-                    self.log.info(f"{calib_type} generation job ID: {job_id_calib}")
+        await self.checkpoint("Data-taking part completed.")
 
-                    # Report the estimated gain from each pair of flats
-                    if calib_type in ["GAIN", "PTC"]:
-                        await self.report_gains_from_flat_pairs(job_id_calib)
-                except Exception:
-                    self.log.exception(f"Error processing {calib_type}. Ignoring...")
+        await self.wait_for_background_tasks()
+
+    async def process_images(self, im_type):
+        """
+        Generate and optionally verify and certify calibrations for a
+        given image type.
+
+        Parameters
+        ----------
+        im_type : `str`
+            The type of image or calibration to process. One of
+            ["BIAS", "DARK", "FLAT"].
+
+        Raises
+        ------
+        Exception
+            If an error occurs during verification, it is logged and
+            ignored.
+
+        Notes
+        -----
+        - If `generate_calibrations` is set to `True`, the method
+          will generate combined calibrations using the
+          `call_pipetask` method.
+        - If `do_verify` is `True`, the method will initiate
+          verification of the generated calibrations.
+        - If `do_verify` is `False` and calibrations are generated,
+          the calibration will be automatically certified without
+          verification.
+        - If an error occurs during verification, it is logged and
+          ignored.
+        """
+
+        if self.config.generate_calibrations:
+            self.log.info(
+                "Generating calibration from the images taken "
+                "as part of this script."
+            )
+            response_ocps_calib_pipetask = await self.call_pipetask(im_type)
+            job_id_calib = response_ocps_calib_pipetask["jobId"]
+        else:
+            self.log.info(
+                f"A combined {im_type} will not be generated from the "
+                "images taken as part of this script. Any needed input "
+                "calibrations by the verification pipetasks will be "
+                "sought in their input calibrations."
+            )
+            job_id_calib = None
+
+        if self.config.do_verify:
+            try:
+                await self.process_verification(im_type, job_id_calib)
+            except Exception:
+                self.log.exception("Error in do_verify. Ignoring...")
+        else:
+            if self.config.generate_calibrations:
+                self.log.info(
+                    "'do_verify' is set to 'False' and "
+                    "'generate_calibrations' to 'True'. "
+                    f"{im_type} will be automatically certified."
+                )
+
+                await self.certify_calib(im_type, job_id_calib)
+
+    async def process_verification(self, im_type, job_id_calib):
+        """
+        Verify and certify the generated calibration for a given
+        image type.
+
+        Parameters
+        ----------
+        im_type : `str`
+            The type of image or calibration to verify. One of
+            ["BIAS", "DARK", "FLAT"].
+
+        job_id_calib : `str` or `None`
+            The job ID returned by OCPS during the calibration
+            generation pipetask call.
+            If `None`, the verification will use reference
+            calibrations from input collections.
+
+        Returns
+        -------
+        report_check_verify_stats : `dict`
+            Dictionary containing the results of the verification
+            checks, including whether the calibration should be
+            certified, any statistical errors, failure thresholds,
+            and the raw verification statistics.
+
+        Raises
+        ------
+        Exception
+            Logs and handles any exceptions that occur during the
+            verification process.
+
+        Notes
+        -----
+        - Verification involves running the `verify_calib` method
+          to execute the verification pipetask.
+        - The method analyzes verification statistics to determine
+          if the calibration meets the certification criteria.
+        """
+        try:
+            self.log.info(f"Starting verification for {im_type}.")
+
+            response_ocps_verify_pipetask = await self.verify_calib(
+                im_type, job_id_calib
+            )
+            # Check that the task running cp_verify
+            # did not fail.
+            job_id_verify = response_ocps_verify_pipetask["jobId"]
+
+            report_check_verify_stats = await self.check_verification_stats(
+                im_type, job_id_verify, job_id_calib
+            )
+            # Inform the user about the results from
+            # running cp_verify.
+            # TODO: If verification failed, issue an
+            #  alarm in the watcher: DM-33898.
+            await self.analyze_report_check_verify_stats(
+                im_type,
+                report_check_verify_stats,
+                job_id_verify,
+                job_id_calib,
+            )
+
+            if job_id_calib is not None and report_check_verify_stats["CERTIFY_CALIB"]:
+                await self.certify_calib(im_type, job_id_calib)
+
+            return report_check_verify_stats
+            # Note: Since we are not generating calibrations, we don't certify
+        except Exception as e:
+            self.log.exception(f"Error in processing verification for {im_type}: {e}")
+
+    async def process_calibration(self, calib_type):
+        """
+        Generate and certify a specific type of calibration.
+
+        This method handles the generation of a specific calibration
+        type using the `call_pipetask` method. After generating the
+        calibration, it automatically certifies the calibration unless
+        the calibration type is "GAIN", which does not require
+        certification. Additionally, it reports the estimated gains
+        from flat pairs for applicable calibration types.
+
+        Parameters
+        ----------
+        calib_type : `str`
+            The type of calibration to process. Supported types are:
+            - "DEFECTS"
+            - "PTC"
+            - "GAIN"
+
+        Raises
+        ------
+        Exception
+            If an error occurs during the calibration generation or
+            certification process.
+
+        Notes
+        -----
+        - The "GAIN" calibration type does not require certification.
+        - Gain estimation from flat pairs is performed for "GAIN" and
+         "PTC" calibration types.
+        - Verification for calibrations is not implemented in this
+          method and thus not required.
+        """
+        try:
+            self.log.info(f"Starting calibration processing for {calib_type}.")
+            response_ocps_calib_pipetask = await self.call_pipetask(calib_type)
+            job_id_calib = response_ocps_calib_pipetask["jobId"]
+            # Certify the calibrations in self.config.calib_collection
+            # The quick gain estimation does not need to be certified.
+            self.log.info(
+                f"Verification for {calib_type} is not implemented yet "
+                f"in this script. {calib_type} will be automatically certified."
+            )
+            if calib_type != "GAIN":
+                await self.certify_calib(calib_type, job_id_calib)
+
+            self.log.info(f"{calib_type} generation job ID: {job_id_calib}")
+
+            # Report the estimated gain from each pair of flats
+            if calib_type in ["GAIN", "PTC"]:
+                await self.report_gains_from_flat_pairs(job_id_calib)
+        except Exception as e:
+            self.log.exception(f"Error processing {calib_type}: {e}")
+
+    async def wait_for_background_tasks(self):
+        """
+        Await the completion of all background calibration and
+        verification tasks.
+
+        This method waits for all background tasks (calibration and
+        verification processes) to complete within a specified
+        timeout. If the tasks do not complete within the timeout
+        period, it attempts to cancel any remaining unfinished tasks.
+
+        Raises
+        ------
+        asyncio.TimeoutError
+            If the background tasks do not complete within the
+            allotted timeout.
+        Exception
+            Logs and handles any other exceptions that occur while
+            waiting for tasks.
+
+        Notes
+        -----
+        - The timeout is calculated based on the
+          `background_task_timeout` configuration parameter multiplied
+           by the number of background tasks.
+        - Upon a timeout, the method logs a warning and cancels any
+          tasks that are still pending.
+        - After handling timeouts or exceptions, the list of
+          background tasks is cleared.
+        """
+        self.log.info("Waiting for background tasks to complete.")
+        try:
+            # Note that when aysncio.wait_for times out, it cancels the task
+            # it's waiting on. If the task being waited on is an asyncio.gather
+            # instance, it propagates the cancellation to all the tasks it has
+            # gathered.
+            await asyncio.wait_for(
+                asyncio.gather(*self.background_tasks, return_exceptions=True),
+                timeout=self.config.background_task_timeout
+                * len(self.background_tasks),
+            )
+            self.log.info("All background tasks have completed.")
+        except asyncio.TimeoutError:
+            self.log.warning("Background tasks did not complete before timeout.")
+            for task in self.background_tasks:
+                # all tasks should be done/cancelled at this point
+                if not task.done():
+                    # this code should never be reached.
+                    self.log.warning(f"Cancelling task {task}")
+                    task.cancel()
+        except Exception as e:
+            self.log.exception(f"Error in background tasks: {e}")
+        finally:
+            self.background_tasks = []
 
     @staticmethod
     def get_exposure_id(obsid):
