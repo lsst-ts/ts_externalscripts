@@ -128,7 +128,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
         float
             Sky counts in electrons.
         """
-        timeout = 30
+        timeout = 60
         detector_num = 4
         ccd_exp_id = computeCcdExposureId(
             "LSSTComCam", self.latest_exposure_id, detector_num
