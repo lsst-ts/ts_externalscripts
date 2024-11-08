@@ -217,6 +217,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
               min_exp_time:
                 description: Minimum exposure time allowed.
                 type: number
+                minimum: 0.1
                 default: 1.0
               min_sun_elevation:
                 description: Lowest position of sun in degrees at which twilight flats can be taken.
@@ -502,8 +503,10 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             await self.slew_azel_and_setup_instrument(az, self.config.target_el)
 
         # Take one 1s flat to calibrate the exposure time
-        self.log.info("Taking 1s flat to calibrate exposure time.")
-        exp_time = 1
+        self.log.info(
+            "Taking {self.config.min_exp_time}s flat to calibrate exposure time."
+        )
+        exp_time = self.config.min_exp_time
         # TODO: change from take_acq to take_sflat (DM-46675)
         flat_image = await self.camera.take_acq(
             exptime=exp_time,
