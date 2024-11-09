@@ -609,8 +609,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                     self.assert_sun_location()
 
         await self.camera.take_darks(
-            exptime=30,
-            ndarks=2,
+            exptime=15,
+            ndarks=40,
             group_id=self.group_id,
             program=self.program,
             reason=self.reason,
