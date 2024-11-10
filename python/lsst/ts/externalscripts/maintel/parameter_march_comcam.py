@@ -110,6 +110,7 @@ class ParameterMarchComCam(BaseParameterMarch):
 
         self.log.info("Taking extra-focal image")
 
+        self.camera.rem.ccoods.evt_imageInOODS.flush()
         extra_visit_id = await self.camera.take_cwfs(
             exptime=self.config.exp_time,
             n=1,
@@ -118,6 +119,14 @@ class ParameterMarchComCam(BaseParameterMarch):
             reason="EXTRA" + ("" if self.reason is None else f"_{self.reason}"),
             program=self.config.program,
         )
+        self.log.info("Waiting for data to be ingested by OODS.")
+        for _ in range(9):
+            try:
+                await self.camera.rem.ccoods.evt_imageInOODS.next(
+                    flush=False, timeout=self.camera.long_timeout
+                )
+            except asyncio.TimeoutError:
+                break
 
         self.log.info("Send processing request to RA OCPS.")
         config = {
