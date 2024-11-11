@@ -291,6 +291,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 if comp in self.camera.components_attr:
                     self.log.debug(f"Ignoring Camera component {comp}.")
                     setattr(self.camera.check, comp, False)
+                elif comp in ["mtdome", "mtdometrajectory"]:
+                    self.log.debug(f"Ignoring dome component {comp}.")
+                    setattr(self.tcs.check, comp, False)
                 else:
                     self.log.warning(
                         f"Component {comp} not in CSC Group. "
