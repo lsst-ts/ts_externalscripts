@@ -436,7 +436,7 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
     async def take_calibration_sequence(self):
         """Take the CBP calibration sequence."""
 
-        calibration_summary = []
+        calibration_summary = {}
         wavelength = float(self.config["wavelength"])
         wavelength_width = float(self.config["wavelength_width"])
         wavelength_resolution = float(self.config["wavelength_resolution"])
@@ -466,7 +466,7 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
             )
 
             calibration_summary["steps"].append(step)
-        return calibration_summary
+        self.log.info(f"Calibration summary is {calibration_summary}")
 
     async def calculate_optimized_exposure_times(
         self, wavelengths: list, config_data: dict
@@ -493,8 +493,7 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
             electrometer_exptimes = await self._calculate_electrometer_exposure_times(
                 electrometer_integration_time=config_data[
                     "electrometer_integration_time"
-                ],
-                use_electrometer=config_data["use_electrometer"],
+                ]
             )
 
         return electrometer_exptimes
@@ -595,22 +594,11 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
             laser_burst_task = asyncio.create_task(laser_burst_coroutine)
 
         finally:
-            exposures_done.set_result(True)
-            (
-                electrometer_exposure_result_cbp,
-                electrometer_exposure_result_cbp_cal,
-            ) = await asyncio.gather(
+            await asyncio.gather(
                 laser_burst_task,
                 electrometer_exposure_task_cbp,
                 electrometer_exposure_task_cbp_cal,
             )
-
-        return {
-            dict(
-                electrometer_exposure_result_cbp=electrometer_exposure_result_cbp,
-                electrometer_exposure_result_cbp_cal=electrometer_exposure_result_cbp_cal,
-            )
-        }
 
     async def take_electrometer_scan(
         self,
