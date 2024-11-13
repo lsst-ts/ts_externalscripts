@@ -200,15 +200,30 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
 
         await self.configure_calsys()
 
-        self.electrometer_cbp = getattr(
-            self.rem, f"electrometer_{self.electrometer_cbp_index}"
+        domain = salobj.Domain()
+
+        self.electrometer_cbp = salobj.Remote(
+            "Electrometer",
+            domain=domain,
+            index=self.electrometer_cbp_index,
         )
 
-        self.electrometer_cbp_cal = getattr(
-            self.rem, f"electrometer_{self.electrometer_cbpcal_index}"
+        self.electrometer_cbp_cal = salobj.Remote(
+            "Electrometer",
+            domain=domain,
+            index=self.electrometer_cbp_cal_index,
         )
 
-        self.cbp = getattr(self.rem, f"cbp_{self.cbp_index}")
+        self.cbp = salobj.Remote("CBP", domain=domain)
+
+        await self.electrometer_cbp.start_task
+        await salobj.set_summary_state(self.electrometer_cbp, salobj.State.ENABLED)
+
+        await self.electrometer_cbp_cal.start_task
+        await salobj.set_summary_state(self.electrometer_cbp_cal, salobj.State.ENABLED)
+
+        await self.cbp.start_task
+        await salobj.set_summary_state(self.cbp, salobj.State.ENABLED)
 
         self.config = config
 
