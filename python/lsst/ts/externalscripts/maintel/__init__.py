@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from .make_cbp_throughput_scan import *
 from .make_comcam_calibrations import *
 from .parameter_march_comcam import *
 from .parameter_march_lsstcam import *
