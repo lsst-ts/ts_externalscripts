@@ -251,6 +251,10 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 description: If True, track sky. If False, keep az and el constant.
                 type: boolean
                 default: True
+              rotator_angle:
+                description: Rotator angle in degrees relative to physical sky.
+                type: number
+                default: 0
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
@@ -507,7 +511,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
         # Take one 1s flat to calibrate the exposure time
         self.log.info(
-            "Taking {self.config.min_exp_time}s flat to calibrate exposure time."
+            f"Taking {self.config.min_exp_time}s flat to calibrate exposure time."
         )
         exp_time = self.config.min_exp_time
         # TODO: change from take_acq to take_sflat (DM-46675)
@@ -544,11 +548,20 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 exp_time = self.config.max_exp_time
 
             if exp_time < self.config.min_exp_time:
-                self.log.warning(
-                    f"Calculated exposure time {exp_time} below min exposure time \
-                        {self.config.min_exp_time}. Stopping."
-                )
-                break
+                if self.where_sun == "setting":
+                    sleep_time = 30
+                    self.log.warning(
+                        f"Calculated exposure time {exp_time} below min exposure time \
+                            {self.config.min_exp_time}. Waiting {sleep_time}s."
+                    )
+                    await asyncio.sleep(sleep_time)
+                    continue
+                else:
+                    self.log.warning(
+                        f"Calculated exposure time {exp_time} below min exposure time \
+                            {self.config.min_exp_time}. Stopping."
+                    )
+                    break
 
             await self.checkpoint(
                 f"Taking flat {i+1} of {self.config.n_flat} with exposure time {exp_time}."

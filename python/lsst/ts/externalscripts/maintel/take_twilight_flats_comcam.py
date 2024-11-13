@@ -179,9 +179,15 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
         dec : float
             Dec of target field.
         """
-        current_filter = await self.comcam.get_current_filter()
 
-        self.tracking_started = True
+        await self.mtcs.slew_icrs(
+            ra=ra,
+            dec=dec,
+            rot_type=RotType.Physical,
+            rot=0,
+        )
+
+        current_filter = await self.comcam.get_current_filter()
 
         if current_filter != self.config.filter:
             self.log.debug(
@@ -197,7 +203,10 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             ra=ra,
             dec=dec,
             rot_type=RotType.PhysicalSky,
+            rot=self.config.rotator_angle,
         )
+
+        self.tracking_started = True
 
     async def slew_azel_and_setup_instrument(self, az, el):
         """Abstract method to set the instrument. Change the filter
@@ -225,6 +234,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
         await self.mtcs.point_azel(
             az=az,
             el=el,
+            rot_tel=self.config.rotator_angle,
         )
 
     async def configure(self, config):
