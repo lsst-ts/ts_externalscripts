@@ -209,3 +209,14 @@ class TakeTwilightFlatsLatiss(BaseTakeTwilightFlats):
             filter=self.config.filter,
             grating=self.config.grating,
         )
+
+    async def setup_instrument(self, az, el):
+        """Abstract method to set the instrument. Change the filter
+        and start tracking.
+        """
+        await self.tcs.start_tracking()
+
+        await self.latiss.setup_instrument(
+            filter=self.config.filter,
+            grating=self.config.grating,
+        )

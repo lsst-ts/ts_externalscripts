@@ -1,0 +1,1 @@
+Allow twilight flats to be taken at current pointing and allow tcs components to be ignored.
