@@ -27,9 +27,10 @@ import types
 import numpy as np
 import yaml
 from lsst.ts import salobj
-from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys, MTCalsysUsages
+from lsst.ts.observatory.control.utils.enums import LaserOpticalConfiguration
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 from lsst.ts.xml.enums.Electrometer import UnitToRead
+from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
 
 
 class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
@@ -40,11 +41,10 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
 
         self.config = None
 
-        self.mtcalsys = None
-
         self.cbp = None
         self.electrometer_cbp = None
         self.electrometer_cbp_cal = None
+        self.tunablelaser = None
 
         self.long_timeout = 30
 
@@ -53,6 +53,7 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
 
         self.cbp_index = 0
 
+    '''
     @property
     def calsys(self):
         return self.mtcalsys
@@ -69,6 +70,7 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
             await self.mtcalsys.start_task
         else:
             self.log.debug("MTCalsys already defined, skipping.")
+    '''
 
     @classmethod
     def get_schema(cls):
@@ -216,6 +218,8 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
 
         self.cbp = salobj.Remote("CBP", domain=domain)
 
+        self.tunablelaser = salobj.Remote("TunableLaser", domain=domain)
+
         await self.electrometer_cbp.start_task
         await salobj.set_summary_state(self.electrometer_cbp, salobj.State.ENABLED)
 
@@ -224,6 +228,9 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
 
         await self.cbp.start_task
         await salobj.set_summary_state(self.cbp, salobj.State.ENABLED)
+
+        await self.tunablelaser.start_task
+        await salobj.set_summary_state(self.tunablelaser, salobj.State.ENABLED)
 
         self.config = config
 
@@ -302,6 +309,98 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
             timeout=self.long_timeout,
         )
 
+    async def setup_laser(
+        self,
+        mode: LaserDetailedState,
+        wavelength: float,
+        optical_configuration: LaserOpticalConfiguration = LaserOpticalConfiguration.SCU,
+        use_projector: bool = True,
+    ) -> None:
+        """Perform all steps for preparing the laser for monochromatic flats.
+        This includes confirming that the thermal system is
+        turned on and set at the right temperature. It also checks
+        the interlockState to confirm it's ready to propagate.
+
+        Parameters
+        ----------
+        mode : LaserDetailedState
+            Mode of the TunableLaser
+            Options: CONTINUOUS, BURST
+        wavelength : `float`
+            Wavelength fo the laser in nm
+        optical_configuration : LaserOpticalConfiguration
+            Output of laser
+            Default LaserOpticalConfiguration.SCU
+        use_projector : `bool`
+            identifies if you are using the projector while
+            changing the wavelength
+            Default True
+        """
+        # TO-DO: DM-45693 implement thermal system checks
+
+        if mode in {
+            LaserDetailedState.NONPROPAGATING_CONTINUOUS_MODE,
+            LaserDetailedState.PROPAGATING_CONTINUOUS_MODE,
+        }:
+            await self.tunablelaser.cmd_setContinuousMode.start(
+                timeout=self.long_timeout
+            )
+        elif mode in {
+            LaserDetailedState.NONPROPAGATING_BURST_MODE,
+            LaserDetailedState.PROPAGATING_BURST_MODE,
+        }:
+            await self.tunablelaser.cmd_setBurstMode.start(timeout=self.long_timeout)
+        else:
+            raise RuntimeError(
+                f"{mode} not an acceptable LaserDetailedState [CONTINOUS, BURST, TRIGGER]"
+            )
+
+        await self.change_laser_optical_configuration(optical_configuration)
+        await self.change_laser_wavelength(wavelength)
+
+    async def change_laser_optical_configuration(
+        self, optical_configuration: LaserOpticalConfiguration
+    ) -> None:
+        """Change the output of the laser.
+
+        Parameters
+        ----------
+        optical_configuration : LaserOpticalConfiguration
+        """
+        assert optical_configuration in list(LaserOpticalConfiguration)
+
+        current_configuration = await self.tunablelaser.evt_opticalConfiguration.aget()
+        if current_configuration.configuration != optical_configuration:
+            self.log.debug(
+                f"Changing optical configuration from {current_configuration} to {optical_configuration}"
+            )
+            await self.tunablelaser.cmd_setOpticalConfiguration.set_start(
+                configuration=optical_configuration, timeout=self.long_timeout
+            )
+
+        else:
+            self.log.debug("Laser Optical Configuration already in place.")
+
+    async def change_laser_wavelength(
+        self,
+        wavelength: float,
+    ) -> None:
+        """Change the TunableLaser wavelength setting
+
+        Parameters
+        ----------
+        wavelength : `float`
+            wavelength of the laser in nm
+        use_projector : `bool`
+            identifies if you are using the projector while
+            changing the wavelength.
+            Default True
+        """
+        task_wavelength = self.tunablelaser.cmd_changeWavelength.set_start(
+            wavelength=wavelength, timeout=self.long_long_timeout
+        )
+        await task_wavelength
+
     async def setup_calibration(self):
         """Setup calibration system"""
         await self.setup_cbp(
@@ -312,7 +411,7 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
             self.config["cbp_rotation"],
         )
 
-        await self.calsys.setup_laser(
+        await self.setup_laser(
             self.config["laser_mode"],
             self.config["wavelength"],
             self.config["optical_configuration"],
@@ -458,7 +557,7 @@ class MakeCBPThroughputScan(BaseBlockScript, metaclass=abc.ABCMeta):
         await asyncio.sleep(delay_before)
         for n in range(self.config.nburst):
             await asyncio.sleep(delay_before)
-            await self.mtcalsys.tunablelaser.cmd_triggerBurst.start()
+            await self.tunablelaser.cmd_triggerBurst.start()
             await asyncio.sleep(delay_after)
         await asyncio.sleep(delay_after)
 
