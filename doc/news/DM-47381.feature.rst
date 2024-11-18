@@ -1,0 +1,6 @@
+In base_take_twilight_flats.py:
+- Make rotator angle configurable.
+- Allow ignoring mtdome.
+- increase number of darks at end of twilight base_take_twilight_flats.
+- increase consdb polling timeout.
+- add option to give twilight flats a pointing. 
