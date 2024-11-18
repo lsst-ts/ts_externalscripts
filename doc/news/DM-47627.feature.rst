@@ -1,0 +1,2 @@
+Add a `move_p2p_diamond.py` script.
+The script moves the Simonyi Telescope in a diamond pattern around each grid position provided by the user.
