@@ -161,6 +161,6 @@ class TestMoveP2PDiamond(
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
-        script_path = scripts_dir / "maintel" / "move_p2p_diamond.py"
+        script_path = scripts_dir / "maintel" / "tma" / "move_p2p_diamond.py"
         self.log.debug(f"Checking for script in {script_path}")
         await self.check_executable(script_path)
