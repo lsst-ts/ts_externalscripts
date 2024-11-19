@@ -378,16 +378,16 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         if self.config.point_directly:
             if np.abs(az_sun - (self.config.target_az % 360)) < min_sun_distance:
                 raise RuntimeError(
-                    f"Distance from sun {az_sun - (self.config.target_az % 360)} is \
-                        less than {min_sun_distance}. Stopping."
+                    f"Distance from sun {az_sun - (self.config.target_az % 360)} is "
+                    f"less than {min_sun_distance}. Stopping."
                 )
 
             target_az = self.config.target_az
         else:
             if np.abs(self.config.distance_from_sun) < min_sun_distance:
                 raise RuntimeError(
-                    f"Distance from sun {self.config.distance_from_sun} is less than {min_sun_distance}. \
-                        Stopping."
+                    f"Distance from sun {self.config.distance_from_sun} is less than {min_sun_distance}. "
+                    "Stopping."
                 )
 
             target_az = (az_sun + self.config.distance_from_sun) % 360
@@ -485,8 +485,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             sun_coordinates[1] > self.config.max_sun_elevation
         ):
             raise RuntimeError(
-                f"Sun elevation {sun_coordinates} is outside appropriate elevation limits. \
-            Must be above {self.config.min_sun_elevation} or below {self.config.max_sun_elevation}."
+                f"Sun elevation {sun_coordinates} is outside appropriate elevation limits. "
+                f"Must be above {self.config.min_sun_elevation} or below {self.config.max_sun_elevation}."
             )
 
     async def take_twilight_flats(self):
@@ -530,7 +530,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         i = 0
 
         while i < self.config.n_flat:
-
             # TODO: make consistent with LATISS and comcam
             sky_counts = await self.get_sky_counts()
             self.log.info(
@@ -541,9 +540,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
             if exp_time > self.config.max_exp_time:
                 self.log.warning(
-                    f"Calculated exposure time {exp_time} above max exposure time \
-                        {self.config.max_exp_time} s. Taking images with exposure \
-                            time {self.config.max_exp_time}."
+                    f"Calculated exposure time {exp_time} above max exposure time "
+                    f"{self.config.max_exp_time} s. Taking images with exposure "
+                    f" time {self.config.max_exp_time}."
                 )
                 exp_time = self.config.max_exp_time
 
@@ -551,15 +550,15 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 if self.where_sun == "setting":
                     sleep_time = 30
                     self.log.warning(
-                        f"Calculated exposure time {exp_time} below min exposure time \
-                            {self.config.min_exp_time}. Waiting {sleep_time}s."
+                        f"Calculated exposure time {exp_time} below min exposure time "
+                        f"{self.config.min_exp_time}. Waiting {sleep_time}s."
                     )
                     await asyncio.sleep(sleep_time)
                     continue
                 else:
                     self.log.warning(
-                        f"Calculated exposure time {exp_time} below min exposure time \
-                            {self.config.min_exp_time}. Stopping."
+                        f"Calculated exposure time {exp_time} below min exposure time "
+                        f"{self.config.min_exp_time}. Stopping."
                     )
                     break
 
@@ -599,7 +598,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 nrepeats = 4
 
                 for k in range(nrepeats):
-
                     if np.abs(self.config.dither) > 0:
                         await self.tcs.offset_azel(
                             az=self.config.dither,
