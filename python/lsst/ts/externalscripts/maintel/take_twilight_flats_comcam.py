@@ -28,6 +28,7 @@ import yaml
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.xml.enums.MTPtg import WrapStrategy
 
 try:
     from lsst.summit.utils import ConsDbClient
@@ -185,6 +186,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             dec=dec,
             rot_type=RotType.Physical,
             rot=0,
+            az_wrap_strategy=WrapStrategy.NOUNWRAP,
         )
 
         current_filter = await self.comcam.get_current_filter()
@@ -204,6 +206,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             dec=dec,
             rot_type=RotType.PhysicalSky,
             rot=self.config.rotator_angle,
+            az_wrap_strategy=WrapStrategy.NOUNWRAP,
         )
 
         self.tracking_started = True
