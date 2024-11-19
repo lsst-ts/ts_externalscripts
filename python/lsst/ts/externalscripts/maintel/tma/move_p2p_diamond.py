@@ -194,7 +194,6 @@ class MoveP2PDiamond(BaseBlockScript):
         Generate all positions for the grid points and their diamond patterns,
         validate them, and store them for later use.
         """
-        self.all_positions = []
 
         for az0 in self.grid["azel"]["az"]:
             for el0 in self.grid["azel"]["el"]:
