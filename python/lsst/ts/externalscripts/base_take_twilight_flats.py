@@ -217,6 +217,7 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
               min_exp_time:
                 description: Minimum exposure time allowed.
                 type: number
+                minimum: 0.1
                 default: 1.0
               min_sun_elevation:
                 description: Lowest position of sun in degrees at which twilight flats can be taken.
@@ -238,10 +239,22 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 minimum: 0.0
                 maximum: 90.0
                 default: 45.0
+              target_az:
+                description: Target azimuth for sky flats.
+                type: number
+                default: 90
+              point_directly:
+                description: If True, point at target az el. If False, point relative to sun.
+                type: boolean
+                default: False
               tracking:
                 description: If True, track sky. If False, keep az and el constant.
                 type: boolean
                 default: True
+              rotator_angle:
+                description: Rotator angle in degrees relative to physical sky.
+                type: number
+                default: 0
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
@@ -282,6 +295,9 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 if comp in self.camera.components_attr:
                     self.log.debug(f"Ignoring Camera component {comp}.")
                     setattr(self.camera.check, comp, False)
+                elif comp in ["mtdome", "mtdometrajectory"]:
+                    self.log.debug(f"Ignoring dome component {comp}.")
+                    setattr(self.tcs.check, comp, False)
                 else:
                     self.log.warning(
                         f"Component {comp} not in CSC Group. "
@@ -355,9 +371,26 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             target ra dec
         """
 
+        min_sun_distance = 60
+
         az_sun, el_sun = self.tcs.get_sun_azel()
 
-        target_az = (az_sun + self.config.distance_from_sun) % 360
+        if self.config.point_directly:
+            if np.abs(az_sun - (self.config.target_az % 360)) < min_sun_distance:
+                raise RuntimeError(
+                    f"Distance from sun {az_sun - (self.config.target_az % 360)} is "
+                    f"less than {min_sun_distance}. Stopping."
+                )
+
+            target_az = self.config.target_az
+        else:
+            if np.abs(self.config.distance_from_sun) < min_sun_distance:
+                raise RuntimeError(
+                    f"Distance from sun {self.config.distance_from_sun} is less than {min_sun_distance}. "
+                    "Stopping."
+                )
+
+            target_az = (az_sun + self.config.distance_from_sun) % 360
 
         target_radec = self.tcs.radec_from_azel(target_az, self.config.target_el)
 
@@ -452,8 +485,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             sun_coordinates[1] > self.config.max_sun_elevation
         ):
             raise RuntimeError(
-                f"Sun elevation {sun_coordinates} is outside appropriate elevation limits. \
-            Must be above {self.config.min_sun_elevation} or below {self.config.max_sun_elevation}."
+                f"Sun elevation {sun_coordinates} is outside appropriate elevation limits. "
+                f"Must be above {self.config.min_sun_elevation} or below {self.config.max_sun_elevation}."
             )
 
     async def take_twilight_flats(self):
@@ -477,8 +510,10 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             await self.slew_azel_and_setup_instrument(az, self.config.target_el)
 
         # Take one 1s flat to calibrate the exposure time
-        self.log.info("Taking 1s flat to calibrate exposure time.")
-        exp_time = 1
+        self.log.info(
+            f"Taking {self.config.min_exp_time}s flat to calibrate exposure time."
+        )
+        exp_time = self.config.min_exp_time
         # TODO: change from take_acq to take_sflat (DM-46675)
         flat_image = await self.camera.take_acq(
             exptime=exp_time,
@@ -495,7 +530,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         i = 0
 
         while i < self.config.n_flat:
-
             # TODO: make consistent with LATISS and comcam
             sky_counts = await self.get_sky_counts()
             self.log.info(
@@ -506,18 +540,27 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
             if exp_time > self.config.max_exp_time:
                 self.log.warning(
-                    f"Calculated exposure time {exp_time} above max exposure time \
-                        {self.config.max_exp_time} s. Taking images with exposure \
-                            time {self.config.max_exp_time}."
+                    f"Calculated exposure time {exp_time} above max exposure time "
+                    f"{self.config.max_exp_time} s. Taking images with exposure "
+                    f" time {self.config.max_exp_time}."
                 )
                 exp_time = self.config.max_exp_time
 
             if exp_time < self.config.min_exp_time:
-                self.log.warning(
-                    f"Calculated exposure time {exp_time} below min exposure time \
-                        {self.config.min_exp_time}. Stopping."
-                )
-                break
+                if self.where_sun == "setting":
+                    sleep_time = 30
+                    self.log.warning(
+                        f"Calculated exposure time {exp_time} below min exposure time "
+                        f"{self.config.min_exp_time}. Waiting {sleep_time}s."
+                    )
+                    await asyncio.sleep(sleep_time)
+                    continue
+                else:
+                    self.log.warning(
+                        f"Calculated exposure time {exp_time} below min exposure time "
+                        f"{self.config.min_exp_time}. Stopping."
+                    )
+                    break
 
             await self.checkpoint(
                 f"Taking flat {i+1} of {self.config.n_flat} with exposure time {exp_time}."
@@ -555,7 +598,6 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 nrepeats = 4
 
                 for k in range(nrepeats):
-
                     if np.abs(self.config.dither) > 0:
                         await self.tcs.offset_azel(
                             az=self.config.dither,
@@ -581,8 +623,8 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                     self.assert_sun_location()
 
         await self.camera.take_darks(
-            exptime=30,
-            ndarks=2,
+            exptime=15,
+            ndarks=40,
             group_id=self.group_id,
             program=self.program,
             reason=self.reason,
