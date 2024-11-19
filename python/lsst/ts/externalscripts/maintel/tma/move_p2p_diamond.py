@@ -30,7 +30,32 @@ from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 
 
 class MoveP2PDiamond(BaseBlockScript):
-    """Moves the telescope in a diamond pattern around each grid position."""
+    """Moves the telescope in a diamond pattern around each grid position.
+
+    Overview:
+
+    This script performs a series of point-to-point (P2P) telescope
+    movements forming a diamond pattern around each user-defined grid
+    position. It is designed for dynamic tests and performance evaluations,
+    reproducing patterns used in specific engineering tasks (e.g., BLOCK-T227,
+    T293, T294).
+
+    Execution Order:
+
+    The script processes the grid positions by iterating over `grid_az`
+    first, then `grid_el`. For each azimuth value in `grid_az`, it executes
+    the diamond patterns at all elevation values in `grid_el` in order.
+
+    User Guidance:
+
+    - Grid Selection: Choose `grid_az` and `grid_el` values within the
+      telescope's operational limits. Ensure that cumulative movements
+      from the diamond pattern do not exceed these limits.
+    - Understanding the Pattern: The diamond pattern consists of cumulative
+      offsets applied to the initial position. Familiarity with the pattern
+      helps in anticipating telescope movements.
+    - Operational Limits: Azimuth: -180° to +180°, Elevation: 15° to 86.5°.
+    """
 
     def __init__(self, index: int) -> None:
         super().__init__(index, descr="Move telescope in diamond pattern around grid.")
@@ -73,7 +98,11 @@ class MoveP2PDiamond(BaseBlockScript):
         type: object
         properties:
             grid_az:
-                description: List of azimuth coordinates in degrees.
+                description: >
+                  Azimuth coordinate(s) in degrees where the diamond patterns will be executed.
+                  Can be a single number or a list of numbers. Ensure that the azimuth values,
+                  along with the cumulative offsets from the diamond pattern, remain within
+                  the telescope's operational limits.
                 anyOf:
                   - type: number
                   - type: array
@@ -81,13 +110,17 @@ class MoveP2PDiamond(BaseBlockScript):
                       type: number
                 minItems: 1
             grid_el:
-               description: List of elevation coordinates in degrees.
-               anyOf:
-                 - type: number
-                 - type: array
-                   items:
-                     type: number
-               minItems: 1
+                description: >
+                  Elevation coordinate(s) in degrees where the diamond patterns will be executed.
+                  Can be a single number or a list of numbers. Ensure that the elevation values,
+                  along with the cumulative offsets from the diamond pattern, remain within
+                  the telescope's operational limits
+                anyOf:
+                  - type: number
+                  - type: array
+                    items:
+                      type: number
+                minItems: 1
             pause_for:
                description: Pause duration between movements in seconds.
                type: number
@@ -150,8 +183,15 @@ class MoveP2PDiamond(BaseBlockScript):
         el0 (float): Initial elevation coordinate.
 
         Returns:
-        list of tuple: A list of tuples where each tuple contains an azimuth
-        and elevation coordinate.
+        - `positions` (list of tuple):  List of positions forming
+           the diamond patterns.
+
+        Pattern Details:
+        - The pattern consists of cumulative movements starting from the
+          initial position `(az0, el0)`.
+        - Movements include long and short slews in azimuth and elevation,
+          as well as diagonal movements.
+        - The sequence is designed to test the telescope's dynamic performance.
 
         Notes:
         The diamond pattern created here aims to reproduce the pattern used
