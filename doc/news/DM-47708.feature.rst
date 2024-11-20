@@ -1,0 +1,1 @@
+Add script to take a sequence of CBP images with ComCam and LSSTCam.
