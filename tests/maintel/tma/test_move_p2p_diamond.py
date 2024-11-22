@@ -57,6 +57,54 @@ class TestMoveP2PDiamond(
             assert self.script.mtcs.check.mtm1m3 is False
             self.script.mtcs.check.no_comp.assert_not_called()
 
+    async def test_config_directions(self) -> None:
+        """Test that the direction parameter is correctly set
+        and positions differ."""
+        async with self.make_dry_script():
+            grid_az = 30.0
+            grid_el = 60.0
+
+            # Test with direction='forward'
+            await self.configure_script(
+                grid_az=grid_az,
+                grid_el=grid_el,
+                direction="forward",
+            )
+            assert self.script.direction == "forward"
+            positions_forward = self.script.generate_diamond_pattern(
+                az0=grid_az, el0=grid_el
+            )
+
+            # Test with direction='backward'
+            await self.configure_script(
+                grid_az=grid_az,
+                grid_el=grid_el,
+                direction="backward",
+            )
+            assert self.script.direction == "backward"
+            positions_backward = self.script.generate_diamond_pattern(
+                az0=grid_az, el0=grid_el
+            )
+
+            # The positions should not be the same
+            assert positions_forward != positions_backward
+
+            # Compare the movement deltas to ensure they are opposite
+            for i in range(1, len(positions_forward)):
+                az_fwd_prev, el_fwd_prev = positions_forward[i - 1]
+                az_fwd_curr, el_fwd_curr = positions_forward[i]
+                delta_az_fwd = az_fwd_curr - az_fwd_prev
+                delta_el_fwd = el_fwd_curr - el_fwd_prev
+
+                az_bwd_prev, el_bwd_prev = positions_backward[i - 1]
+                az_bwd_curr, el_bwd_curr = positions_backward[i]
+                delta_az_bwd = az_bwd_curr - az_bwd_prev
+                delta_el_bwd = el_bwd_curr - el_bwd_prev
+
+                # Check that the movement deltas are opposite
+                assert delta_az_fwd == pytest.approx(-delta_az_bwd)
+                assert delta_el_fwd == pytest.approx(-delta_el_bwd)
+
     async def test_config_grid_az_el_scalars(self) -> None:
         async with self.make_dry_script():
             grid_az = 30.0
@@ -69,6 +117,7 @@ class TestMoveP2PDiamond(
             assert self.script.grid["azel"]["el"] == [grid_el]
             assert self.script.pause_for == 0.0
             assert self.script.move_timeout == 120.0
+            assert self.script.direction == "forward"  # Default value
 
     async def test_config_az_el_arrays(self) -> None:
         async with self.make_dry_script():
@@ -132,32 +181,48 @@ class TestMoveP2PDiamond(
                 move_timeout=move_timeout,
             )
 
-            # Mock move_to_position to prevent actual calls
-            self.script.move_to_position = AsyncMock()
-            # Mock checkpoint to prevent actual calls
-            self.script.checkpoint = AsyncMock()
+            for direction in ["forward", "backward"]:
+                await self.configure_script(
+                    grid_az=grid_az,
+                    grid_el=grid_el,
+                    pause_for=pause_for,
+                    move_timeout=move_timeout,
+                    direction=direction,
+                )
 
-            await self.script.run_block()
+                # Mock move_to_position to prevent actual calls
+                self.script.move_to_position = AsyncMock()
+                # Mock checkpoint to prevent actual calls
+                self.script.checkpoint = AsyncMock()
 
-            # Calculate expected number of diamond sequences and positions
-            total_sequences = len(grid_az) * len(grid_el)
-            total_positions_per_sequence = len(
-                self.script.generate_diamond_pattern(0, 0)
-            )
-            expected_total_positions = total_sequences * total_positions_per_sequence
+                await self.script.run_block()
 
-            # Verify checkpoint messages
-            assert self.script.checkpoint.call_count == total_sequences
+                # Calculate expected number of diamond sequences and positions
+                total_sequences = len(self.script.diamond_sequences)
+                expected_total_positions = sum(
+                    len(seq["positions"]) for seq in self.script.diamond_sequences
+                )
 
-            # Verify move_to_position calls
-            assert self.script.move_to_position.await_count == expected_total_positions
+                # Verify checkpoint messages
+                assert self.script.checkpoint.call_count == total_sequences
 
-            # Optionally, check the specific calls
-            expected_calls = []
-            for sequence in self.script.diamond_sequences:
-                for position in sequence["positions"]:
-                    expected_calls.append(unittest.mock.call(position[0], position[1]))
-            self.script.move_to_position.assert_has_awaits(expected_calls)
+                # Verify move_to_position calls
+                assert (
+                    self.script.move_to_position.await_count == expected_total_positions
+                )
+
+                # Optionally, check the specific calls
+                expected_calls = []
+                for sequence in self.script.diamond_sequences:
+                    for position in sequence["positions"]:
+                        expected_calls.append(
+                            unittest.mock.call(position[0], position[1])
+                        )
+                self.script.move_to_position.assert_has_awaits(expected_calls)
+
+                # Reset mocks for the next iteration
+                self.script.move_to_position.reset_mock()
+                self.script.checkpoint.reset_mock()
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
