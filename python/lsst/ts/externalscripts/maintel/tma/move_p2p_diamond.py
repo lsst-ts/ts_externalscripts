@@ -51,6 +51,11 @@ class MoveP2PDiamond(BaseBlockScript):
     - Grid Selection: Choose `grid_az` and `grid_el` values within the
       telescope's operational limits. Ensure that cumulative movements
       from the diamond pattern do not exceed these limits.
+    - Direction Control: Use the `direction` parameter to specify the initial
+      movement direction of the diamond pattern. This is particularly useful
+      when starting near operational limits (e.g., high elevations), as it
+      allows you to avoid exceeding those limits by moving in the opposite
+      direction.
     - Understanding the Pattern: The diamond pattern consists of cumulative
       offsets applied to the initial position. Familiarity with the pattern
       helps in anticipating telescope movements.
@@ -63,6 +68,7 @@ class MoveP2PDiamond(BaseBlockScript):
         self.grid = dict()
         self.pause_for = 0.0
         self.move_timeout = 120.0
+        self.direction = "forward"  # Default direction
 
         self.LONG_SLEW_AZ = 24.0  # degrees
         self.LONG_SLEW_EL = 12.0  # degrees
@@ -121,6 +127,17 @@ class MoveP2PDiamond(BaseBlockScript):
                     items:
                       type: number
                 minItems: 1
+            direction:
+                description: >
+                  Direction in which to start the diamond pattern movements.
+                  Options are 'forward' or 'backward'. In 'forward' mode, the pattern
+                  starts with positive offsets; in 'backward' mode, it starts with negative offsets.
+                  Default is 'forward'.
+                type: string
+                enum:
+                  - forward
+                  - backward
+                default: forward
             pause_for:
                description: Pause duration between movements in seconds.
                type: number
@@ -154,6 +171,7 @@ class MoveP2PDiamond(BaseBlockScript):
         self.grid["azel"] = dict(az=grid_az, el=grid_el)
         self.pause_for = config.pause_for
         self.move_timeout = config.move_timeout
+        self.direction = config.direction  # Read the direction property
 
         # Generate and validate all positions
         self.generate_and_validate_positions()
@@ -192,10 +210,16 @@ class MoveP2PDiamond(BaseBlockScript):
         - Movements include long and short slews in azimuth and elevation,
           as well as diagonal movements.
         - The sequence is designed to test the telescope's dynamic performance.
+        - The `direction` parameter controls whether the pattern starts
+          with positive or negative offsets.
 
         Notes:
-        The diamond pattern created here aims to reproduce the pattern used
-        for dynamic tests done under BLOCK-T227, T293 abd T294
+        - When `direction` is set to `'backward'`, all movement offsets are
+          reversed, allowing the pattern to start in the opposite direction.
+        - This is useful for avoiding telescope limits when starting near the
+          operational boundaries.
+        - The diamond pattern created here aims to reproduce the pattern used
+          for dynamic tests done under BLOCK-T227, T293 abd T294
         """
 
         # Define the slew offsets for the diamond pattern to match dynamic
@@ -219,6 +243,12 @@ class MoveP2PDiamond(BaseBlockScript):
             (-self.SHORT_SLEW_AZ / (2**0.5), -self.SHORT_SLEW_EL / (2**0.5)),
             (+self.SHORT_SLEW_AZ / (2**0.5), -self.SHORT_SLEW_EL / (2**0.5)),
         ]
+
+        # Adjust offsets based on the specified direction
+        if self.direction == "backward":
+            azel_slew_offsets = [
+                (-az_offset, -el_offset) for az_offset, el_offset in azel_slew_offsets
+            ]
 
         az = az0
         el = el0
@@ -260,7 +290,6 @@ class MoveP2PDiamond(BaseBlockScript):
 
     async def move_to_position(self, az, el):
         """Move the telescope to the specified azimuth and elevation."""
-        self.log.debug(f"Moving telescope to az={az}, el={el}.")
         await self.mtcs.move_p2p_azel(az=az, el=el, timeout=self.move_timeout)
 
     async def run_block(self):
