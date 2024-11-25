@@ -1,0 +1,3 @@
+DM-47756: adding new script maintel/operate_lsstcam_fcs.py
+    - can perform single filter changes
+    - can do an "exercise" test of many changes if selected filters shuffled
