@@ -25,14 +25,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.maintel.tma import MoveP2PDiamond
+from lsst.ts.externalscripts.maintel.tma import ShortLongSlews
 
 
-class TestMoveP2PDiamond(
+class TestShortLongSlews(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     async def basic_make_script(self, index):
-        self.script = MoveP2PDiamond(index=index)
+        self.script = ShortLongSlews(index=index)
         return (self.script,)
 
     @contextlib.asynccontextmanager
