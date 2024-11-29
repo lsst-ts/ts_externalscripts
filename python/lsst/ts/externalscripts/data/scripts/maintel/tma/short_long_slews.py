@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel.tma import MoveP2PDiamond
+from lsst.ts.externalscripts.maintel.tma import ShortLongSlews
 
-asyncio.run(MoveP2PDiamond.amain())
+asyncio.run(ShortLongSlews.amain())

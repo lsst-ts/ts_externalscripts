@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["MoveP2PDiamond"]
+__all__ = ["ShortLongSlews"]
 
 import asyncio
 
@@ -29,16 +29,17 @@ from lsst.ts.salobj import type_hints
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 
 
-class MoveP2PDiamond(BaseBlockScript):
-    """Moves the telescope in a diamond pattern around each grid position.
+class ShortLongSlews(BaseBlockScript):
+    """Execute short and long slews in a diamond pattern for a grid of
+    azimuth and elevation.
 
     Overview:
 
     This script performs a series of point-to-point (P2P) telescope
     movements forming a diamond pattern around each user-defined grid
-    position. It is designed for dynamic tests and performance evaluations,
-    reproducing patterns used in specific engineering tasks (e.g., BLOCK-T227,
-    T293, T294).
+    position with short and long slews. It is designed for dynamic
+    tests and performance evaluations, reproducing patterns used in
+    specific engineering tasks (e.g., BLOCK-T293 and T294).
 
     Execution Order:
 
@@ -70,10 +71,14 @@ class MoveP2PDiamond(BaseBlockScript):
         self.move_timeout = 120.0
         self.direction = "forward"  # Default direction
 
-        self.LONG_SLEW_AZ = 24.0  # degrees
-        self.LONG_SLEW_EL = 12.0  # degrees
-        self.SHORT_SLEW_AZ = 3.5  # degrees
-        self.SHORT_SLEW_EL = 3.5  # degrees
+        # Slews definitions
+        self.AZ_LONG_SLEW = 24  # deg
+        self.AZ_SHORT_SLEW = 3.5  # deg
+        self.EL_LONG_SLEW = 12  # deg
+        self.EL_SHORT_SLEW = 3.5  # deg
+
+        self.EL_DIAG = 0.5
+        self.AZ_DIAG = (1 - self.EL_DIAG**2) ** 0.5
 
         # Telescope limits
         self.max_el = 86.5
@@ -219,29 +224,41 @@ class MoveP2PDiamond(BaseBlockScript):
         - This is useful for avoiding telescope limits when starting near the
           operational boundaries.
         - The diamond pattern created here aims to reproduce the pattern used
-          for dynamic tests done under BLOCK-T227, T293 abd T294
+          for dynamic tests done under T293 abd T294
         """
 
         # Define the slew offsets for the diamond pattern to match dynamic
-        # tests done under BLOCK-T227, T293, T294
+        # tests done under T293, T294
         azel_slew_offsets = [
             (0, 0),
-            (0, +self.LONG_SLEW_EL),
-            (0, -self.LONG_SLEW_EL),
-            (+self.LONG_SLEW_AZ, 0),
-            (-self.LONG_SLEW_AZ, 0),
-            (0, +self.SHORT_SLEW_EL),
-            (0, -self.SHORT_SLEW_EL),
-            (+self.SHORT_SLEW_AZ, 0),
-            (-self.SHORT_SLEW_AZ, 0),
-            (+self.LONG_SLEW_AZ / 2 / (2**0.5), +self.LONG_SLEW_EL / (2**0.5)),
-            (-self.LONG_SLEW_AZ / 2 / (2**0.5), +self.LONG_SLEW_EL / (2**0.5)),
-            (-self.LONG_SLEW_AZ / 2 / (2**0.5), -self.LONG_SLEW_EL / (2**0.5)),
-            (+self.LONG_SLEW_AZ / 2 / (2**0.5), -self.LONG_SLEW_EL / (2**0.5)),
-            (+self.SHORT_SLEW_AZ / (2**0.5), +self.SHORT_SLEW_EL / (2**0.5)),
-            (-self.SHORT_SLEW_AZ / (2**0.5), +self.SHORT_SLEW_EL / (2**0.5)),
-            (-self.SHORT_SLEW_AZ / (2**0.5), -self.SHORT_SLEW_EL / (2**0.5)),
-            (+self.SHORT_SLEW_AZ / (2**0.5), -self.SHORT_SLEW_EL / (2**0.5)),
+            (0, +self.EL_LONG_SLEW),
+            (0, -self.EL_LONG_SLEW),
+            (+self.AZ_LONG_SLEW, 0),
+            (-self.AZ_LONG_SLEW, 0),
+            (0, +self.EL_SHORT_SLEW),
+            (0, -self.EL_SHORT_SLEW),
+            (+self.AZ_SHORT_SLEW, 0),
+            (-self.self.AZ_SHORT_SLEW, 0),
+            (
+                +self.self.AZ_LONG_SLEW / 2 * self.AZ_DIAG,
+                +self.EL_LONG_SLEW * self.EL_DIAG,
+            ),
+            (
+                -self.self.AZ_LONG_SLEW / 2 * self.AZ_DIAG,
+                +self.EL_LONG_SLEW * self.EL_DIAG,
+            ),
+            (
+                -self.self.AZ_LONG_SLEW / 2 * self.AZ_DIAG,
+                -self.EL_LONG_SLEW * self.EL_DIAG,
+            ),
+            (
+                +self.self.AZ_LONG_SLEW / 2 * self.AZ_DIAG,
+                -self.EL_LONG_SLEW * self.EL_DIAG,
+            ),
+            (+self.AZ_SHORT_SLEW * self.AZ_DIAG, +self.EL_SHORT_SLEW * self.EL_DIAG),
+            (-self.AZ_SHORT_SLEW * self.AZ_DIAG, +self.EL_SHORT_SLEW * self.EL_DIAG),
+            (-self.AZ_SHORT_SLEW * self.AZ_DIAG, -self.EL_SHORT_SLEW * self.EL_DIAG),
+            (+self.AZ_SHORT_SLEW * self.AZ_DIAG, -self.EL_SHORT_SLEW * self.EL_DIAG),
         ]
 
         # Adjust offsets based on the specified direction
