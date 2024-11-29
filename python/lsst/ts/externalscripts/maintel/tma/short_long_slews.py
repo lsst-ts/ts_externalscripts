@@ -238,23 +238,11 @@ class ShortLongSlews(BaseBlockScript):
             (0, +self.EL_SHORT_SLEW),
             (0, -self.EL_SHORT_SLEW),
             (+self.AZ_SHORT_SLEW, 0),
-            (-self.self.AZ_SHORT_SLEW, 0),
-            (
-                +self.self.AZ_LONG_SLEW / 2 * self.AZ_DIAG,
-                +self.EL_LONG_SLEW * self.EL_DIAG,
-            ),
-            (
-                -self.self.AZ_LONG_SLEW / 2 * self.AZ_DIAG,
-                +self.EL_LONG_SLEW * self.EL_DIAG,
-            ),
-            (
-                -self.self.AZ_LONG_SLEW / 2 * self.AZ_DIAG,
-                -self.EL_LONG_SLEW * self.EL_DIAG,
-            ),
-            (
-                +self.self.AZ_LONG_SLEW / 2 * self.AZ_DIAG,
-                -self.EL_LONG_SLEW * self.EL_DIAG,
-            ),
+            (-self.AZ_SHORT_SLEW, 0),
+            (+self.AZ_LONG_SLEW / 2 * self.AZ_DIAG, +self.EL_LONG_SLEW * self.EL_DIAG),
+            (-self.AZ_LONG_SLEW / 2 * self.AZ_DIAG, +self.EL_LONG_SLEW * self.EL_DIAG),
+            (-self.AZ_LONG_SLEW / 2 * self.AZ_DIAG, -self.EL_LONG_SLEW * self.EL_DIAG),
+            (+self.AZ_LONG_SLEW / 2 * self.AZ_DIAG, -self.EL_LONG_SLEW * self.EL_DIAG),
             (+self.AZ_SHORT_SLEW * self.AZ_DIAG, +self.EL_SHORT_SLEW * self.EL_DIAG),
             (-self.AZ_SHORT_SLEW * self.AZ_DIAG, +self.EL_SHORT_SLEW * self.EL_DIAG),
             (-self.AZ_SHORT_SLEW * self.AZ_DIAG, -self.EL_SHORT_SLEW * self.EL_DIAG),
