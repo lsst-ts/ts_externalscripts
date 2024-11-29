@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .move_p2p_diamond import *
 from .random_walk import *
 from .random_walk_and_take_image_gencam import *
 from .serpent_walk import *
+from .short_long_slews import *

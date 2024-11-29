@@ -81,7 +81,7 @@ class ShortLongSlews(BaseBlockScript):
         self.AZ_DIAG = (1 - self.EL_DIAG**2) ** 0.5
 
         # Telescope limits
-        self.max_el = 86.5
+        self.max_el = 86.0
         self.min_el = 15
         self.max_az = 180
         self.min_az = -180
