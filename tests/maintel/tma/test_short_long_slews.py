@@ -226,5 +226,5 @@ class TestShortLongSlews(
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
-        script_path = scripts_dir / "maintel" / "tma" / "move_p2p_diamond.py"
+        script_path = scripts_dir / "maintel" / "tma" / "short_long_slews.py"
         await self.check_executable(script_path)
