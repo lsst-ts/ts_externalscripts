@@ -301,8 +301,7 @@ class ShortLongSlews(BaseBlockScript):
             positions = sequence["positions"]
             # Output checkpoint message
             await self.checkpoint(
-                f"Starting sequence (short and long slews) {i+1}/{total_diamonds} "
-                f"at grid point (Az={az0}, El={el0})"
+                f"Starting sequence {i+1}/{total_diamonds} at grid point (Az={az0}, El={el0})"
             )
             total_positions = len(positions)
             for j, (az, el) in enumerate(positions, start=1):
