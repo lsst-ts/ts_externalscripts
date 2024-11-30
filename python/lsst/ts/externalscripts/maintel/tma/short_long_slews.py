@@ -30,41 +30,36 @@ from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 
 
 class ShortLongSlews(BaseBlockScript):
-    """Execute short and long slews in a diamond pattern for a grid of
-    azimuth and elevation.
+    """Execute short and long slews for a grid of azimuths and elevations.
 
     Overview:
 
     This script performs a series of point-to-point (P2P) telescope
     movements forming a diamond pattern around each user-defined grid
-    position with short and long slews. It is designed for dynamic
-    tests and performance evaluations, reproducing patterns used in
-    specific engineering tasks (e.g., BLOCK-T293 and T294).
+    position with short and long slews. It is designed for dynamic tests
+    and performance evaluations, reproducing patterns used in specific
+    engineering tasks (e.g., BLOCK-T293 and T294).
 
     Execution Order:
 
     The script processes the grid positions by iterating over `grid_az`
     first, then `grid_el`. For each azimuth value in `grid_az`, it executes
-    the diamond patterns at all elevation values in `grid_el` in order.
+    short and long slews at all elevation values in the `grid_el` list.
 
     User Guidance:
 
     - Grid Selection: Choose `grid_az` and `grid_el` values within the
       telescope's operational limits. Ensure that cumulative movements
-      from the diamond pattern do not exceed these limits.
+      from the slews do not exceed these limits.
     - Direction Control: Use the `direction` parameter to specify the initial
-      movement direction of the diamond pattern. This is particularly useful
-      when starting near operational limits (e.g., high elevations), as it
-      allows you to avoid exceeding those limits by moving in the opposite
-      direction.
-    - Understanding the Pattern: The diamond pattern consists of cumulative
-      offsets applied to the initial position. Familiarity with the pattern
-      helps in anticipating telescope movements.
+      movement direction of the slew. This is particularly useful when starting
+      near operational limits (e.g., high elevations), as it allows you to
+      avoid exceeding those limits by moving in the opposite direction.
     - Operational Limits: Azimuth: -180° to +180°, Elevation: 15° to 86.5°.
     """
 
     def __init__(self, index: int) -> None:
-        super().__init__(index, descr="Move telescope in diamond pattern around grid.")
+        super().__init__(index, descr="Execute a sequence of short and long slews.")
         self.mtcs = None
         self.grid = dict()
         self.pause_for = 0.0
@@ -105,15 +100,15 @@ class ShortLongSlews(BaseBlockScript):
         # You can retain or update the schema as before
         schema_yaml = """
         $schema: http://json-schema.org/draft-07/schema#
-        title: MoveDiamondPattern Configuration
+        title: ShortLongSlews Configuration
         type: object
         properties:
             grid_az:
                 description: >-
-                  Azimuth coordinate(s) in degrees where the diamond patterns will be executed.
+                  Azimuth coordinate(s) in degrees where the short and long slews will be executed.
                   Can be a single number or a list of numbers. Ensure that the azimuth values,
-                  along with the cumulative offsets from the diamond pattern, remain within
-                  the telescope's operational limits.
+                  along with the cumulative offsets from the slews, remain within the telescope's
+                  operational limits.
                 anyOf:
                   - type: number
                   - type: array
@@ -122,10 +117,10 @@ class ShortLongSlews(BaseBlockScript):
                 minItems: 1
             grid_el:
                 description: >-
-                  Elevation coordinate(s) in degrees where the diamond patterns will be executed.
+                  Elevation coordinate(s) in degrees where the short and long slews will be executed.
                   Can be a single number or a list of numbers. Ensure that the elevation values,
-                  along with the cumulative offsets from the diamond pattern, remain within
-                  the telescope's operational limits
+                  along with the cumulative offsets from the slews, remain within the telescope's
+                  operational limits.
                 anyOf:
                   - type: number
                   - type: array
@@ -134,10 +129,9 @@ class ShortLongSlews(BaseBlockScript):
                 minItems: 1
             direction:
                 description: >-
-                  Direction in which to start the diamond pattern movements.
-                  Options are 'forward' or 'backward'. In 'forward' mode, the pattern
-                  starts with positive offsets; in 'backward' mode, it starts with negative
-                  offsets. Default is 'forward'.
+                  Direction in which to start the slews. Options are 'forward' or 'backward'.
+                  In 'forward' mode, the pattern starts with positive offsets; in 'backward'
+                  mode, it starts with negative offsets. Default is 'forward'.
                 type: string
                 enum:
                   - forward
@@ -199,7 +193,8 @@ class ShortLongSlews(BaseBlockScript):
 
     def generate_diamond_pattern(self, az0, el0):
         """
-        Generate a diamond pattern of azimuth and elevation coordinates.
+        Generate a diamond pattern of azimuth and elevation coordinates
+        with short and long slews.
 
         Parameters:
         az0 (float): Initial azimuth coordinate.
@@ -207,7 +202,7 @@ class ShortLongSlews(BaseBlockScript):
 
         Returns:
         - `positions` (list of tuple):  List of positions forming
-           the diamond patterns.
+           a kind of a diamond pattern with short and long slews.
 
         Pattern Details:
         - The pattern consists of cumulative movements starting from the
@@ -306,12 +301,13 @@ class ShortLongSlews(BaseBlockScript):
             positions = sequence["positions"]
             # Output checkpoint message
             await self.checkpoint(
-                f"Starting diamond sequence {i+1}/{total_diamonds} at grid point (Az={az0}, El={el0})"
+                f"Starting sequence (short and long slews) {i+1}/{total_diamonds} "
+                f"at grid point (Az={az0}, El={el0})"
             )
             total_positions = len(positions)
             for j, (az, el) in enumerate(positions, start=1):
                 self.log.info(
-                    f"Moving to position {j}/{total_positions} in diamond sequence {i+1}: Az={az}, El={el}"
+                    f"Moving to position {j}/{total_positions} of grid sequence {i+1}: Az={az}, El={el}"
                 )
                 await self.move_to_position(az, el)
                 self.log.info(f"Pausing for {self.pause_for}s.")
