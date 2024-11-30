@@ -109,7 +109,7 @@ class ShortLongSlews(BaseBlockScript):
         type: object
         properties:
             grid_az:
-                description: >
+                description: >-
                   Azimuth coordinate(s) in degrees where the diamond patterns will be executed.
                   Can be a single number or a list of numbers. Ensure that the azimuth values,
                   along with the cumulative offsets from the diamond pattern, remain within
@@ -121,7 +121,7 @@ class ShortLongSlews(BaseBlockScript):
                       type: number
                 minItems: 1
             grid_el:
-                description: >
+                description: >-
                   Elevation coordinate(s) in degrees where the diamond patterns will be executed.
                   Can be a single number or a list of numbers. Ensure that the elevation values,
                   along with the cumulative offsets from the diamond pattern, remain within
@@ -133,11 +133,11 @@ class ShortLongSlews(BaseBlockScript):
                       type: number
                 minItems: 1
             direction:
-                description: >
+                description: >-
                   Direction in which to start the diamond pattern movements.
                   Options are 'forward' or 'backward'. In 'forward' mode, the pattern
-                  starts with positive offsets; in 'backward' mode, it starts with negative offsets.
-                  Default is 'forward'.
+                  starts with positive offsets; in 'backward' mode, it starts with negative
+                  offsets. Default is 'forward'.
                 type: string
                 enum:
                   - forward
