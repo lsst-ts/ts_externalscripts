@@ -548,13 +548,34 @@ class BaseTakeTwilightFlats(BaseBlockScript, metaclass=abc.ABCMeta):
 
             if exp_time < self.config.min_exp_time:
                 if self.where_sun == "setting":
-                    sleep_time = 30
-                    self.log.warning(
-                        f"Calculated exposure time {exp_time} below min exposure time "
-                        f"{self.config.min_exp_time}. Waiting {sleep_time}s."
-                    )
-                    await asyncio.sleep(sleep_time)
-                    continue
+                    while exp_time < self.config.min_exp_time:
+                        sleep_time = 30
+                        self.log.warning(
+                            f"Calculated exposure time {exp_time} below min exposure time "
+                            f"{self.config.min_exp_time}. Waiting {sleep_time}s."
+                        )
+                        await asyncio.sleep(sleep_time)
+
+                        # TODO: change from take_acq to take_sflat (DM-46675)
+                        flat_image = await self.camera.take_acq(
+                            exptime=self.config.min_exp_time,
+                            n=1,
+                            group_id=self.group_id,
+                            program=self.program,
+                            reason=self.reason,
+                        )
+
+                        self.latest_exposure_id = int(flat_image[0])
+
+                        sky_counts = await self.get_sky_counts()
+                        self.log.info(
+                            f"Flat just taken with exposure time {self.config.min_exp_time} \
+                                had counts of {sky_counts}"
+                        )
+
+                        exp_time = self.get_new_exptime(
+                            sky_counts, self.config.min_exp_time
+                        )
                 else:
                     self.log.warning(
                         f"Calculated exposure time {exp_time} below min exposure time "

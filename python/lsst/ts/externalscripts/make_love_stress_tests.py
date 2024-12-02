@@ -212,6 +212,7 @@ class StressLOVE(salobj.BaseScript):
                 self.password,
                 event_streams,
                 telemetry_streams,
+                log=self.log,
                 msg_tracing=True,
             )
             self.clients.append(client)

@@ -28,6 +28,7 @@ import yaml
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.xml.enums.MTPtg import WrapStrategy
 
 try:
     from lsst.summit.utils import ConsDbClient
@@ -134,8 +135,10 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             "LSSTComCam", self.latest_exposure_id, detector_num
         )
 
-        query = f"SELECT * from cdb_lsstcomcam.ccdvisit1_quicklook \
-            where ccdvisit_id={ccd_exp_id}"
+        query = (
+            "SELECT * from cdb_lsstcomcam.ccdexposure_quicklook "
+            f"where ccdexposure_id={ccd_exp_id}"
+        )
         item = "postisr_pixel_median"
         get_counts = functools.partial(
             self.client.wait_for_item_in_row,
@@ -185,6 +188,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             dec=dec,
             rot_type=RotType.Physical,
             rot=0,
+            az_wrap_strategy=WrapStrategy.NOUNWRAP,
         )
 
         current_filter = await self.comcam.get_current_filter()
@@ -204,6 +208,7 @@ class TakeTwilightFlatsComCam(BaseTakeTwilightFlats):
             dec=dec,
             rot_type=RotType.PhysicalSky,
             rot=self.config.rotator_angle,
+            az_wrap_strategy=WrapStrategy.NOUNWRAP,
         )
 
         self.tracking_started = True

@@ -1,0 +1,1 @@
+In love_manager_client and moke_love_stress_tests, make sure LoveManagerClient uses a child logging from the script.
