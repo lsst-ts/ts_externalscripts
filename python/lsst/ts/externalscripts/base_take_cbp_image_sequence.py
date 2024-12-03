@@ -73,6 +73,25 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
             self.log.debug("MTCalsys already defined, skipping.")
     '''
 
+    @property
+    @abc.abstractmethod
+    def camera(self):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def configure_camera(self):
+        """Abstract method to configure the camera, to be implemented
+        in subclasses.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def slew_azel_and_setup_instrument(self, azimuth, elevation):
+        """Abstract method to configure the TMA, to be implemented
+        in subclasses.
+        """
+        raise NotImplementedError()
+
     @classmethod
     def get_schema(cls):
         schema_yaml = """
@@ -112,6 +131,18 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
                   Optional. Lists wavelengths to scan in nm.
                 type: array
                 default: [450]
+              tma_az:
+                description: Azimuth of TMA.
+                type: number
+                default: 45
+              tma_el:
+                description: Elevation of TMA.
+                type: number
+                default: 45
+              exp_time:
+                description: Exposure times for camera.
+                type: number
+                default: 30
               electrometer_integration_time:
                 description: >-
                   Integration time in seconds (166.67e-6 to 200e-3) for each sample.
@@ -170,6 +201,10 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
               nburst:
                 type: integer
                 default: 5
+              do_setup_cbp:
+                description: If true, setup CBP.
+                type: boolean
+                default: false
               cbp_elevation:
                 description: CBP elevation in degrees.
                 type: number
@@ -194,6 +229,17 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
                 default: 6000
                 minimum: 0
                 maximum: 13000
+              do_setup_instrument:
+                description: If true, slew and set up TMA + camera.
+                type: boolean
+                default: false
+              do_start_system:
+                description: If true, enable componenets in system.
+                type: boolean
+                default: false
+              exposure_times:
+                description: camera exposure times
+                type: array
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
@@ -216,42 +262,36 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
             Script configuration, as defined by `schema`.
         """
 
+        await self.configure_camera()
         self.config = config
 
         await super().configure(config)
 
     async def start_system(self):
+        """Start up relevant components."""
 
-        self.electrometer_cbp = salobj.Remote(
-            name="Electrometer",
-            domain=self.domain,
-            index=self.electrometer_cbp_index,
-        )
+        if self.config.use_electrometer:
+            self.electrometer_cbp = salobj.Remote(
+                name="Electrometer",
+                domain=self.domain,
+                index=self.electrometer_cbp_index,
+            )
+            await self.electrometer_cbp.start_task
+            await salobj.set_summary_state(self.electrometer_cbp, salobj.State.ENABLED)
 
-        self.electrometer_cbp_cal = salobj.Remote(
-            name="Electrometer",
-            domain=self.domain,
-            index=self.electrometer_cbp_cal_index,
-        )
+        if self.config.do_setup_cbp:
+            self.cbp = salobj.Remote(
+                name="CBP",
+                domain=self.domain,
+            )
 
-        self.cbp = salobj.Remote(
-            name="CBP",
-            domain=self.domain,
-        )
+            await self.cbp.start_task
+            await salobj.set_summary_state(self.cbp, salobj.State.ENABLED)
 
         self.tunablelaser = salobj.Remote(
             name="TunableLaser",
             domain=self.domain,
         )
-
-        await self.electrometer_cbp.start_task
-        await salobj.set_summary_state(self.electrometer_cbp, salobj.State.ENABLED)
-
-        await self.electrometer_cbp_cal.start_task
-        await salobj.set_summary_state(self.electrometer_cbp_cal, salobj.State.ENABLED)
-
-        await self.cbp.start_task
-        await salobj.set_summary_state(self.cbp, salobj.State.ENABLED)
 
         await self.tunablelaser.start_task
         await salobj.set_summary_state(self.tunablelaser, salobj.State.ENABLED)
@@ -423,17 +463,18 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
         )
         await task_wavelength
 
-    async def setup_calibration(self):
-        """Setup calibration system"""
-        """
-        await self.setup_cbp(
-            self.config.cbp_azimuth,
-            self.config.cbp_elevation,
-            self.config.cbp_mask,
-            self.config.cbp_focus,
-            self.config.cbp_rotation,
-        )
-        """
+    async def setup_system(self):
+        """Setup calibration system and camera"""
+
+        if self.config.do_setup_cbp:
+            await self.setup_cbp(
+                self.config.cbp_azimuth,
+                self.config.cbp_elevation,
+                self.config.cbp_mask,
+                self.config.cbp_focus,
+                self.config.cbp_rotation,
+            )
+
         await self.setup_laser(
             self.config.laser_mode,
             self.config.wavelength,
@@ -442,19 +483,16 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
 
         await self.laser_start_propagate()
 
-        await self.setup_electrometer(
-            self.electrometer_cbp,
-            self.config.electrometer_mode,
-            self.config.electrometer_range,
-            self.config.electrometer_integration_time,
-        )
+        if self.use_electrometer:
+            await self.setup_electrometer(
+                self.electrometer_cbp,
+                self.config.electrometer_mode,
+                self.config.electrometer_range,
+                self.config.electrometer_integration_time,
+            )
 
-        await self.setup_electrometer(
-            self.electrometer_cbp_cal,
-            self.config.electrometer_mode,
-            self.config.electrometer_range,
-            self.config.electrometer_integration_time,
-        )
+        if self.config.do_setup_instrument:
+            self.slew_azel_and_setup_instrument(self.config.tma_az, self.config.tma_el)
 
     def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
         """Set script metadata, including estimated duration."""
@@ -569,7 +607,7 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
                 electrometer_exptimes.append(max_exp_time)
                 self.log.info(f"Electrometer exposure time reduced to {max_exp_time}")
             else:
-                electrometer_exptimes.append(exptime)
+                electrometer_exptimes.append(self.config.exp_time)
 
         data = {
             "wavelength": wavelengths,
@@ -607,42 +645,61 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
 
         exposures_done: asyncio.Future = asyncio.Future()
 
-        electrometer_exposure_coroutine_cbp = self.take_electrometer_scan(
-            self.electrometer_cbp,
-            exposure_time=electrometer_exposure_time,
-            exposures_done=exposures_done,
+        camera_exposure_coroutine = await self.camera.take_acq(
+            exptime=self.config.exp_time,
+            n=1,
+            group_id=self.group_id,
+            program=self.program,
+            reason=self.reason,
         )
 
-        electrometer_exposure_coroutine_cbp_cal = self.take_electrometer_scan(
-            self.electrometer_cbp_cal,
-            exposure_time=electrometer_exposure_time,
-            exposures_done=exposures_done,
-        )
+        if self.config.use_electrometer:
 
-        laser_burst_coroutine = self.take_bursts(
-            delay_before=delay_before,
-            delay_after=delay_after,
-            wait_time=0,
-        )
+            electrometer_exposure_coroutine_cbp = self.take_electrometer_scan(
+                self.electrometer_cbp,
+                exposure_time=electrometer_exposure_time,
+                exposures_done=exposures_done,
+            )
+
+        if self.config.laser_mode == 4:
+            laser_burst_coroutine = self.take_bursts(
+                delay_before=delay_before,
+                delay_after=delay_after,
+                wait_time=0,
+            )
 
         try:
 
-            electrometer_exposure_task_cbp = asyncio.create_task(
-                electrometer_exposure_coroutine_cbp
-            )
+            camera_exposure_task = asyncio.create_task(camera_exposure_coroutine)
 
-            electrometer_exposure_task_cbp_cal = asyncio.create_task(
-                electrometer_exposure_coroutine_cbp_cal
-            )
+            if self.config.use_electrometer:
 
-            laser_burst_task = asyncio.create_task(laser_burst_coroutine)
+                electrometer_exposure_task_cbp = asyncio.create_task(
+                    electrometer_exposure_coroutine_cbp
+                )
+
+            if self.config.laser_mode == 4:
+                laser_burst_task = asyncio.create_task(laser_burst_coroutine)
 
         finally:
-            await asyncio.gather(
-                laser_burst_task,
-                electrometer_exposure_task_cbp,
-                electrometer_exposure_task_cbp_cal,
-            )
+
+            if self.config.use_electrometer:
+                if self.config.laser_mode == 4:
+                    await asyncio.gather(
+                        laser_burst_task,
+                        electrometer_exposure_task_cbp,
+                        camera_exposure_task,
+                    )
+                else:
+                    await asyncio.gather(
+                        electrometer_exposure_task_cbp,
+                        camera_exposure_task,
+                    )
+            else:
+                await asyncio.gather(
+                    laser_burst_task,
+                    camera_exposure_task,
+                )
 
     async def take_electrometer_scan(
         self,
@@ -719,9 +776,10 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
         else:
             calibration_wavelengths = self.config.wavelength_list
 
-        exposure_table = await self._calculate_electrometer_exposure_times(
-            wavelengths=calibration_wavelengths,
-        )
+        if self.config.use_electrometer:
+            exposure_table = await self._calculate_electrometer_exposure_times(
+                wavelengths=calibration_wavelengths,
+            )
 
         self.log.info(f"Raw exposure table: {exposure_table}")
 
@@ -733,9 +791,10 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
             self.log.debug(f"exposure is {exposure}")
             self.log.debug(f"Changing wavelength to {exposure.wavelength=}.")
             await self.change_laser_wavelength(wavelength=exposure.wavelength)
-            await self.tunablelaser.cmd_setBurstMode.set_start(
-                count=int(exposure.npulses)
-            )
+            if self.config.laser_mode == 4:
+                await self.tunablelaser.cmd_setBurstMode.set_start(
+                    count=int(exposure.npulses)
+                )
 
             self.log.info(f"Taking sequence {i} out of {len(calibration_wavelengths)}")
 
@@ -756,7 +815,7 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
 
     async def run_block(self):
         """Run the block of tasks to take CBP calibration sequence."""
-
-        await self.start_system()
-        await self.setup_calibration()
+        if self.config.do_start_system:
+            await self.start_system()
+        await self.setup_system()
         await self.take_calibration_sequence()
