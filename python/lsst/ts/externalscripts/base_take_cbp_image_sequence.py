@@ -78,10 +78,51 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
     def camera(self):
         raise NotImplementedError()
 
+    @property
+    @abc.abstractmethod
+    def tcs(self):
+        raise NotImplementedError()
+
     @abc.abstractmethod
     async def configure_camera(self):
         """Abstract method to configure the camera, to be implemented
         in subclasses.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def configure_tcs(self):
+        """Abstract method to configure the tcs, to be implemented
+        in subclasses.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_instrument_name(self):
+        """Abstract method to be defined in subclasses to provide the
+        instrument name.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_instrument_configuration(self) -> dict:
+        """Abstract method to get the instrument configuration.
+
+        Returns
+        -------
+        dict
+            Dictionary with instrument configuration.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_instrument_filter(self) -> str:
+        """Abstract method to get the instrument filter configuration.
+
+        Returns
+        -------
+        str
+            Instrument filter configuration.
         """
         raise NotImplementedError()
 
@@ -139,6 +180,10 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
                 description: Elevation of TMA.
                 type: number
                 default: 45
+              tma_rotator_angle:
+                description: Rotator angle of TMA.
+                type: number
+                default: 0
               exp_time:
                 description: Exposure times for camera.
                 type: number
@@ -263,6 +308,7 @@ class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
         """
 
         await self.configure_camera()
+        await self.configure_tcs()
         self.config = config
 
         await super().configure(config)
