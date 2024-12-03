@@ -150,8 +150,3 @@ class TakeCBPImageSequenceComCam(BaseTakeCBPImageSequence):
             el=el,
             rot_tel=self.tma_rotator_angle,
         )
-
-    async def configure(self, config):
-        """Take the sequence of twilight flats twilight flats."""
-        self.configure_client()
-        await super().configure(config)

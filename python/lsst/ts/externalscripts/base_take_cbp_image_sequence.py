@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["TakeCBPImageSequence"]
+__all__ = ["BaseTakeCBPImageSequence"]
 
 import abc
 import asyncio
@@ -34,7 +34,7 @@ from lsst.ts.xml.enums.Electrometer import UnitToRead
 from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
 
 
-class TakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
+class BaseTakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
     """Class for making CBP throughput scan with CBP calibration system."""
 
     def __init__(self, index, descr="Script for making CBP throughput scan.") -> None:
