@@ -1,2 +1,0 @@
-Create take_rotated_comcam.py script.
-The script takes a ComCam aos sequence at different rotation angles.

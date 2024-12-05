@@ -1,1 +1,0 @@
-Use the new method ``ATCS.assert_ataos_corrections_enabled`` in auxtel scripts

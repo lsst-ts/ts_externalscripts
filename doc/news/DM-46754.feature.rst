@@ -1,1 +1,0 @@
-Point calibration scripts to Sasquatch-enabled Butler repo for LATISS and LSSTComCam.

@@ -8,6 +8,74 @@ Version History
 
 .. towncrier release notes start
 
+v0.29.0 (2024-12-05)
+====================
+
+New Features
+------------
+
+- Use the new method ``ATCS.assert_ataos_corrections_enabled`` in auxtel scripts (`DM-38823 <https://rubinobs.atlassian.net/browse/DM-38823>`_)
+- Add twilight flat script for AuxTel, ComCam, and LSSTCam. (`DM-40956 <https://rubinobs.atlassian.net/browse/DM-40956>`_)
+- Introduced `base_parameter_march.py`: Base class for running for taking sensitivity matrices and parameter marches. (`DM-45761 <https://rubinobs.atlassian.net/browse/DM-45761>`_)
+- Introduced `parameter_march_comcam.py`: Script for taking parameter march images with Simonyi Telescope using LSSTComCam. (`DM-45761 <https://rubinobs.atlassian.net/browse/DM-45761>`_)
+- Introduced `parameter_march_lsstcam.py`: Script for taking parameter march images with Simonyi Telescope using LSSTCam. (`DM-45761 <https://rubinobs.atlassian.net/browse/DM-45761>`_)
+- Extend TCS readiness check to other image types beyond OBJECT, such as:
+  ENGTEST, CWFS and ACQ.
+
+  Configure TCS synchronization to the following script:
+
+  - auxtel/build_pointing_model.py
+  - auxtel/correct_pointing.py
+  - auxtel/latiss_acquire.py (`DM-46179 <https://rubinobs.atlassian.net/browse/DM-46179>`_)
+- Update BaseMakeCalibrations.callpipetask to remove a call to ack.print_vars. (`DM-46458 <https://rubinobs.atlassian.net/browse/DM-46458>`_)
+- In ``maintel/warmup_hexapod.py``, add 5s to the step time delay for metadata estimation. (`DM-46636 <https://rubinobs.atlassian.net/browse/DM-46636>`_)
+- Point calibration scripts to Sasquatch-enabled Butler repo for LATISS and LSSTComCam. (`DM-46754 <https://rubinobs.atlassian.net/browse/DM-46754>`_)
+- Create take_rotated_comcam.py script.
+  The script takes a ComCam aos sequence at different rotation angles. (`DM-46969 <https://rubinobs.atlassian.net/browse/DM-46969>`_)
+- Add darks at the end of the twilight flats. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- In base_parameter_march, use offset_rot instead of slewing to a new target every time.. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- Update BaseMakeCalibrations to trigger cp_verify and don't wait for it to finish.
+
+  - Refactor run_block to handle calibration and verification concurrently
+    using asyncio
+  - Added helper methods (process_images, process_verification,
+    process_calibration) to reduce code duplication
+  - Manage background tasks with a list, including timeout handling and
+    cancellation if not completed in time
+  - Add configuration option `background_task_timeout` to control
+    background task timeouts
+  - Added unit test for BaseMakeCalibrations in
+    `tests/test_base_make_calibrations.py` (`DM-4721 <https://rubinobs.atlassian.net/browse/DM-4721>`_)
+- In maintel/tma/random_walk_and_take_image_gencam.py, add get_instrument_name method. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+- In base_take_twilight_flats.py:
+  - Make rotator angle configurable.
+  - Allow ignoring mtdome.
+  - increase number of darks at end of twilight base_take_twilight_flats.
+  - increase consdb polling timeout.
+  - add option to give twilight flats a pointing. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+- In maintel/take_twilight_flats_comcam.py:
+  - Add nounwrap az wrap strategy.
+  - Fix table name in ConsDB for sky counts. (`DM-47641 <https://rubinobs.atlassian.net/browse/DM-47641>`_)
+- In love_manager_client and moke_love_stress_tests, make sure LoveManagerClient uses a child logging from the script. (`DM-47641 <https://rubinobs.atlassian.net/browse/DM-47641>`_)
+- In base_take_twilight_flats.py, change logic for high counts at sunset. (`DM-47641 <https://rubinobs.atlassian.net/browse/DM-47641>`_)
+
+
+Bug Fixes
+---------
+
+- Update BaseMakeCalibrations.take_image_type to correctly handle setting group_id whith the latest version of BaseScript. (`DM-46201 <https://rubinobs.atlassian.net/browse/DM-46201>`_)
+- Fixing call to RA in parameter_march_comcam.py. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- In base_parameter_march.py, wait for tracking to start to continue. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- Fixing signs in intra/extra focal images. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- In maintel/parameter_march_comcam, wait for extra visit to be ingested before requesting OCSP processing. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Fix signs and make rotation optional in parameter_march.py (`DM-47364 <https://rubinobs.atlassian.net/browse/DM-47364>`_)
+
+
 v0.28.1 (2024-08-27)
 ====================
 

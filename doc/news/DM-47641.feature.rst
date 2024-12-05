@@ -1,3 +1,0 @@
-In maintel/take_twilight_flats_comcam.py:
-- Add nounwrap az wrap strategy.
-- Fix table name in ConsDB for sky counts.
