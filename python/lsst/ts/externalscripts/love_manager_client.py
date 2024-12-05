@@ -64,9 +64,14 @@ class LoveManagerClient:
         password,
         event_streams,
         telemetry_streams,
+        log=None,
         msg_tracing=False,
     ):
-        self.log = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self.log = (
+            log.getChild(type(self).__name__)
+            if log is not None
+            else logging.getLogger(type(self).__name__)
+        )
 
         self.username = username
         self.event_streams = event_streams
@@ -129,7 +134,7 @@ class LoveManagerClient:
             async for message in self.__websocket:
                 if message.type == aiohttp.WSMsgType.TEXT:
                     msg = json.loads(message.data)
-                    self.log.debug("Received message: ", msg)
+                    self.log.debug(f"Received message: {msg}")
                     if "category" not in msg or (
                         "option" in msg and msg["option"] == "subscribe"
                     ):
@@ -162,6 +167,7 @@ class LoveManagerClient:
             "salindex": salindex,
             "stream": topic,
         }
+        self.log.debug(f"send_str={subscribe_msg}")
         await self.__websocket.send_str(json.dumps(subscribe_msg))
 
     async def start_ws_client(self):

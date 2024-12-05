@@ -174,7 +174,7 @@ class WarmUpHexapod(salobj.BaseScript):
         """Set estimated duration of the script."""
         metadata.duration = sum(
             [
-                time * self.get_number_of_steps(step)
+                (time + 5.0) * self.get_number_of_steps(step)
                 for time, step in zip(self.config.sleep_time, self.config.step_size)
             ]
         )

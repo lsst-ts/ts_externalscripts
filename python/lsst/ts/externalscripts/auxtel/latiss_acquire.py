@@ -78,10 +78,16 @@ class LatissAcquire(salobj.BaseScript):
 
         atcs_usage = None if add_remotes else ATCSUsages.DryTest
 
-        self.latiss = LATISS(
-            domain=self.domain, intended_usage=latiss_usage, log=self.log
-        )
         self.atcs = ATCS(domain=self.domain, intended_usage=atcs_usage, log=self.log)
+
+        tcs_ready_to_take_data = self.atcs.ready_to_take_data if add_remotes else None
+
+        self.latiss = LATISS(
+            domain=self.domain,
+            intended_usage=latiss_usage,
+            log=self.log,
+            tcs_ready_to_take_data=tcs_ready_to_take_data,
+        )
 
         self.image_in_oods_timeout = 15.0
 
@@ -593,25 +599,7 @@ class LatissAcquire(salobj.BaseScript):
 
         await self.atcs.assert_all_enabled()
         await self.latiss.assert_all_enabled()
-
-        # TODO (DM-38823): Move this check to ATCS method.
-        self.log.debug("Check ATAOS corrections are enabled.")
-        ataos_corrections = await self.atcs.rem.ataos.evt_correctionEnabled.aget(
-            timeout=self.atcs.fast_timeout
-        )
-
-        assert (
-            ataos_corrections.hexapod
-            and ataos_corrections.m1
-            and ataos_corrections.atspectrograph
-        ), (
-            "Not all required ATAOS corrections are enabled. "
-            "The following loops must all be closed (True), but are currently: "
-            f"Hexapod: {ataos_corrections.hexapod}, "
-            f"M1: {ataos_corrections.m1}, "
-            f"ATSpectrograph: {ataos_corrections.atspectrograph}. "
-            "Enable corrections with the ATAOS 'enableCorrection' command before proceeding.",
-        )
+        await self.atcs.assert_ataos_corrections_enabled()
 
     async def arun(self, checkpoint=False):
         await self.assert_feasibility()

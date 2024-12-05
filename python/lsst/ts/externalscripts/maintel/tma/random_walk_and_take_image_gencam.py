@@ -85,6 +85,8 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
             RandomWalk.get_azel_random_walk,
         )
 
+        self.instrument_name = "GenCam"
+
     async def _take_data(self):
         """Takes data with all the generic cameras"""
         for i in range(self.config.num_exp):
@@ -117,6 +119,9 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
         await asyncio.gather(
             self.tcs.assert_all_enabled(), self.tcs.assert_liveliness(), *tasks
         )
+
+    def get_instrument_name(self):
+        return self.instrument_name
 
     async def configure(self, config):
         """Configure the script.
