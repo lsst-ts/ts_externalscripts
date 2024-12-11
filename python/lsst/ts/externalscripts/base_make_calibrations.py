@@ -1002,15 +1002,12 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             f"Received acknowledgement of ocps command for {image_type} verification."
         )
 
-        ack.print_vars()
         job_id_verify = json.loads(ack.result)["job_id"]
 
         ack = await self.ocps.cmd_execute.next_ackcmd(ack)
         self.log.debug(
             f"Received command completion acknowledgement from ocps ({image_type})"
         )
-        if ack.ack != salobj.SalRetCode.CMD_COMPLETE:
-            ack.print_vars()
 
         while True:
             msg = await self.ocps.evt_job_result.next(
