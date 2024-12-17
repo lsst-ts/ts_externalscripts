@@ -224,7 +224,7 @@ class StressLOVE(salobj.BaseScript):
             await asyncio.sleep(self.loop_time_message_collection)
             for client in self.clients:
                 msg_count += len(client.msg_traces)
-            self.log.debug(
+            self.log.info(
                 f"Received {msg_count}/{self.config.number_of_messages} messages"
             )
         self.log.info(
