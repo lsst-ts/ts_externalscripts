@@ -147,7 +147,6 @@ class RandomWalk(BaseTrackTarget):
                 type: array
                 items:
                   type: string
-                default: []
               rot_value:
                 description: Rotator position value. Actual meaning depends on rot_type.
                 type: number
@@ -209,15 +208,7 @@ class RandomWalk(BaseTrackTarget):
         self.config.rot_type = getattr(RotType, self.config.rot_type)
 
         if hasattr(self.config, "ignore"):
-            for comp in self.config.ignore:
-                if comp not in self.tcs.components_attr:
-                    self.log.warning(
-                        f"Component {comp} not in CSC Group. "
-                        f"Must be one of {self.tcs.components_attr}. Ignoring."
-                    )
-                else:
-                    self.log.debug(f"Ignoring component {comp}.")
-                    setattr(self.tcs.check, comp, False)
+            self.tcs.disable_checks_for_components(components=config.ignore)
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
