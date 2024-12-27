@@ -41,6 +41,7 @@ class TestRandomWalkAndTakeImagesGenCam(
     async def basic_make_script(self, index):
         self.log.debug("Starting basic_make_script")
         self.script = RandomWalkAndTakeImagesGenCam(index=index, add_remotes=False)
+        self.script._mtcs.disable_checks_for_components = unittest.mock.Mock()
 
         self.log.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
@@ -116,6 +117,26 @@ class TestRandomWalkAndTakeImagesGenCam(
                     assert getattr(RotType, configuration_full[key]) == getattr(
                         self.script.config, key
                     )
+
+    async def test_configure_ignore(self):
+        async with self.make_script():
+            # Try configure with minimum set of parameters declared
+            # Note that all are scalars and should be converted to arrays
+            total_time = 3600.0
+            camera_sal_indexes = [0, 1]
+            exp_times = [1, 2]
+            components = ["mtptg", "no_comp"]
+
+            await self.configure_script(
+                total_time=total_time,
+                camera_sal_indexes=camera_sal_indexes,
+                exp_times=exp_times,
+                ignore=components,
+            )
+
+            self.script._mtcs.disable_checks_for_components.assert_called_once_with(
+                components=components
+            )
 
     async def test_executable(self):
         script_name = "random_walk_and_take_image_gencam.py"

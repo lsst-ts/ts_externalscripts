@@ -141,15 +141,8 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
         self.config = config
         self.config.rot_type = getattr(RotType, self.config.rot_type)
 
-        for comp in self.config.ignore:
-            if comp not in self.tcs.components_attr:
-                self.log.warning(
-                    f"Component {comp} not in CSC Group. "
-                    f"Must be one of {self.tcs.components_attr}. Ignoring."
-                )
-            else:
-                self.log.debug(f"Ignoring component {comp}.")
-                setattr(self.tcs.check, comp, False)
+        if hasattr(config, "ignore"):
+            self.tcs.disable_checks_for_components(components=config.ignore)
 
         self.gencam_list = [
             GenericCamera(
@@ -228,7 +221,6 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
                 type: array
                 items:
                   type: string
-                default: []
               rot_value:
                 description: Rotator position value. Actual meaning depends on rot_type.
                 type: number
@@ -331,7 +323,6 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
             - big_offset_radius
             - track_for
             - stop_when_done
-            - ignore
             - rot_value
             - rot_type
             - az_wrap_strategy
@@ -360,7 +351,7 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
             New dome Azimuth position in degrees.
         """
         # Return right away if ignoring the dome
-        if "mtdome" in self.config.ignore:
+        if "mtdome" in getattr(self.config, "ignore", []):
             return
 
         # The dome usually goes to a fault when the brakes engage.
