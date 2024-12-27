@@ -165,9 +165,13 @@ class TestParameterMarchComCam(
             assert self.script.rotation_sequence == [10, 20, 30, 40, 50]
             assert self.script.config.program == "BLOCK-TXXX"
 
-            # Verify that the ignored components are correctly set to False
-            assert not self.script.mtcs.check.mtm1m3
-            assert not self.script.mtcs.check.mtrotator
+            # Verify ignoring components
+            self.script.mtcs.disable_checks_for_components.assert_called_once_with(
+                components=config["ignore"]
+            )
+            self.script.camera.disable_checks_for_components.assert_called_once_with(
+                components=config["ignore"]
+            )
 
     async def test_configure_dof_index(self):
         config = {
@@ -201,10 +205,6 @@ class TestParameterMarchComCam(
             assert self.script.step_sequence == [0, 100, 200, 300, 400]
             assert self.script.rotation_sequence == [10, 20, 30, 40, 50]
             assert self.script.config.program == "BLOCK-TXXX"
-
-            # Verify that the ignored components are correctly set to False
-            assert not self.script.mtcs.check.mtm1m3
-            assert not self.script.mtcs.check.mtrotator
 
     async def test_invalid_configuration(self):
         bad_configs = [

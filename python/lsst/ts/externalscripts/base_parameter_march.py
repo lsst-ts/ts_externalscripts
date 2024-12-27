@@ -245,19 +245,10 @@ class BaseParameterMarch(BaseBlockScript):
         await self.configure_ocps()
 
         if hasattr(config, "ignore"):
-            for comp in config.ignore:
-                if comp in self.tcs.components_attr:
-                    self.log.debug(f"Ignoring TCS component {comp}.")
-                    setattr(self.tcs.check, comp, False)
-                elif comp in self.camera.components_attr:
-                    self.log.debug(f"Ignoring Camera component {comp}.")
-                    setattr(self.camera.check, comp, False)
-                else:
-                    self.log.warning(
-                        f"Component {comp} not in CSC Groups. "
-                        f"Must be one of {self.tcs.components_attr} or "
-                        f"{self.camera.components_attr}. Ignoring."
-                    )
+            self.log.debug("Ignoring TCS components.")
+            self.tcs.disable_checks_for_components(components=config.ignore)
+            self.log.debug("Ignoring Camera components.")
+            self.camera.disable_checks_for_components(components=config.ignore)
 
         if hasattr(config, "step_sequence"):
             self.step_sequence = config.step_sequence
