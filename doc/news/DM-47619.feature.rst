@@ -1,0 +1,10 @@
+Update the implementation of the ignore feature in all scripts to use the ``RemoteGroup.disable_checks_for_components`` method.
+
+Updated scripts:
+- ``base_parameter_march.py``
+- ``base_take_ptc_flats.py``
+- ``maintel/tma/random_walk.py``
+- ``maintel/tma/random_walk_and_take_image_gencam.py``
+- ``maintel/tma/serpent_walk.py``
+- ``base_take_twilight_flats.py``
+
