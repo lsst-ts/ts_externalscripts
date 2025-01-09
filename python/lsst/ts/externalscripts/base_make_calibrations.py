@@ -757,8 +757,15 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         # Use the camera-agnostic yaml file if the camera-specific
         # file does not exist.
         cp_pipe_dir = getPackageDir("cp_pipe")
+
+        on_disk_yaml = pipe_yaml
+        if "#" in on_disk_yaml:
+            # We are using a subset from this yaml, and so must remove
+            # the subset before checking for file existence.
+            on_disk_yaml = on_disk_yaml.split("#", 1)[0]
+
         pipeline_yaml_file = os.path.join(
-            cp_pipe_dir, "pipelines", self.pipeline_instrument, pipe_yaml
+            cp_pipe_dir, "pipelines", self.pipeline_instrument, on_disk_yaml
         )
         file_exists = os.path.exists(pipeline_yaml_file)
         if file_exists:
