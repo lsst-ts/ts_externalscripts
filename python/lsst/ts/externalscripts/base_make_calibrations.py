@@ -773,7 +773,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 f"${{CP_PIPE_DIR}}/pipelines/{self.pipeline_instrument}/{pipe_yaml}"
             )
         else:
-            pipeline_yaml_file = f"${{CP_PIPE_DIR}}/pipelines/{pipe_yaml}"
+            pipeline_yaml_file = f"${{CP_PIPE_DIR}}/pipelines/_ingredients/{pipe_yaml}"
 
         # This returns the in-progress acknowledgement with the job identifier
         ack = await self.ocps.cmd_execute.set_start(
