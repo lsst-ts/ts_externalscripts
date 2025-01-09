@@ -776,13 +776,14 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             pipeline_yaml_file = f"${{CP_PIPE_DIR}}/pipelines/_ingredients/{pipe_yaml}"
 
         # This returns the in-progress acknowledgement with the job identifier
+        exposure_id_string = str(exposure_ids) if len(exposure_ids) > 1 else f"({exposure_ids[0]})"
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
             pipeline=f"{pipeline_yaml_file}",
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
-            f" detector IN {self.detectors_string} AND exposure IN {exposure_ids}",
+            f" detector IN {self.detectors_string} AND exposure IN {exposure_id_string}",
         )
         self.log.debug(
             f"Received acknowledgement of ocps command for {image_type} pipetask."
@@ -997,13 +998,14 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             pipeline_yaml_file = f"${{CP_VERIFY_DIR}}/pipelines/{pipe_yaml}"
 
         # Verify the combined calibration
+        exposure_id_string = str(exposure_ids) if len(exposure_ids) > 1 else f"({exposure_ids[0]})"
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
             pipeline=f"{pipeline_yaml_file}",
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
-            f" detector IN {self.detectors_string} AND exposure IN {exposure_ids}",
+            f" detector IN {self.detectors_string} AND exposure IN {exposure_id_string}",
         )
         self.log.debug(
             f"Received acknowledgement of ocps command for {image_type} verification."
