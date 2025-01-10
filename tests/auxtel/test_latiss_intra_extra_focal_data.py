@@ -235,13 +235,6 @@ class TestLatissIntraExtraFocalData(
         logger.debug(
             f"Exposing for {one_exp_time} seconds for each exposure, total exposures is {data.numImages}"
         )
-        await asyncio.sleep(one_exp_time * data.numImages)
-        self.nimages += 1
-        logger.debug("Scheduling finish_take_images before returning from take_images")
-        self.end_image_tasks.append(asyncio.create_task(self.finish_take_images()))
-
-    async def finish_take_images(self):
-        await asyncio.sleep(0.5)
         # Allow an override of image numbers incase the test datasets are
         # non-sequential
         if not self.img_cnt_override_list:
@@ -255,6 +248,16 @@ class TestLatissIntraExtraFocalData(
             image_name = f"AT_O_{self.date}_{(imgNum):06d}"
 
         logger.debug(f"Mock camera returning imageName={image_name}")
+        await self.atcamera.evt_startIntegration.set_write(imageName=image_name)
+        await asyncio.sleep(one_exp_time * data.numImages)
+        self.nimages += 1
+        logger.debug("Scheduling finish_take_images before returning from take_images")
+        self.end_image_tasks.append(
+            asyncio.create_task(self.finish_take_images(image_name=image_name))
+        )
+
+    async def finish_take_images(self, image_name):
+        await asyncio.sleep(0.5)
         await self.atcamera.evt_endReadout.set_write(imageName=image_name)
         await asyncio.sleep(0.5)
         await self.atheaderservice.evt_largeFileObjectAvailable.write()
