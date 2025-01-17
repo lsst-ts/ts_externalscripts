@@ -5,6 +5,7 @@ config.log
 *.log
 .vscode
 version.py
+python/*.dist-info/
 
 # Pytest
 tests/.tests
