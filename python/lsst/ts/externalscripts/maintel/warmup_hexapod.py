@@ -97,7 +97,7 @@ class WarmUpHexapod(salobj.BaseScript):
                 anyOf:
                   - type: number
                   - type: array
-                default: 250
+                default: 100
               sleep_time:
                 description: >-
                   The sleep time in seconds between movements. The number of
