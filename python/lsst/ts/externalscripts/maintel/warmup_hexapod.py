@@ -356,7 +356,7 @@ class WarmUpHexapod(salobj.BaseScript):
 
             # If the hexapod is in fault, recover it
             try:
-                state = self.hexapod.evt_summaryState.get()
+                state = self.hexapod.evt_summaryState.get().summaryState
                 if state == salobj.State.FAULT:
                     self.log.info(
                         f"Recover the {self.hexapod_name} CSC from the Fault."
