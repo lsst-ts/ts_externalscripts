@@ -1,0 +1,1 @@
+Improve the warmup_hexapod.py to recover from the failure and change the step size in the runtime.
