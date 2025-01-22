@@ -355,26 +355,18 @@ class WarmUpHexapod(salobj.BaseScript):
             )
 
             # If the hexapod is in fault, recover it
-            try:
-                state = self.hexapod.evt_summaryState.get().summaryState
-                if state == salobj.State.FAULT:
-                    self.log.info(
-                        f"Recover the {self.hexapod_name} CSC from the Fault."
-                    )
-                    await salobj.set_summary_state(self.hexapod, salobj.State.ENABLED)
-            except Exception:
-                pass
+            state = self.hexapod.evt_summaryState.get().summaryState
+            if state == salobj.State.FAULT:
+                self.log.info(f"Recover the {self.hexapod_name} CSC from the Fault.")
+                await salobj.set_summary_state(self.hexapod, salobj.State.ENABLED)
 
             # If the hexapod is moving, stop it
-            try:
-                controller_enabled_state = (
-                    self.hexapod.evt_controllerState.get().enabledSubstate
-                )
-                if controller_enabled_state == EnabledSubstate.MOVING_POINT_TO_POINT:
-                    self.log.info(f"Stop the {self.hexapod_name} CSC.")
-                    await self.hexapod.cmd_stop.set_start()
-            except Exception:
-                pass
+            controller_enabled_state = (
+                self.hexapod.evt_controllerState.get().enabledSubstate
+            )
+            if controller_enabled_state == EnabledSubstate.MOVING_POINT_TO_POINT:
+                self.log.info(f"Stop the {self.hexapod_name} CSC.")
+                await self.hexapod.cmd_stop.set_start()
 
             # Wait for a few seconds
             await asyncio.sleep(5.0)
