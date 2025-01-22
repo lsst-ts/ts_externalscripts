@@ -349,7 +349,7 @@ class WarmUpHexapod(salobj.BaseScript):
             await self.move_hexapod(x, y, z, u, v, w=w)
 
             return True
-        except (asyncio.CancelledError, TimeoutError):
+        except (asyncio.CancelledError, TimeoutError, salobj.base.AckError):
             self.log.exception(
                 f"Error moving the {self.hexapod_name} to {x=}, {y=}, {z=}, {u=}, {v=}."
             )
