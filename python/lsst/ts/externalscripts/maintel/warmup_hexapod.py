@@ -213,7 +213,12 @@ class WarmUpHexapod(salobj.BaseScript):
             await self.single_loop(step, sleep_time)
 
     async def move_stepwise(
-        self, start: float, stop: float, step_initial: float, sleep_time: float
+        self,
+        start: float,
+        stop: float,
+        step_initial: float,
+        sleep_time: float,
+        max_count: int = 5,
     ):
         """Moves the hexapod from `start` to `stop` that begins from
         `step_initial`. The step size is updated based on the result of the
@@ -229,8 +234,16 @@ class WarmUpHexapod(salobj.BaseScript):
             Initial step size.
         sleep_time : `float`
             Time between movements.
+        max_count : `int`, optional
+            Maximum count to try. (the default is 5)
+
+        Raises
+        ------
+        `RuntimeError`
+            When the hexapod fails to move in a single stage.
         """
 
+        count = 0
         position_current = start
         position_next = start
         step_current = step_initial
@@ -243,6 +256,11 @@ class WarmUpHexapod(salobj.BaseScript):
             else:
                 if position_next <= stop:
                     position_next = stop
+
+            self.log.debug(
+                f"{self.hexapod_name} moves from {position_current} to "
+                f"{position_next} with step size: {step_current}"
+            )
 
             # Do the movement
             all_positions = await self._get_position()
@@ -266,6 +284,18 @@ class WarmUpHexapod(salobj.BaseScript):
             else:
                 position_fail = await self._get_position()
                 position_current = position_fail[self.config.axis]
+
+                count += 1
+
+            if count >= max_count:
+                raise RuntimeError(
+                    f"{self.hexapod_name} failed to move with {max_count} "
+                    "tries in a single stage"
+                )
+
+            self.log.debug(
+                f"Current position of {self.hexapod_name} is {position_current}"
+            )
 
             await asyncio.sleep(sleep_time)
 
@@ -319,19 +349,23 @@ class WarmUpHexapod(salobj.BaseScript):
             await self.move_hexapod(x, y, z, u, v, w=w)
 
             return True
-        except Exception:
+        except (asyncio.CancelledError, TimeoutError):
+            self.log.exception(
+                f"Error moving the {self.hexapod_name} to {x=}, {y=}, {z=}, {u=}, {v=}."
+            )
+
             # If the hexapod is moving, stop it
             controller_enabled_state = (
                 self.hexapod.evt_controllerState.get().enabledSubstate
             )
             if controller_enabled_state == EnabledSubstate.MOVING_POINT_TO_POINT:
-                self.log.info("Stop the hexapod CSC.")
+                self.log.info(f"Stop the {self.hexapod_name} CSC.")
                 await self.hexapod.cmd_stop.set_start()
 
             # If the hexapod is in fault, recover it
             state = self.hexapod.evt_summaryState.get()
             if state == salobj.State.FAULT:
-                self.log.info("Recover the hexapod CSC from the Fault.")
+                self.log.info(f"Recover the {self.hexapod_name} CSC from the Fault.")
                 await salobj.set_summary_state(self.hexapod, salobj.State.ENABLED)
 
             # Wait for a few seconds
@@ -352,13 +386,16 @@ class WarmUpHexapod(salobj.BaseScript):
         sleep_time : float
             Time between movements.
         """
-        self.log.info(f"Start loop with {step} step and {sleep_time} sleep time.")
+        self.log.info(
+            f"{self.hexapod_name} starts loop with {step} step and {sleep_time} sleep time."
+        )
 
         # Move to the origin first
+        self.log.info(f"Move the {self.hexapod_name} to the origin")
         await self._move_to_origin()
 
         # Positive direction
-        self.log.debug("Move from 0 to maximum position")
+        self.log.info(f"Move {self.hexapod_name} from 0 to maximum position")
         await self.move_stepwise(
             0.0,
             self.config.max_position,
@@ -366,7 +403,7 @@ class WarmUpHexapod(salobj.BaseScript):
             sleep_time,
         )
 
-        self.log.debug("Move from maximum position back to 0")
+        self.log.info(f"Move {self.hexapod_name} from maximum position back to 0")
         await self.move_stepwise(
             self.config.max_position,
             0.0,
@@ -375,7 +412,7 @@ class WarmUpHexapod(salobj.BaseScript):
         )
 
         # Negative direction
-        self.log.debug("Move from 0 to minimum position")
+        self.log.info(f"Move {self.hexapod_name} from 0 to minimum position")
         await self.move_stepwise(
             0.0,
             -self.config.max_position,
@@ -383,7 +420,7 @@ class WarmUpHexapod(salobj.BaseScript):
             sleep_time,
         )
 
-        self.log.debug("Move from minimum position back to 0")
+        self.log.info(f"Move {self.hexapod_name} from minimum position back to 0")
         await self.move_stepwise(
             -self.config.max_position,
             0.0,
@@ -414,5 +451,5 @@ class WarmUpHexapod(salobj.BaseScript):
                 count += 1
 
         raise RuntimeError(
-            f"Failed to move the hexapod to the origin. with {max_count} tries"
+            f"Failed to move {self.hexapod_name} to the origin. with {max_count} tries"
         )
