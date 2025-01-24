@@ -757,8 +757,15 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         # Use the camera-agnostic yaml file if the camera-specific
         # file does not exist.
         cp_pipe_dir = getPackageDir("cp_pipe")
+
+        on_disk_yaml = pipe_yaml
+        if "#" in on_disk_yaml:
+            # We are using a subset from this yaml, and so must remove
+            # the subset before checking for file existence.
+            on_disk_yaml = on_disk_yaml.split("#", 1)[0]
+
         pipeline_yaml_file = os.path.join(
-            cp_pipe_dir, "pipelines", self.pipeline_instrument, pipe_yaml
+            cp_pipe_dir, "pipelines", self.pipeline_instrument, on_disk_yaml
         )
         file_exists = os.path.exists(pipeline_yaml_file)
         if file_exists:
@@ -766,16 +773,19 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 f"${{CP_PIPE_DIR}}/pipelines/{self.pipeline_instrument}/{pipe_yaml}"
             )
         else:
-            pipeline_yaml_file = f"${{CP_PIPE_DIR}}/pipelines/{pipe_yaml}"
+            pipeline_yaml_file = f"${{CP_PIPE_DIR}}/pipelines/_ingredients/{pipe_yaml}"
 
         # This returns the in-progress acknowledgement with the job identifier
+        exposure_id_string = (
+            str(exposure_ids) if len(exposure_ids) > 1 else f"({exposure_ids[0]})"
+        )
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
             pipeline=f"{pipeline_yaml_file}",
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
-            f" detector IN {self.detectors_string} AND exposure IN {exposure_ids}",
+            f" detector IN {self.detectors_string} AND exposure IN {exposure_id_string}",
         )
         self.log.debug(
             f"Received acknowledgement of ocps command for {image_type} pipetask."
@@ -990,13 +1000,16 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             pipeline_yaml_file = f"${{CP_VERIFY_DIR}}/pipelines/{pipe_yaml}"
 
         # Verify the combined calibration
+        exposure_id_string = (
+            str(exposure_ids) if len(exposure_ids) > 1 else f"({exposure_ids[0]})"
+        )
         ack = await self.ocps.cmd_execute.set_start(
             wait_done=False,
             pipeline=f"{pipeline_yaml_file}",
             version="",
             config=f"{config_string}",
             data_query=f"instrument='{self.instrument_name}' AND"
-            f" detector IN {self.detectors_string} AND exposure IN {exposure_ids}",
+            f" detector IN {self.detectors_string} AND exposure IN {exposure_id_string}",
         )
         self.log.debug(
             f"Received acknowledgement of ocps command for {image_type} verification."

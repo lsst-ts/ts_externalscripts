@@ -1,0 +1,1 @@
+BaseMakeCalibrations.call_pipetask would fail to find pipeline if a subset was supplied.
