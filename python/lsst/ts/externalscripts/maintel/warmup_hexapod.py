@@ -25,8 +25,9 @@ from collections.abc import Iterable
 
 import yaml
 from lsst.ts import salobj
-from lsst.ts.idl.enums.MTHexapod import EnabledSubstate, SalIndex
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
+from lsst.ts.xml.enums.MTHexapod import EnabledSubstate, SalIndex
+from lsst.ts.xml.enums.Watcher import AlarmSeverity
 
 
 class WarmUpHexapod(salobj.BaseScript):
@@ -169,6 +170,13 @@ class WarmUpHexapod(salobj.BaseScript):
             else self.mtcs.move_m2_hexapod
         )
 
+        # Get the Watcher remote
+        if hasattr(self.mtcs.rem, "watcher"):
+            self.watcher = getattr(self.mtcs.rem, "watcher")
+        else:
+            self.watcher = salobj.Remote(domain=self.domain, name="Watcher")
+            await self.watcher.start_task
+
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
         metadata.duration = sum(
@@ -209,8 +217,48 @@ class WarmUpHexapod(salobj.BaseScript):
     async def warm_up(self):
         """Run the `single_loop` function for each step_size/sleep_time pair
         of values."""
+
+        # Mute the watcher alarm
+        alarm_name = f"Enabled.MTHexapod:{self.hexapod_sal_index.value}"
+        self.log.info(
+            f"Muting {self.hexapod_name} alarm: {alarm_name} for 3600 seconds."
+        )
+
+        try:
+            await self.watcher.cmd_mute.set_start(
+                name=alarm_name,
+                duration=3600.0,
+                severity=AlarmSeverity.CRITICAL.value,
+                mutedBy="warmup_hexapod.py",
+                timeout=60.0,
+            )
+
+            is_mutted = True
+
+            self.log.info(f"{self.hexapod_name} alarm: {alarm_name} is muted.")
+
+        except Exception as error:
+            self.log.exception(
+                f"Failed to mute the {self.hexapod_name} {alarm_name} alarm: {error}"
+            )
+
+            is_mutted = False
+
+        # Do the warmings
         for step, sleep_time in zip(self.config.step_size, self.config.sleep_time):
             await self.single_loop(step, sleep_time)
+
+        # Unmute the watcher alarm
+        if is_mutted:
+            try:
+                await self.watcher.cmd_unmute.set_start(name=alarm_name)
+
+                self.log.info(f"{self.hexapod_name}: alarm {alarm_name} is unmuted.")
+
+            except Exception as error:
+                self.log.exception(
+                    f"Failed to unmute the {self.hexapod_name} {alarm_name} alarm: {error}"
+                )
 
     async def move_stepwise(
         self,
