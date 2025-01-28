@@ -26,8 +26,8 @@ import unittest
 import numpy as np
 from lsst.ts import externalscripts, standardscripts, utils
 from lsst.ts.externalscripts.maintel import WarmUpHexapod
-from lsst.ts.idl.enums import Script
-from lsst.ts.idl.enums.MTHexapod import SalIndex
+from lsst.ts.xml.enums import Script
+from lsst.ts.xml.enums.MTHexapod import SalIndex
 
 np.random.seed(42)
 
