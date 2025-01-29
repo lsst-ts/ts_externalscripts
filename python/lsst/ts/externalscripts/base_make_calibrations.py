@@ -293,17 +293,17 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 type: string
                 descriptor: Options to be passed to the command-line bias pipetask. They will overwrite \
                     the values in cpBias.yaml.
-                default: "-c isr:doDefect=False"
+                default: " "
             config_options_dark:
                 type: string
                 descriptor: Options to be passed to the command-line dark pipetask. They will overwrite \
                     the values in cpDark.yaml.
-                default: "-c isr:doDefect=False "
+                default: " "
             config_options_flat:
                 type: string
                 descriptor: Options to be passed to the command-line flat pipetask. They will overwrite \
                     the values in cpFlat.yaml.
-                default: "-c isr:doDefect=False "
+                default: " "
             do_defects:
                 type: boolean
                 descriptor: Should defects be built using darks and flats? This configuration will \
@@ -313,7 +313,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 type: string
                 descriptor: Options to be passed to the command-line defects pipetask. They will overwrite \
                     the values in findDefects.yaml.
-                default: "-c isr:doDefect=False "
+                default: " "
             do_ptc:
                 type: boolean
                 descriptor: Should a Photon Transfer Curve be constructed from the flats taken? This \
@@ -323,7 +323,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 type: string
                 descriptor: Options to be passed to the command-line PTC pipetask. They will overwrite \
                     the values in cpPtc.yaml.
-                default: "-c isr:doCrosstalk=False "
+                default: " "
             do_gain_from_flat_pairs:
                 type: boolean
                 descriptor: Should the gain be estimated from each pair of flats
