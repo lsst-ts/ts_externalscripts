@@ -24,7 +24,6 @@ import asyncio
 import functools
 
 import yaml
-from lsst.ts.observatory.control import RemoteGroup
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS
 from lsst.ts.observatory.control.utils import RotType
@@ -224,21 +223,3 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
             az=az,
             el=el,
         )
-
-    async def configure(self, config):
-        """Take the sequence of twilight flats twilight flats."""
-        await super().configure(config)
-
-        if hasattr(config, "ignore"):
-            # Ignoring only specific MTCS components
-            allowed_ignore = ["mtdome", "mtdometrajectory"]
-            for comp in map(RemoteGroup._remote_name_to_attr_format, config.ignore):
-                if comp in allowed_ignore:
-                    self.log.debug(f"Ignoring dome component {comp}.")
-                    setattr(self.mtcs.check, comp, False)
-                else:
-                    self.log.warning(
-                        f"Component {comp} not in MTCS or not allowed to ignore. "
-                        f"Must be one of {allowed_ignore}. "
-                        f"Ignoring."
-                    )

@@ -47,7 +47,6 @@ class TestTakeTwilightFlatsLatiss(
         self.script.latiss.assert_all_enabled = mock.AsyncMock()
         self.script.latiss.take_focus = mock.AsyncMock(return_value=[1234])
         self.script.latiss.take_acq = mock.AsyncMock(return_value=([32, 0]))
-        self.script.latiss.disable_checks_for_components = mock.Mock()
 
     def mock_consdb(self):
         """Mock consdb and its methods."""
@@ -90,20 +89,6 @@ class TestTakeTwilightFlatsLatiss(
             for bad_config in bad_configs:
                 with pytest.raises(salobj.ExpectedError):
                     await self.configure_script(**bad_config)
-
-    async def test_configure_ignore(self):
-        components = ["atspectrograph", "not_comp"]
-        config = {
-            "filter": "SDSSr_65mm",
-            "ignore": components,
-        }
-
-        async with self.make_script():
-            await self.configure_script(**config)
-
-            self.script.camera.disable_checks_for_components.assert_called_once_with(
-                components=components
-            )
 
     @unittest.skipIf(
         BEST_ISR_AVAILABLE is False,

@@ -36,7 +36,6 @@ class TestTakeTwilightFlatsLSSTCam(
         self.script.lsstcam.assert_all_enabled = mock.AsyncMock()
         self.script.lsstcam.take_focus = mock.AsyncMock(return_value=[1234])
         self.script.lsstcam.take_acq = mock.AsyncMock(return_value=([32, 0]))
-        self.script.lsstcam.disable_checks_for_components = mock.Mock()
 
     def mock_consdb(self):
         """Mock consdb and its methods."""
@@ -77,28 +76,6 @@ class TestTakeTwilightFlatsLSSTCam(
             for bad_config in bad_configs:
                 with pytest.raises(salobj.ExpectedError):
                     await self.configure_script(**bad_config)
-
-    async def test_configure_ignore(self):
-        components = [
-            "mtoods",  # LSSTCam component
-            "mtdome",  # MTCS component
-            "mtmount",  # Not allowed to ignore MTCS component
-            "not_comp",  # Neither MTCS nor LSSTCam component
-        ]
-        config = {
-            "filter": "r_03",
-            "ignore": components,
-        }
-
-        async with self.make_script():
-            await self.configure_script(**config)
-
-            self.script.camera.disable_checks_for_components.assert_called_once_with(
-                components=components
-            )
-            assert not self.script.mtcs.check.mtdome
-            self.script.mtcs.check.mtmount.assert_not_called()
-            self.script.mtcs.check.not_comp.assert_not_called()
 
     """
     async def test_take_twilight_flats(self):
