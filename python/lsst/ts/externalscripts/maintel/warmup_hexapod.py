@@ -117,6 +117,14 @@ class WarmUpHexapod(salobj.BaseScript):
                 exclusiveMinimum: 0.0
                 maximum: 13000.0
                 default: 13000.0
+              max_verification_position:
+                description: >-
+                  Maximum verification position (absolute value) for the
+                  movements. Consider to use the small value for x and y.
+                type: number
+                exclusiveMinimum: 0.0
+                maximum: 11000.0
+                default: 2000.0
             additionalProperties: false
             """
         return yaml.safe_load(yaml_schema)
@@ -137,6 +145,7 @@ class WarmUpHexapod(salobj.BaseScript):
             f"  step_size: {config.step_size}\n"
             f"  sleep_time: {config.sleep_time}\n"
             f"  max_position: {config.max_position}\n"
+            f"  max_verification_position: {config.max_verification_position}\n"
         )
 
         self.config = config
@@ -214,9 +223,20 @@ class WarmUpHexapod(salobj.BaseScript):
                 raise
         await self.checkpoint("Done")
 
-    async def warm_up(self):
+    async def warm_up(self, max_count: int = 5) -> None:
         """Run the `single_loop` function for each step_size/sleep_time pair
-        of values."""
+        of values.
+
+        Parameters
+        ----------
+        max_count : `int`, optional
+            Maximum count to try. (the default is 5)
+
+        Raises
+        ------
+        `RuntimeError`
+            When the hexapod fails to pass the verification stage.
+        """
 
         # Mute the watcher alarm
         alarm_name = f"Enabled.MTHexapod:{self.hexapod_sal_index.value}"
@@ -244,11 +264,85 @@ class WarmUpHexapod(salobj.BaseScript):
 
             is_mutted = False
 
-        # Do the warmings
-        for step, sleep_time in zip(self.config.step_size, self.config.sleep_time):
-            await self.single_loop(step, sleep_time)
+        # Do the warming followed by the verification
+        count = 0
+        while count < max_count:
+            try:
+                # Do the warmings
+                for step, sleep_time in zip(
+                    self.config.step_size, self.config.sleep_time
+                ):
+                    await self.single_loop(step, sleep_time)
+
+                # Sleep for some time before the verification
+                await asyncio.sleep(5.0)
+
+                # Do the verification. If successful, exit the loop
+                self.log.info(f"Doing the verification: {count + 1}")
+                if await self._verify_full_range():
+                    break
+
+            except Exception:
+                # Unmute the watcher alarm
+                await self._unmute_alarm(is_mutted, alarm_name)
+
+                raise
+
+            count += 1
 
         # Unmute the watcher alarm
+        await self._unmute_alarm(is_mutted, alarm_name)
+
+        if count >= max_count:
+            raise RuntimeError(
+                f"{self.hexapod_name} failed to pass the verification stage with {max_count} tries"
+            )
+
+    async def _verify_full_range(self) -> bool:
+        """Verify the full range of the hexapod.
+
+        Returns
+        -------
+        `bool`
+            True if the verification is successful, False otherwise.
+        """
+
+        try:
+            all_positions = await self._get_position()
+
+            # Move to the maximum position
+            all_positions[self.config.axis] = self.config.max_verification_position
+            await self.move_hexapod(**all_positions)
+
+            # Move to the minimum position
+            all_positions[self.config.axis] = -self.config.max_verification_position
+            await self.move_hexapod(**all_positions)
+
+            # Move back to the origin
+            await self.move_hexapod(0.0, 0.0, 0.0, 0.0, 0.0, w=0.0)
+
+            return True
+
+        except Exception:
+            self.log.info(
+                f"{self.hexapod_name} failed to verify the full range. Rewarming..."
+            )
+
+            await self._recover()
+
+            return False
+
+    async def _unmute_alarm(self, is_mutted: bool, alarm_name: str) -> None:
+        """Unmute the alarm.
+
+        Parameters
+        ----------
+        is_mutted : `bool`
+            Alarm is muted or not.
+        alarm_name : `str`
+            Alarm name.
+        """
+
         if is_mutted:
             try:
                 await self.watcher.cmd_unmute.set_start(name=alarm_name)
@@ -402,24 +496,29 @@ class WarmUpHexapod(salobj.BaseScript):
                 f"Error moving the {self.hexapod_name} to {x=}, {y=}, {z=}, {u=}, {v=}."
             )
 
-            # If the hexapod is in fault, recover it
-            state = self.hexapod.evt_summaryState.get().summaryState
-            if state == salobj.State.FAULT:
-                self.log.info(f"Recover the {self.hexapod_name} CSC from the Fault.")
-                await salobj.set_summary_state(self.hexapod, salobj.State.ENABLED)
-
-            # If the hexapod is moving, stop it
-            controller_enabled_state = (
-                self.hexapod.evt_controllerState.get().enabledSubstate
-            )
-            if controller_enabled_state == EnabledSubstate.MOVING_POINT_TO_POINT:
-                self.log.info(f"Stop the {self.hexapod_name} CSC.")
-                await self.hexapod.cmd_stop.set_start()
-
-            # Wait for a few seconds
-            await asyncio.sleep(5.0)
+            await self._recover()
 
             return False
+
+    async def _recover(self) -> None:
+        """Recover the system."""
+
+        # If the hexapod is in fault, recover it
+        state = self.hexapod.evt_summaryState.get().summaryState
+        if state == salobj.State.FAULT:
+            self.log.info(f"Recover the {self.hexapod_name} CSC from the Fault.")
+            await salobj.set_summary_state(self.hexapod, salobj.State.ENABLED)
+
+        # If the hexapod is moving, stop it
+        controller_enabled_state = (
+            self.hexapod.evt_controllerState.get().enabledSubstate
+        )
+        if controller_enabled_state == EnabledSubstate.MOVING_POINT_TO_POINT:
+            self.log.info(f"Stop the {self.hexapod_name} CSC.")
+            await self.hexapod.cmd_stop.set_start()
+
+        # Wait for a few seconds
+        await asyncio.sleep(5.0)
 
     async def single_loop(self, step, sleep_time):
         """
