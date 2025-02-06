@@ -132,7 +132,8 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
               ignore:
                 description: >-
                     CSCs from the camera group to ignore in status check.
-                    Name must match those in self.group.components.
+                    Name must match those in self.camera.components or
+                    self.camera.components_attr.
                 type: array
                 items:
                   type: string
@@ -165,16 +166,7 @@ class BaseTakePTCFlats(BaseBlockScript, metaclass=abc.ABCMeta):
             await self.configure_electrometer(config.electrometer_scan["index"])
 
         if hasattr(config, "ignore"):
-            for comp in config.ignore:
-                if comp in self.camera.components_attr:
-                    self.log.debug(f"Ignoring Camera component {comp}.")
-                    setattr(self.camera.check, comp, False)
-                else:
-                    self.log.warning(
-                        f"Component {comp} not in CSC Group. "
-                        f"Must be one of {self.camera.components_attr}. "
-                        f"Ignoring."
-                    )
+            self.camera.disable_checks_for_components(components=config.ignore)
 
         # Handle interleave darks settings
         if hasattr(config, "interleave_darks"):
