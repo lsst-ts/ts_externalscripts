@@ -29,3 +29,4 @@ from .take_twilight_flats_comcam import *
 from .take_twilight_flats_lsstcam import *
 from .track_target_sched import *
 from .warmup_hexapod import *
+from .setup_whitelight_flats import *
