@@ -28,8 +28,10 @@ import typing
 import warnings
 
 import numpy as np
-import pandas
-from lsst.afw.geom import SkyWcs
+import astropy
+from astropy.table import QTable
+import astropy.units as u
+from lsst.afw.image import Exposure
 from lsst.geom import PointD
 from lsst.obs.lsst import Latiss
 from lsst.pipe.base.struct import Struct
@@ -52,6 +54,7 @@ try:
         CutOutDonutsScienceSensorTask,
         CutOutDonutsScienceSensorTaskConfig,
     )
+    from lsst.ts.wep.task.generateDonutCatalogUtils import addVisitInfoToCatTable
 
 except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
@@ -206,16 +209,16 @@ def run_wep(
 
     donut_catalog_intra = get_donut_catalog(
         *(
-            (result_intra, exposure_intra.getWcs())
+            (result_intra, exposure_intra)
             if not intra_source_out_of_bounds
-            else (result_extra, exposure_extra.getWcs())
+            else (result_extra, exposure_extra)
         )
     )
     donut_catalog_extra = get_donut_catalog(
         *(
-            (result_extra, exposure_extra.getWcs())
+            (result_extra, exposure_extra)
             if not extra_source_out_of_bounds
-            else (result_intra, exposure_intra.getWcs())
+            else (result_intra, exposure_intra)
         )
     )
 
@@ -234,6 +237,7 @@ def run_wep(
     )
 
     config = CalcZernikesTaskConfig()
+    config.doDonutStampSelector = False
     task = CalcZernikesTask(config=config, name="Base Task")
 
     task_output = task.run(
@@ -243,7 +247,7 @@ def run_wep(
     return result_intra, result_extra, task_output
 
 
-def get_donut_catalog(result: Struct, wcs: SkyWcs) -> pandas.DataFrame:
+def get_donut_catalog(result: Struct, exposure: Exposure) -> astropy.table.QTable:
     """Get the donut catalog, used by wep, from the quick frame measurement
     result.
 
@@ -251,31 +255,29 @@ def get_donut_catalog(result: Struct, wcs: SkyWcs) -> pandas.DataFrame:
     ----------
     result : `Struct`
         Result of `QuickFrameMeasurementTask`.
-    wcs : `SkyWcs`
-        Exposure WCS, to compute Ra/Dec.
+    exposure : `Exposure`
+        Exposure, to compute Ra/Dec and pass on visit info.
 
     Returns
     -------
-    donut_catalog : `pandas.DataFrame`
+    donut_catalog : `astropy.table.QTable`
         Donut catalog.
     """
+    wcs = exposure.getWcs()
     ra, dec = wcs.pixelToSkyArray(
         result.brightestObjCentroidCofM[0],
         result.brightestObjCentroidCofM[1],
         degrees=False,
     )
-
-    donut_catalog = pandas.DataFrame([])
-    donut_catalog["coord_ra"] = ra
-    donut_catalog["coord_dec"] = dec
-    donut_catalog["centroid_x"] = [result.brightestObjCentroidCofM[0]]
-    donut_catalog["centroid_y"] = [result.brightestObjCentroidCofM[1]]
-    donut_catalog["blend_centroid_x"] = [[]]
-    donut_catalog["blend_centroid_y"] = [[]]
-    donut_catalog["source_flux"] = [result.brightestObjApFlux70]
-
-    donut_catalog = donut_catalog.sort_values(
-        "source_flux", ascending=False
-    ).reset_index(drop=True)
+    donut_catalog = QTable()
+    donut_catalog["coord_ra"] = ra * u.rad
+    donut_catalog["coord_dec"] = dec * u.rad
+    donut_catalog["centroid_x"] = [result.brightestObjCentroidCofM[0]] * u.pixel
+    donut_catalog["centroid_y"] = [result.brightestObjCentroidCofM[1]] * u.pixel
+    donut_catalog["source_flux"] = [result.brightestObjApFlux70] * u.nJy
+    donut_catalog.meta["blend_centroid_x"] = ""
+    donut_catalog.meta["blend_centroid_y"] = ""
+    donut_catalog.sort("source_flux", reverse=True)
+    donut_catalog = addVisitInfoToCatTable(exposure, donut_catalog)
 
     return donut_catalog
