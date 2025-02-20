@@ -27,10 +27,10 @@ import functools
 import typing
 import warnings
 
-import numpy as np
 import astropy
-from astropy.table import QTable
 import astropy.units as u
+import numpy as np
+from astropy.table import QTable
 from lsst.afw.image import Exposure
 from lsst.geom import PointD
 from lsst.obs.lsst import Latiss
