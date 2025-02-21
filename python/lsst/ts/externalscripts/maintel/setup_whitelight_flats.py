@@ -118,15 +118,17 @@ class SetupWhiteFlats(salobj.BaseScript):
 
         await self.checkpoint("Preparing for Flats")
         await self.mtcalsys.prepare_for_flat(sequence_name = self.sequence_name)
-        params = await self.mtcalsys.get_projector_setup()
 
-        self.log.info(
-            f"Laser Configuration is {params[0]}, \n"
-            f"wavelength is {params[1]}, \n"
-            f"Interlock is {params[2]}, \n"
-            f"Burst mode is {params[3]}, \n"
-            f"Cont. mode is {params[4]}"
-        )
+        # # TO-DO: DM-49065 for mtcalsys.py
+        # params = await self.mtcalsys.get_projector_setup()
+
+        # self.log.info(
+        #     f"Laser Configuration is {params[0]}, \n"
+        #     f"wavelength is {params[1]}, \n"
+        #     f"Interlock is {params[2]}, \n"
+        #     f"Burst mode is {params[3]}, \n"
+        #     f"Cont. mode is {params[4]}"
+        # )
 
     async def assert_components_enabled(self):
         """Checks if LEDProjector, Electrometer, Fiber Spectrographs, and all LinearStages are ENABLED
