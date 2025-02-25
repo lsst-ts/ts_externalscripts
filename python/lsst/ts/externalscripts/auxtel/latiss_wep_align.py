@@ -130,12 +130,14 @@ class LatissWEPAlign(LatissBaseAlign):
                     self.timeout_get_image,
                 ),
             )
+            zk_table = wep_results.zernikes
+            zk_average_nm = zk_table[zk_table["label"] == "average"]
 
-            # output from wep are in microns, need to convert to nm.
+            # output from wep is in nm
             self.zern = [
-                -wep_results.outputZernikesAvg[4] * 1e3,
-                wep_results.outputZernikesAvg[3] * 1e3,
-                wep_results.outputZernikesAvg[0] * 1e3,
+                -zk_average_nm["Z8"][0].value,
+                zk_average_nm["Z7"][0].value,
+                zk_average_nm["Z4"][0].value,
             ]
 
         return self.calculate_results()
