@@ -56,8 +56,8 @@ class SetupWhiteFlats(salobj.BaseScript):
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_standardscripts/maintel/calibrations/
-                setup_whitelight_flats.yaml
+            $id: https://github.com/lsst-ts/ts_standardscripts/maintel/calibrations/+
+            setup_whitelight_flats.yaml
             title: SetupWhiteFlats v1
             description: Configuration for SetupWhiteFlats.
               Each attribute can be specified as a scalar or array.

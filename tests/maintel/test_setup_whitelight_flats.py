@@ -19,24 +19,30 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import logging
 import os
 import unittest
 
-from lsst.ts import externalscripts, utils
+from lsst.ts import externalscripts, standardscripts, utils
 from lsst.ts.externalscripts.maintel.setup_whitelight_flats import SetupWhiteFlats
+from lsst.ts.xml.enums import Script
+
+index_gen = utils.index_generator()
 
 
 class TestSetupWhiteFlats(
-    externalscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
+    standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
+    def setUp(self):
+        self.log = logging.getLogger(__name__)
+        self.log.propagate = True
+
     async def basic_make_script(self, index):
+        self.log.debug("Starting basic_make script")
         self.script = SetupWhiteFlats(index=index)
 
-        self.mock_mtcalsys()
-
-        return [
-            self.script,
-        ]
+        self.log.debug("Finished initializing from basic_make_script")
+        return (self.script,)
 
     async def mock_mtcalsys(self):
         """Mock MTCalsys instance"""
@@ -52,14 +58,21 @@ class TestSetupWhiteFlats(
 
     async def test_configure(self):
         async with self.make_script():
-
             await self.configure_script()
+
+            assert self.script.config.sequence_name == "whitelight_r"
 
     async def test_run_without_failures(self):
         async with self.make_script():
-            await self.configure_script()
+            await self.configure_script(sequence_name="whitelight_u")
+            assert self.script.state.state == Script.ScriptState.CONFIGURED
 
+            self.log.debug("Starting Mtcalsys mocks")
+            self.mock_mtcalsys()
+
+            # Run the script
             await self.run_script()
+            assert self.script.state.state == Script.ScriptState.DONE
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
