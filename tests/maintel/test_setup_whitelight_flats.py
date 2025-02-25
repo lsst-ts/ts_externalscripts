@@ -19,19 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import logging
 import os
-import random
-import types
 import unittest
-import warnings
 
-from lsst.ts import salobj, standardscripts, utils
+from lsst.ts import externalscripts, utils
 from lsst.ts.externalscripts.maintel.setup_whitelight_flats import SetupWhiteFlats
 
 
 class TestSetupWhiteFlats(
-    standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
+    externalscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     async def basic_make_script(self, index):
         self.script = SetupWhiteFlats(index=index)
@@ -45,8 +41,8 @@ class TestSetupWhiteFlats(
     async def mock_mtcalsys(self):
         """Mock MTCalsys instance"""
         self.script.mtcalsys = unittest.mock.MagicMock()
-        self.script.mtcalsys.assert_liveliness = mock.AsyncMock()
-        self.script.mtcalsys.assert_all_enabled = mock.AsyncMock()
+        self.script.mtcalsys.assert_liveliness = unittest.mock.AsyncMock()
+        self.script.mtcalsys.assert_all_enabled = unittest.mock.AsyncMock()
 
         self.script.mtcalsys.start_task = utils.make_done_future()
         self.script.mtcalsys.load_calibration_config_file = unittest.mock.MagicMock()
@@ -67,9 +63,7 @@ class TestSetupWhiteFlats(
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
-        script_path = os.path.join(
-            scripts_dir, "maintel", "setup_whitelight_flats.py"
-        )
+        script_path = os.path.join(scripts_dir, "maintel", "setup_whitelight_flats.py")
         await self.check_executable(script_path)
 
 

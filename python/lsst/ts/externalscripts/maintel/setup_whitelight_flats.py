@@ -50,13 +50,14 @@ class SetupWhiteFlats(salobj.BaseScript):
         self.linearstage_led_focus = None
         self.linearstage_led_select = None
         self.linearstage_projector_select = None
-        self.led_projector = None 
+        self.led_projector = None
 
     @classmethod
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_standardscripts/maintel/calibrations/setup_whitelight_flats.yaml
+            $id: https://github.com/lsst-ts/ts_standardscripts/maintel/calibrations/
+                setup_whitelight_flats.yaml
             title: SetupWhiteFlats v1
             description: Configuration for SetupWhiteFlats.
               Each attribute can be specified as a scalar or array.
@@ -112,12 +113,10 @@ class SetupWhiteFlats(salobj.BaseScript):
         await self.assert_components_enabled()
 
         await self.checkpoint("Setting up Calibration Projector")
-        await self.mtcalsys.setup_calsys(
-            sequence_name = self.sequence_name
-        )
+        await self.mtcalsys.setup_calsys(sequence_name=self.sequence_name)
 
         await self.checkpoint("Preparing for Flats")
-        await self.mtcalsys.prepare_for_flat(sequence_name = self.sequence_name)
+        await self.mtcalsys.prepare_for_flat(sequence_name=self.sequence_name)
 
         # # TO-DO: DM-49065 for mtcalsys.py
         # params = await self.mtcalsys.get_projector_setup()
@@ -131,15 +130,23 @@ class SetupWhiteFlats(salobj.BaseScript):
         # )
 
     async def assert_components_enabled(self):
-        """Checks if LEDProjector, Electrometer, Fiber Spectrographs, and all LinearStages are ENABLED
+        """Checks if LEDProjector, Electrometer, Fiber Spectrographs,
+        and all LinearStages are ENABLED
 
         Raises
         ------
         RunTimeError:
             If either component is not ENABLED"""
 
-        comps = [self.electrometer, self.fiberspec_red, self.fiberspec_blue, self.linearstage_led_focus, 
-        self.linearstage_led_select, self.linearstage_projector_select, self.led_projector]
+        comps = [
+            self.electrometer,
+            self.fiberspec_red,
+            self.fiberspec_blue,
+            self.linearstage_led_focus,
+            self.linearstage_led_select,
+            self.linearstage_projector_select,
+            self.led_projector,
+        ]
 
         for comp in comps:
             summary_state = await comp.evt_summaryState.aget()

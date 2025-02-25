@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import SetupWhiteFlats 
+from lsst.ts.externalscripts.maintel import SetupWhiteFlats
 
 asyncio.run(SetupWhiteFlats.amain())
