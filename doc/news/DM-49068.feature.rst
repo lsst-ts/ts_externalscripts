@@ -1,0 +1,1 @@
+Adding base script for Dome flats and one for taking white light flats with LSSTCam
