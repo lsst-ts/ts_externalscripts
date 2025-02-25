@@ -60,7 +60,7 @@ class TestSetupWhiteFlats(
         async with self.make_script():
             await self.configure_script()
 
-            assert self.script.config.sequence_name == "whitelight_r"
+            assert self.script.sequence_name == "whitelight_r"
 
     async def test_run_without_failures(self):
         async with self.make_script():
@@ -68,9 +68,10 @@ class TestSetupWhiteFlats(
             assert self.script.state.state == Script.ScriptState.CONFIGURED
 
             self.log.debug("Starting Mtcalsys mocks")
-            self.mock_mtcalsys()
+            await self.mock_mtcalsys()
 
             # Run the script
+            self.log.debug("Running the script")
             await self.run_script()
             assert self.script.state.state == Script.ScriptState.DONE
 

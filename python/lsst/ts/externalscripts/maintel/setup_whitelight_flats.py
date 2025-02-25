@@ -97,13 +97,13 @@ class SetupWhiteFlats(salobj.BaseScript):
             self.sequence_name
         )
 
-        self.electrometer = self.mtcalsys.Electrometer
+        self.electrometer = self.mtcalsys.electrometer
         self.fiberspec_red = self.mtcalsys.fiberspectrograph_red
         self.fiberspec_blue = self.mtcalsys.fiberspectrograph_blue
         self.linearstage_led_focus = self.mtcalsys.linearstage_led_focus
         self.linearstage_led_select = self.mtcalsys.linearstage_led_select
         self.linearstage_projector_select = self.mtcalsys.linearstage_projector_select
-        self.led_projector = self.mtcalsys.LEDProjector
+        self.led_projector = self.mtcalsys.rem.ledprojector
 
         self.log.info("Configure completed")
 
