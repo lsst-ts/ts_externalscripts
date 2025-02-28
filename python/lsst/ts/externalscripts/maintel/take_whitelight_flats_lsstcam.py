@@ -18,31 +18,25 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["TakeTwilightFlatsLSSTCam"]
+__all__ = ["TakeWhiteLightFlatsLSSTCam"]
 
 import asyncio
 import functools
 
 import yaml
+from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
-from lsst.ts.observatory.control.maintel.mtcs import MTCS
-from lsst.ts.observatory.control.utils import RotType
-
-from ..base_take_twilight_flats import BaseTakeTwilightFlats
+from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys
 
 
-class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
-    """Specialized script for taking Twilight flats with LSSTCam."""
+class TakeWhiteLightFlatsLSSTCam(salobj.BaseScript):
+    """Specialized script for taking Whitelight flats with LSSTCam."""
 
     def __init__(self, index):
-        super().__init__(index=index, descr="Take Twilight flats with LSSTCam.")
+        super().__init__(index=index, descr="Take Whitelight flats with LSSTCam.")
 
-        self.mtcs = None
         self.LSSTcam = None
-
-    @property
-    def tcs(self):
-        return self.mtcs
+        self.mtcalsys = None
 
     @property
     def camera(self):
@@ -50,15 +44,15 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
 
     async def configure_tcs(self) -> None:
         """Handle creating the ATCS object and waiting remote to start."""
-        if self.mtcs is None:
-            self.log.debug("Creating MTCS.")
-            self.mtcs = MTCS(
+        if self.mtcalsy is None:
+            self.log.debug("Creating MTCalsys.")
+            self.mtcalsys = MTCalsys(
                 domain=self.domain,
                 log=self.log,
             )
-            await self.mtcs.start_task
+            await self.mtcalsys.start_task
         else:
-            self.log.debug("MTCS already defined, skipping.")
+            self.log.debug("MTCalsys already defined, skipping.")
 
     async def configure_camera(self) -> None:
         """Handle creating the camera object and waiting remote to start."""
@@ -78,24 +72,25 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_externalscripts/take_twilight_flats_lsstcam.yaml
-            title: TakeTwilightFlatsLSSTCam v1
-            description: Configuration for TakeTwilightFlatsLSSTCam.
+            $id: https://github.com/lsst-ts/ts_externalscripts/take_whitelight_flats_lsstcam.yaml
+            title: TakeWhiteLightFlatsLSSTCam v1
+            description: Configuration for TakeWhiteLightFlatsLSSTCam.
             type: object
             properties:
-              filter:
-                description: Filter name or ID.
-                anyOf:
-                  - type: string
-                  - type: integer
-                    minimum: 1
-                  - type: "null"
-            required: ["filter"]
+              sequence_name:
+                description: Name of sequence in MTCalsys
+                type: string
+                default: whitelight_r
+              use_camera:
+                description: Whether or not to take images with LSSTCam
+                type: bool
+                default: True
+
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
 
-        base_schema_dict = super(TakeTwilightFlatsLSSTCam, cls).get_schema()
+        base_schema_dict = super(TakeWhiteLightFlatsLSSTCam, cls).get_schema()
 
         for prop in base_schema_dict["properties"]:
             schema_dict["properties"][prop] = base_schema_dict["properties"][prop]
@@ -169,33 +164,6 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
                 f"Already in the desired filter ({current_filter}), slewing and tracking."
             )
 
-        await self.mtcs.slew_icrs(
-            ra=ra,
-            dec=dec,
-            rot_type=RotType.PhysicalSky,
-        )
-
-    async def _handle_slew_and_change_filter(self, ra, dec):
-        """Handle slewing and changing filter at the same time.
-
-        For ComCam (and MainCam) we need to send the rotator to zero and keep
-        it there while the filter is changing.
-        """
-
-        tasks_slew_with_fixed_rot = [
-            asyncio.create_task(
-                self.mtcs.slew_icrs(
-                    ra=ra,
-                    dec=dec,
-                    rot_type=RotType.Physical,
-                )
-            ),
-        ]
-
-        await self.mtcs.process_as_completed(tasks_slew_with_fixed_rot)
-
-        await self.lsstcam.setup_filter(filter=self.config.filter)
-
     async def slew_azel_and_setup_instrument(self, az, el):
         """Abstract method to set the instrument. Change the filter
         and slew and track target.
@@ -218,8 +186,3 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
             self.log.debug(
                 f"Already in the desired filter ({current_filter}), slewing."
             )
-
-        await self.mtcs.point_azel(
-            az=az,
-            el=el,
-        )
