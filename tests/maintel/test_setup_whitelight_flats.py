@@ -23,7 +23,7 @@ import logging
 import os
 import unittest
 
-from lsst.ts import externalscripts, standardscripts, utils
+from lsst.ts import externalscripts, salobj, standardscripts, utils
 from lsst.ts.externalscripts.maintel.setup_whitelight_flats import SetupWhiteFlats
 from lsst.ts.xml.enums import Script
 
@@ -46,20 +46,80 @@ class TestSetupWhiteFlats(
 
     async def mock_mtcalsys(self):
         """Mock MTCalsys instance"""
-        self.script.mtcalsys = unittest.mock.MagicMock()
+        self.script.mtcalsys = unittest.mock.AsyncMock()
         self.script.mtcalsys.assert_liveliness = unittest.mock.AsyncMock()
         self.script.mtcalsys.assert_all_enabled = unittest.mock.AsyncMock()
 
         self.script.mtcalsys.start_task = utils.make_done_future()
-        self.script.mtcalsys.load_calibration_config_file = unittest.mock.MagicMock()
+        self.script.mtcalsys.load_calibration_config_file = unittest.mock.AsyncMock()
         self.script.mtcalsys.assert_valid_configuration_option = (
-            unittest.mock.MagicMock()
+            unittest.mock.AsyncMock()
+        )
+
+    async def mock_calsys(self):
+        """Mock Calsys CSCs"""
+
+        self.script.electrometer = unittest.mock.AsyncMock()
+        self.script.electrometer.evt_summaryState.aget = unittest.mock.AsyncMock(
+            return_value=salobj.State.ENABLED
+        )
+        self.script.electrometer.evt_summaryState.summaryState = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.fiberspec_red = unittest.mock.AsyncMock()
+        self.script.fiberspec_red.evt_summaryState.aget = unittest.mock.AsyncMock(
+            return_value=salobj.State.ENABLED
+        )
+        self.script.fiberspec_red.evt_summaryState.summaryState = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.fiberspec_blue = unittest.mock.AsyncMock()
+        self.script.fiberspec_blue.evt_summaryState.aget = unittest.mock.AsyncMock(
+            return_value=salobj.State.ENABLED
+        )
+        self.script.fiberspec_blue.evt_summaryState.summaryState = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.linearstage_led_focus = unittest.mock.AsyncMock()
+        self.script.linearstage_led_focus.evt_summaryState.aget = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.linearstage_led_focus.evt_summaryState.summaryState = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.linearstage_led_select = unittest.mock.AsyncMock()
+        self.script.linearstage_led_select.evt_summaryState.aget = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.linearstage_led_select.evt_summaryState.summaryState = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.linearstage_projector_select = unittest.mock.AsyncMock()
+        self.script.linearstage_projector_select.evt_summaryState.aget = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.linearstage_projector_select.evt_summaryState.summaryState = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.led_projector = unittest.mock.AsyncMock()
+        self.script.led_projector.evt_summaryState.aget = unittest.mock.AsyncMock(
+            return_value=salobj.State.ENABLED
+        )
+        self.script.led_projector.evt_summaryState.summaryState = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.mtcalsys.tunablelaser = unittest.mock.AsyncMock()
+        self.script.mtcalsys.tunablelaser.evt_summaryState.aget = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        )
+        self.script.mtcalsys.tunablelaser.evt_summaryState.summaryState = (
+            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
         )
 
     async def test_configure(self):
         async with self.make_script():
             await self.configure_script()
-
+            assert self.script.state.state == Script.ScriptState.CONFIGURED
             assert self.script.sequence_name == "whitelight_r"
 
     async def test_run_without_failures(self):
@@ -69,6 +129,9 @@ class TestSetupWhiteFlats(
 
             self.log.debug("Starting Mtcalsys mocks")
             await self.mock_mtcalsys()
+            await self.mock_calsys()
+
+            self.log.debug("Enable all CSCs")
 
             # Run the script
             self.log.debug("Running the script")
