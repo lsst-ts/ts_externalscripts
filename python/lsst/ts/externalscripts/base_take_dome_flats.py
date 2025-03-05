@@ -39,12 +39,11 @@ class BaseTakeDomeFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         self.instrument_setup_time = 0.0
         self.long_timeout = 30
         self.latest_exposure_id = None
-        self.mtcamera = None
 
     @property
     @abc.abstractmethod
     def camera(self):
-        return self.mtcamera
+        raise NotImplementedError()
 
     @abc.abstractmethod
     async def configure_camera(self):
@@ -64,17 +63,6 @@ class BaseTakeDomeFlats(BaseBlockScript, metaclass=abc.ABCMeta):
     def get_instrument_name(self):
         """Abstract method to be defined in subclasses to provide the
         instrument name.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def get_instrument_configuration(self) -> dict:
-        """Abstract method to get the instrument configuration.
-
-        Returns
-        -------
-        dict
-            Dictionary with instrument configuration.
         """
         raise NotImplementedError()
 
@@ -104,11 +92,11 @@ class BaseTakeDomeFlats(BaseBlockScript, metaclass=abc.ABCMeta):
                 default: whitelight_r
               n_flat:
                 description: Number of flats with this sequence
-                type: int
+                type: integer
                 default: 1
               use_camera:
                 description: Will you use the camera during these flats
-                type: bool
+                type: boolean
                 default: True
 
             additionalProperties: false
@@ -132,6 +120,7 @@ class BaseTakeDomeFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         config : `types.SimpleNamespace`
             Script configuration, as defined by `schema`.
         """
+        self.config = config
         if config.use_camera:
             await self.configure_camera()
         await self.configure_calsys()
@@ -150,13 +139,6 @@ class BaseTakeDomeFlats(BaseBlockScript, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def assert_feasibility(self) -> None:
-        """Verify that camera is in a feasible state to
-        execute the script.
-        """
-        raise NotImplementedError
-
-    @abc.abstractmethod
     async def take_dome_flat(self) -> None:
         """Method to setup the calibration system for flats and then take
         the flat images, including fiber specgtrograph and electrometer
@@ -166,6 +148,5 @@ class BaseTakeDomeFlats(BaseBlockScript, metaclass=abc.ABCMeta):
     async def run_block(self):
         """Run the block of tasks to take Dome flats sequence."""
 
-        await self.assert_feasibility()
         for n in range(self.config.n_flat):
             await self.take_dome_flat()

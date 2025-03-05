@@ -36,26 +36,33 @@ class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
         super().__init__(index=index, descr="Take Whitelight flats with LSSTCam.")
 
         self.mtcalsys = None
+        self.mtcamera = None
         self.config_data = None
 
         self.instrument_setup_time = 30
 
+    @property
+    def camera(self):
+        return self.mtcamera
+
     async def configure_calsys(self) -> None:
         """Handle creating the MTCalsys object and waiting remote to start."""
-        if self.mtcalsy is None:
+        if self.mtcalsys is None:
             self.log.debug("Creating MTCalsys.")
             if self.config.use_camera:
                 self.mtcalsys = MTCalsys(
-                    domain=self.domain, log=self.log, mtcamera=self.lsstcam
+                    domain=self.domain, log=self.log, mtcamera=self.mtcamera
                 )
             else:
                 self.mtcalsys = MTCalsys(domain=self.domain, log=self.log)
             await self.mtcalsys.start_task
-            self.config_data = self.mtcalsys.get_calibration_configuration(
-                self.config.sequence_name
-            )
+
         else:
             self.log.debug("MTCalsys already defined, skipping.")
+        self.config_data = self.mtcalsys.get_calibration_configuration(
+            self.config.sequence_name
+        )
+        self.log.debug(f"Config data: {self.config_data}")
 
     async def configure_camera(self) -> None:
         """Handle creating the camera object and waiting remote to start."""
@@ -66,7 +73,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
                 self.domain,
                 intended_usage=LSSTCamUsages.TakeImage,
                 log=self.log,
-                tcs_ready_to_take_data=self.tcs.ready_to_take_data,
+                # tcs_ready_to_take_data=self.tcs.ready_to_take_data,
             )
             await self.mtcamera.start_task
         else:
@@ -95,6 +102,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
         n_flats = self.config.n_flat
 
         # Initialize estimate flat exposure time
+        self.log.debug(self.config_data)
         target_flat_exptime = sum(self.config_data.exposure_times)
 
         # Setup time for the camera (readout and shutter time)
@@ -111,14 +119,6 @@ class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
         metadata.calib_type = self.config_data.calib_type
         metadata.instrument = self.get_instrument_name()
         metadata.filter = self.get_instrument_filter()
-
-    async def assert_feasibility(self) -> None:
-        """Verify that the camera is in a feasible state to
-        execute the script.
-
-        This assumes that setup_whitelight_flats.py has alread been run.
-        """
-        await self.camera.assert_all_enabled()
 
     async def take_dome_flat(self):
         """Method to setup the flatfield projector for flats and then take
