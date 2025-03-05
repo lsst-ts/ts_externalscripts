@@ -20,102 +20,57 @@
 
 __all__ = ["TakeWhiteLightFlatsLSSTCam"]
 
-import asyncio
-import functools
+# import asyncio
 
-import yaml
 from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys
 
+from ..base_take_dome_flats import BaseTakeDomeFlats
 
-class TakeWhiteLightFlatsLSSTCam(salobj.BaseScript):
+
+class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
     """Specialized script for taking Whitelight flats with LSSTCam."""
 
     def __init__(self, index):
         super().__init__(index=index, descr="Take Whitelight flats with LSSTCam.")
 
-        self.LSSTcam = None
         self.mtcalsys = None
+        self.config_data = None
 
-    @property
-    def camera(self):
-        return self.lsstcam
+        self.instrument_setup_time = 30
 
-    async def configure_tcs(self) -> None:
-        """Handle creating the ATCS object and waiting remote to start."""
+    async def configure_calsys(self) -> None:
+        """Handle creating the MTCalsys object and waiting remote to start."""
         if self.mtcalsy is None:
             self.log.debug("Creating MTCalsys.")
-            self.mtcalsys = MTCalsys(
-                domain=self.domain,
-                log=self.log,
-            )
+            if self.config.use_camera:
+                self.mtcalsys = MTCalsys(
+                    domain=self.domain, log=self.log, mtcamera=self.lsstcam
+                )
+            else:
+                self.mtcalsys = MTCalsys(domain=self.domain, log=self.log)
             await self.mtcalsys.start_task
+            self.config_data = self.mtcalsys.get_calibration_configuration(
+                self.config.sequence_name
+            )
         else:
             self.log.debug("MTCalsys already defined, skipping.")
 
     async def configure_camera(self) -> None:
         """Handle creating the camera object and waiting remote to start."""
-        if self.lsstcam is None:
+
+        if self.mtcamera is None:
             self.log.debug("Creating Camera.")
-            self.lsstcam = LSSTCam(
+            self.mtcamera = LSSTCam(
                 self.domain,
                 intended_usage=LSSTCamUsages.TakeImage,
                 log=self.log,
                 tcs_ready_to_take_data=self.tcs.ready_to_take_data,
             )
-            await self.lsstcam.start_task
+            await self.mtcamera.start_task
         else:
             self.log.debug("Camera already defined, skipping.")
-
-    @classmethod
-    def get_schema(cls):
-        schema_yaml = """
-            $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_externalscripts/take_whitelight_flats_lsstcam.yaml
-            title: TakeWhiteLightFlatsLSSTCam v1
-            description: Configuration for TakeWhiteLightFlatsLSSTCam.
-            type: object
-            properties:
-              sequence_name:
-                description: Name of sequence in MTCalsys
-                type: string
-                default: whitelight_r
-              use_camera:
-                description: Whether or not to take images with LSSTCam
-                type: bool
-                default: True
-
-            additionalProperties: false
-        """
-        schema_dict = yaml.safe_load(schema_yaml)
-
-        base_schema_dict = super(TakeWhiteLightFlatsLSSTCam, cls).get_schema()
-
-        for prop in base_schema_dict["properties"]:
-            schema_dict["properties"][prop] = base_schema_dict["properties"][prop]
-
-        return schema_dict
-
-    async def get_sky_counts(self) -> float:
-        """Abstract method to get the median sky counts from the last image.
-
-        Returns
-        -------
-        float
-            Sky counts in electrons.
-        """
-        timeout = 30
-        query = f"SELECT * from cbd_lsstcam.exposure_quicklook where exposure_id = {self.latest_exposure_id}"
-        item = "post_isr_pixel_median_median"
-        get_counts = functools.partial(
-            self.client.wait_for_item_in_row,
-            query=query,
-            item=item,
-            timeout=timeout,
-        )
-        sky_counts = await asyncio.get_running_loop().run_in_executor(None, get_counts)
-        return sky_counts
 
     def get_instrument_name(self) -> str:
         """Get instrument name.
@@ -126,11 +81,6 @@ class TakeWhiteLightFlatsLSSTCam(salobj.BaseScript):
         """
         return "LSSTCam"
 
-    def get_instrument_configuration(self) -> dict:
-        return dict(
-            filter=self.config.filter,
-        )
-
     def get_instrument_filter(self) -> str:
         """Get instrument filter configuration.
 
@@ -138,51 +88,43 @@ class TakeWhiteLightFlatsLSSTCam(salobj.BaseScript):
         -------
         instrument_filter: `string`
         """
-        return f"{self.config.filter}"
+        return f"{self.config_data.mtcamera_filter}"
 
-    async def track_radec_and_setup_instrument(self, ra, dec):
-        """Method to set the instrument filter and slew to desired field.
+    def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
+        """Set script metadata, including estimated duration."""
+        n_flats = self.config.n_flat
 
-        Parameters
-        ----------
-        ra : float
-            RA of target field.
-        dec : float
-            Dec of target field.
+        # Initialize estimate flat exposure time
+        target_flat_exptime = sum(self.config_data.exposure_times)
+
+        # Setup time for the camera (readout and shutter time)
+        setup_time_per_image = self.lsstcam.read_out_time + self.lsstcam.shutter_time
+
+        # Total duration calculation
+        total_duration = (
+            self.instrument_setup_time  # Initial setup time for the instrument
+            + target_flat_exptime * (n_flats)  # Time for taking all flats
+            + setup_time_per_image * (n_flats)  # Setup time p/image
+        )
+
+        metadata.duration = total_duration
+        metadata.calib_type = self.config_data.calib_type
+        metadata.instrument = self.get_instrument_name()
+        metadata.filter = self.get_instrument_filter()
+
+    async def assert_feasibility(self) -> None:
+        """Verify that the camera is in a feasible state to
+        execute the script.
+
+        This assumes that setup_whitelight_flats.py has alread been run.
         """
-        current_filter = await self.lsstcam.get_current_filter()
+        await self.camera.assert_all_enabled()
 
-        self.tracking_started = True
-
-        if current_filter != self.config.filter:
-            self.log.debug(
-                f"Filter change required: {current_filter} -> {self.config.filter}"
-            )
-            await self._handle_slew_and_change_filter(ra, dec)
-        else:
-            self.log.debug(
-                f"Already in the desired filter ({current_filter}), slewing and tracking."
-            )
-
-    async def slew_azel_and_setup_instrument(self, az, el):
-        """Abstract method to set the instrument. Change the filter
-        and slew and track target.
-
-        Parameters
-        ----------
-        az : float
-            Azimuth of target field.
-        el : float
-            Elevation of target field.
+    async def take_dome_flat(self):
+        """Method to setup the flatfield projector for flats and then take
+        the flat images, including fiber specgtrograph and electrometer
         """
-        current_filter = await self.lsstcam.get_current_filter()
-
-        if current_filter != self.config.filter:
-            self.log.debug(
-                f"Filter change required: {current_filter} -> {self.config.filter}"
-            )
-            await self.lsstcam.setup_filter(filter=self.config.filter)
-        else:
-            self.log.debug(
-                f"Already in the desired filter ({current_filter}), slewing."
-            )
+        self.mtcalsys.prepare_for_flat(self.config.sequence_name)
+        self.mtcalsys.run_calibration_sequence(
+            self.config.sequence_name,
+        )
