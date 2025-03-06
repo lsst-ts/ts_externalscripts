@@ -26,10 +26,11 @@ import unittest
 import unittest.mock as mock
 
 import pytest
-from lsst.ts import externalscripts, salobj, standardscripts, utils
+from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.maintel.take_whitelight_flats_lsstcam import (
     TakeWhiteLightFlatsLSSTCam,
 )
+from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys
 
 
 class TestTakeWhiteLightFlatsLSSTCam(
@@ -42,23 +43,15 @@ class TestTakeWhiteLightFlatsLSSTCam(
     async def basic_make_script(self, index):
         self.script = TakeWhiteLightFlatsLSSTCam(index=index)
 
-        await self.mock_mtcalsys()
+        # await self.mock_mtcalsys()
         await self.mock_camera()
 
         return (self.script,)
 
-    async def mock_mtcalsys(self):
-        """Mock MTCalsys instance"""
-        self.script.mtcalsys = unittest.mock.AsyncMock()
-        self.script.mtcalsys.assert_liveliness = unittest.mock.AsyncMock()
-        self.script.mtcalsys.assert_all_enabled = unittest.mock.AsyncMock()
-
-        self.script.mtcalsys.start_task = utils.make_done_future()
-        self.script.mtcalsys.load_calibration_config_file = unittest.mock.AsyncMock()
-        self.script.mtcalsys.get_calibration_configuration = unittest.mock.AsyncMock()
-        self.script.mtcalsys.assert_valid_configuration_option = (
-            unittest.mock.AsyncMock()
-        )
+    @property
+    def remote_group(self) -> MTCalsys:
+        """The remote_group property."""
+        return self.mtcalsys
 
     async def mock_camera(self):
         """Mock camera instance and its methods."""
@@ -106,7 +99,6 @@ class TestTakeWhiteLightFlatsLSSTCam(
             await self.configure_script(**config)
             await self.run_script()
 
-            # 16 flats
             assert self.script.get_instrument_name() == "LSSTCam"
             filt = self.script.get_instrument_filter()
             self.log.debug(f"Filter {filt}")
@@ -124,8 +116,8 @@ class TestTakeWhiteLightFlatsLSSTCam(
             await self.run_script()
 
             # Setup correctly?
-            assert not self.script.config_data.use_camera
-            assert self.script.config_data.wavelength == 612.5
+            assert not self.script.config_data["use_camera"]
+            assert self.script.config_data["wavelength"] == 612.5
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()

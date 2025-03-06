@@ -59,6 +59,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
 
         else:
             self.log.debug("MTCalsys already defined, skipping.")
+
         self.config_data = self.mtcalsys.get_calibration_configuration(
             self.config.sequence_name
         )
@@ -95,7 +96,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
         -------
         instrument_filter: `string`
         """
-        return f"{self.config_data.mtcamera_filter}"
+        return f"{self.config_data['mtcamera_filter']}"
 
     def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
         """Set script metadata, including estimated duration."""
@@ -103,7 +104,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
 
         # Initialize estimate flat exposure time
         self.log.debug(self.config_data)
-        target_flat_exptime = sum(self.config_data.exposure_times)
+        target_flat_exptime = sum(self.config_data["exposure_times"])
 
         # Setup time for the camera (readout and shutter time)
         setup_time_per_image = self.lsstcam.read_out_time + self.lsstcam.shutter_time
@@ -116,7 +117,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
         )
 
         metadata.duration = total_duration
-        metadata.calib_type = self.config_data.calib_type
+        metadata.calib_type = self.config_data["calib_type"]
         metadata.instrument = self.get_instrument_name()
         metadata.filter = self.get_instrument_filter()
 
@@ -125,6 +126,4 @@ class TakeWhiteLightFlatsLSSTCam(BaseTakeDomeFlats):
         the flat images, including fiber specgtrograph and electrometer
         """
         self.mtcalsys.prepare_for_flat(self.config.sequence_name)
-        self.mtcalsys.run_calibration_sequence(
-            self.config.sequence_name,
-        )
+        self.mtcalsys.run_calibration_sequence(self.config.sequence_name, {})
