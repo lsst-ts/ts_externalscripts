@@ -208,8 +208,8 @@ class CorrectPointing(BaseScript):
         current_elevation = current_position.elevationCalculatedAngle[0]
 
         self.log.info(
-            f"{porigin_x = :0.3f} arcsec, {porigin_y = :0.3f} arcsec, "
-            f"{current_azimuth = :0.3f} deg, {current_elevation = :0.3f} deg"
+            f"{porigin_x=:0.3f} arcsec, {porigin_y=:0.3f} arcsec, "
+            f"{current_azimuth=:0.3f} deg, {current_elevation=:0.3f} deg"
         )
 
         await self.atcs.reset_offsets()
