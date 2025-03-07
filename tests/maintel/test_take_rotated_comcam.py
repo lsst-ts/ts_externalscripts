@@ -24,10 +24,10 @@ import unittest
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel import TakeRotatedComCam
 from lsst.ts.idl.enums.Script import ScriptState
+from lsst.ts.maintel.standardscripts import Mode
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
-from lsst.ts.standardscripts.maintel import Mode
 from lsst.ts.xml.enums.ATPtg import WrapStrategy
 
 

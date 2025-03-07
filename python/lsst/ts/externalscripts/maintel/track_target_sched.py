@@ -20,12 +20,12 @@
 
 __all__ = ["TrackTargetSched"]
 
+from lsst.ts.maintel.standardscripts import TrackTarget
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.standardscripts.base_track_target import SlewType
 from lsst.ts.standardscripts.base_track_target_and_take_image import (
     BaseTrackTargetAndTakeImage,
 )
-from lsst.ts.standardscripts.maintel import TrackTarget
 
 
 class TrackTargetSched(TrackTarget):
