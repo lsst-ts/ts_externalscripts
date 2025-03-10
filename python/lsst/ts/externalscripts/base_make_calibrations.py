@@ -136,6 +136,10 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    async def start_remotes(self):
+        raise NotImplementedError()
+
     @property
     @abc.abstractmethod
     def instrument_name(self):
@@ -416,6 +420,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             structure.
         """
         # Log information about the configuration
+        await self.start_remotes()
 
         self.log.debug(
             f"n_bias: {config.n_bias}, detectors: {self.detectors}, "
