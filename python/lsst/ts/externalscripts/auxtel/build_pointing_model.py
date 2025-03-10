@@ -76,20 +76,16 @@ class BuildPointingModel(BaseScript):
             descr="Build pointing model and hexapod LUT.",
         )
 
-        if remotes:
-            self.atcs = ATCS(domain=self.domain, log=self.log)
-            self.latiss = LATISS(
-                domain=self.domain,
-                log=self.log,
-                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
-            )
-        else:
+        if not remotes:
             self.atcs = ATCS(
                 domain=self.domain, log=self.log, intended_usage=ATCSUsages.DryTest
             )
             self.latiss = LATISS(
                 domain=self.domain, log=self.log, intended_usage=LATISSUsages.DryTest
             )
+        else:
+            self.atcs = None
+            self.latiss = None
 
         self.config = None
 
@@ -260,6 +256,17 @@ additionalProperties: false
         config : `types.SimpleNamespace`
             Script configuration, as defined by `schema`.
         """
+        if self.atcs is None:
+            self.atcs = ATCS(domain=self.domain, log=self.log)
+            await self.atcs.start_task
+        if self.latiss is None:
+            self.latiss = LATISS(
+                domain=self.domain,
+                log=self.log,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+            )
+            await self.latiss.start_task
+
         self.log.debug(f"Configuration: {config}")
 
         self.config = config
