@@ -1,0 +1,1 @@
+Included a script that parks the calibration projector in a safe place and turns off the LEDs
