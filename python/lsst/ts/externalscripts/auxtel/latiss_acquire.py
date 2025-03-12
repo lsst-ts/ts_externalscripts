@@ -30,7 +30,7 @@ import yaml
 from lsst.geom import PointD
 from lsst.ts import salobj
 from lsst.ts.idl.enums.ATPtg import WrapStrategy
-from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
+from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observatory.control.utils import RotType
 
@@ -73,21 +73,8 @@ class LatissAcquire(salobj.BaseScript):
             index=index,
             descr="Perform target acquisition for LATISS.",
         )
-
-        latiss_usage = None if add_remotes else LATISSUsages.DryTest
-
-        atcs_usage = None if add_remotes else ATCSUsages.DryTest
-
-        self.atcs = ATCS(domain=self.domain, intended_usage=atcs_usage, log=self.log)
-
-        tcs_ready_to_take_data = self.atcs.ready_to_take_data if add_remotes else None
-
-        self.latiss = LATISS(
-            domain=self.domain,
-            intended_usage=latiss_usage,
-            log=self.log,
-            tcs_ready_to_take_data=tcs_ready_to_take_data,
-        )
+        self.atcs = None
+        self.latiss = None
 
         self.image_in_oods_timeout = 15.0
 
@@ -262,6 +249,19 @@ class LatissAcquire(salobj.BaseScript):
         config : `types.SimpleNamespace`
             Script configuration, as defined by `schema`.
         """
+
+        if self.atcs is None:
+            self.atcs = ATCS(domain=self.domain, log=self.log)
+            await self.atcs.start_task
+
+        if self.latiss is None:
+
+            self.latiss = LATISS(
+                domain=self.domain,
+                log=self.log,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+            )
+            await self.latiss.start_task
 
         # Instantiate BestEffortIsr -
         self.best_effort_isr = self.get_best_effort_isr()
