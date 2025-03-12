@@ -28,6 +28,7 @@ import numpy as np
 from lsst.daf import butler as dafButler
 from lsst.ts.externalscripts import get_scripts_dir
 from lsst.ts.externalscripts.auxtel.correct_pointing import CorrectPointing
+from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
 from lsst.ts.standardscripts import BaseScriptTestCase
 from lsst.utils import getPackageDir
 
@@ -53,6 +54,16 @@ class TestCorrectPointing(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def basic_make_script(self, index):
         self.script = CorrectPointing(index=index, remotes=self.remotes_needed)
+        self.script.atcs = ATCS(
+            domain=self.script.domain,
+            log=self.script.log,
+            intended_usage=ATCSUsages.DryTest,
+        )
+        self.script.latiss = LATISS(
+            domain=self.script.domain,
+            log=self.script.log,
+            intended_usage=LATISSUsages.DryTest,
+        )
 
         # Mock the method that returns the BestEffortIsr class if it is
         # not available for import
