@@ -151,7 +151,8 @@ class SetupWhiteFlats(salobj.BaseScript):
             summary_state = await comp.evt_summaryState.aget()
             try:
                 summaryState = summary_state.summaryState
-            except NameError:
+            except Exception as e:
+                self.log.debug(f"Exception: {e}")
                 summaryState = summary_state
             if salobj.State(summaryState) != salobj.State(salobj.State.ENABLED):
                 raise RuntimeError(f"{comp} is not ENABLED")
