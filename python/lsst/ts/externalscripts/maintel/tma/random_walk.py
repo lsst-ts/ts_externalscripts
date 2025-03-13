@@ -70,13 +70,7 @@ class RandomWalk(BaseTrackTarget):
             "offset between them",
         )
         self.config = None
-        self._mtcs = (
-            MTCS(domain=self.domain, log=self.log, intended_usage=MTCSUsages.Slew)
-            if remotes
-            else MTCS(
-                domain=self.domain, log=self.log, intended_usage=MTCSUsages.DryTest
-            )
-        )
+        self._mtcs = None
 
     @property
     def tcs(self):
@@ -188,6 +182,12 @@ class RandomWalk(BaseTrackTarget):
             Configuration data. See `get_schema` for information about data
             structure.
         """
+        if self._mtcs is None:
+            self._mtcs = MTCS(
+                domain=self.domain, log=self.log, intended_usage=MTCSUsages.Slew
+            )
+            await self._mtcs.start_task
+
         self.log.debug(
             f"Setting up configuration: \n"
             f"  total_time: {config.total_time}\n"
