@@ -37,6 +37,8 @@ class TestMakeCalibrations(
 ):
     async def basic_make_script(self, index):
         self.script = TestBaseMakeCalibrations(index=index)
+        self.script._comcam = AsyncMock()
+        self.script._ocsp_group = AsyncMock()
         return (self.script,)
 
     @unittest.mock.patch(
@@ -379,6 +381,9 @@ class TestBaseMakeCalibrations(BaseMakeCalibrations):
     @property
     def image_in_oods(self):
         return MagicMock()
+
+    async def start_remotes(self):
+        pass
 
 
 if __name__ == "__main__":

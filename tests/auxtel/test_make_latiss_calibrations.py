@@ -21,6 +21,7 @@
 
 import logging
 import unittest
+from unittest.mock import AsyncMock
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
@@ -36,6 +37,8 @@ class TestMakeLatissCalibrations(
     async def basic_make_script(self, index):
         logger.debug("Starting basic_make_script")
         self.script = MakeLatissCalibrations(index=index)
+        self.script._latiss = AsyncMock()
+        self.script._ocps_group = AsyncMock()
 
         logger.debug("Finished initializing from basic_make_script")
         # Return a single element tuple

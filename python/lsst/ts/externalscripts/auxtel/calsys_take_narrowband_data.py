@@ -46,16 +46,12 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         )
         self.cmd_timeout = 60
         self.change_grating_time = 60
-        self.electrometer = salobj.Remote(
-            domain=self.domain, name="Electrometer", index=1
-        )
-        self.monochromator = salobj.Remote(domain=self.domain, name="ATMonochromator")
-        self.fiber_spectrograph = salobj.Remote(
-            domain=self.domain, name="FiberSpectrograph"
-        )
-        self.atcamera = salobj.Remote(domain=self.domain, name="ATCamera")
-        self.atspectrograph = salobj.Remote(domain=self.domain, name="ATSpectrograph")
-        self.atoods = salobj.Remote(domain=self.domain, name="ATOODS")
+        self.electrometer = None
+        self.monochromator = None
+        self.fiber_spectrograph = None
+        self.atcamera = None
+        self.atspectrograph = None
+        self.atoods = None
 
     @classmethod
     def get_schema(cls):
@@ -208,6 +204,33 @@ class CalSysTakeNarrowbandData(salobj.BaseScript):
         """
         self.log.setLevel(10)
         self.log.info("Configure started")
+
+        if self.electrometer is None:
+            self.electrometer = salobj.Remote(
+                domain=self.domain, name="Electrometer", index=1
+            )
+            await self.electrometer.start_task
+        if self.monochromator is None:
+            self.monochromator = salobj.Remote(
+                domain=self.domain, name="ATMonochromator"
+            )
+            await self.monochromator.start_task
+        if self.fiber_spectrograph is None:
+            self.fiber_spectrograph = salobj.Remote(
+                domain=self.domain, name="FiberSpectrograph"
+            )
+            await self.fiber_spectrograph.start_task
+        if self.atcamera is None:
+            self.atcamera = salobj.Remote(domain=self.domain, name="ATCamera")
+            await self.atcamera.start_task
+        if self.atspectrograph is None:
+            self.atspectrograph = salobj.Remote(
+                domain=self.domain, name="ATSpectrograph"
+            )
+            await self.atspectrograph.start_task
+        if self.atoods is None:
+            self.atoods = salobj.Remote(domain=self.domain, name="ATOODS")
+            await self.atoods.start_task
 
         nelt = 1
         for argname in (
