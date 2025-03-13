@@ -68,9 +68,7 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
             else (MTCSUsages.DryTest, Usages.DryTest)
         )
 
-        self._mtcs = MTCS(
-            domain=self.domain, log=self.log, intended_usage=self.mtcs_usage
-        )
+        self._mtcs = None
         self.gencam_list = None
 
         # Define timeouts in seconds
@@ -132,6 +130,12 @@ class RandomWalkAndTakeImagesGenCam(BaseTrackTargetAndTakeImage):
             Configuration data. See `get_schema` for information about data
             structure.
         """
+        if self._mtcs is None:
+            self._mtcs = MTCS(
+                domain=self.domain, log=self.log, intended_usage=MTCSUsages.DryTest
+            )
+            await self._mtcs.start_task
+
         fields_str = "\n".join(
             f"  {key}: {value}" for key, value in vars(config).items()
         )
