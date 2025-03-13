@@ -24,6 +24,7 @@ import unittest
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel.tma import SerpentWalk
 from lsst.ts.idl.enums import Script
+from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 
 
 class TestSerpentWalk(
@@ -37,6 +38,11 @@ class TestSerpentWalk(
     async def basic_make_script(self, index):
         self.log.debug("Starting basic_make_script")
         self.script = SerpentWalk(index=index)
+        self.script._mtcs = MTCS(
+            domain=self.script.domain,
+            intended_usage=MTCSUsages.DryTest,
+            log=self.script.log,
+        )
         self.script._mtcs.disable_checks_for_components = unittest.mock.Mock()
 
         self.log.debug("Finished initializing from basic_make_script")
