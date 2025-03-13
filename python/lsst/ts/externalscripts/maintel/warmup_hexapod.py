@@ -25,7 +25,7 @@ from collections.abc import Iterable
 
 import yaml
 from lsst.ts import salobj
-from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
+from lsst.ts.observatory.control.maintel.mtcs import MTCS
 from lsst.ts.xml.enums.MTHexapod import EnabledSubstate, SalIndex
 from lsst.ts.xml.enums.Watcher import AlarmSeverity
 
@@ -58,13 +58,8 @@ class WarmUpHexapod(salobj.BaseScript):
         )
 
         self.config = None
-        self.mtcs = (
-            MTCS(domain=self.domain, log=self.log)
-            if remotes
-            else MTCS(
-                domain=self.domain, log=self.log, intended_usage=MTCSUsages.DryTest
-            )
-        )
+        self.mtcs = None
+        self.watcher = None
 
         # The checkpoints depend on the configuration
         self.checkpoints_activities = [
@@ -138,6 +133,16 @@ class WarmUpHexapod(salobj.BaseScript):
             Configuration data. See `get_schema` for information about data
             structure.
         """
+        if self.mtcs is None:
+            self.mtcs = MTCS(domain=self.domain, log=self.log)
+            await self.mtcs.start_task
+
+        if self.watcher is None:
+            self.watcher = salobj.Remote(
+                domain=self.domain, name="Watcher", includes=[]
+            )
+            await self.watcher.start_task
+
         self.log.debug(
             f"Setting up configuration: \n"
             f"  hexapod: {config.hexapod}\n"
@@ -178,13 +183,6 @@ class WarmUpHexapod(salobj.BaseScript):
             if self.hexapod_sal_index == SalIndex.CAMERA_HEXAPOD
             else self.mtcs.move_m2_hexapod
         )
-
-        # Get the Watcher remote
-        if hasattr(self.mtcs.rem, "watcher"):
-            self.watcher = getattr(self.mtcs.rem, "watcher")
-        else:
-            self.watcher = salobj.Remote(domain=self.domain, name="Watcher")
-            await self.watcher.start_task
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""
