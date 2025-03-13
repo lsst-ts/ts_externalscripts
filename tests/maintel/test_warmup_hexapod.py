@@ -26,8 +26,10 @@ import unittest
 import numpy as np
 from lsst.ts import externalscripts, standardscripts, utils
 from lsst.ts.externalscripts.maintel import WarmUpHexapod
+from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.xml.enums import Script
 from lsst.ts.xml.enums.MTHexapod import SalIndex
+from lsst.ts.xml.enums.Watcher import AlarmSeverity
 
 np.random.seed(42)
 
@@ -44,6 +46,12 @@ class TestCameraHexapodWarmUp(
     async def basic_make_script(self, index):
         self.log.debug("Starting basic_make_script")
         self.script = WarmUpHexapod(index=index)
+        self.script.mtcs = MTCS(
+            domain=self.script.domain,
+            intended_usage=MTCSUsages.DryTest,
+            log=self.script.log,
+        )
+        self.script.watcher = unittest.mock.AsyncMock()
 
         self.log.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
@@ -108,12 +116,20 @@ class TestCameraHexapodWarmUp(
                 position = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
             self.script.move_hexapod = unittest.mock.AsyncMock()
-            self.script.hexapod.tel_application.aget = unittest.mock.AsyncMock(
-                return_value=(MockPosition)
+            self.script.hexapod = unittest.mock.AsyncMock()
+            self.script.hexapod.configure_mock(
+                **{"tel_application.aget.return_value": MockPosition()}
             )
 
             # Run the script
             await self.run_script()
+            self.script.watcher.cmd_mute.set_start.assert_awaited_with(
+                name="Enabled.MTHexapod:1",
+                duration=3600.0,
+                severity=AlarmSeverity.CRITICAL.value,
+                mutedBy="warmup_hexapod.py",
+                timeout=60.0,
+            )
             assert self.script.state.state == Script.ScriptState.DONE
 
     async def test_executable(self):
