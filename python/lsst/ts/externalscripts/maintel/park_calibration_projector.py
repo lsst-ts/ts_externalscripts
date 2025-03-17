@@ -21,7 +21,7 @@
 
 __all__ = ["ParkCalibrationProjector"]
 
-
+import yaml
 from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys
 
@@ -45,6 +45,21 @@ class ParkCalibrationProjector(salobj.BaseScript):
 
     def set_metadata(self, metadata):
         metadata.duration = 30
+
+    @classmethod
+    def get_schema(cls):
+        schema_yaml = """
+            $schema: http://json-schema.org/draft-07/schema#
+            $id: https://github.com/lsst-ts/ts_externalscripts/maintel/calibrations/park_calibration_projector.yaml # noqa: E501
+            title: SetupWhiteFlats v1
+            description: Configuration for SetupWhiteFlats.
+              Each attribute can be specified as a scalar or array.
+              All arrays must have the same length (one item per image).
+            type: object
+
+            additionalProperties: false
+        """
+        return yaml.safe_load(schema_yaml)
 
     async def configure(self, config):
         """Configure the script.
@@ -95,7 +110,8 @@ class ParkCalibrationProjector(salobj.BaseScript):
             summary_state = await comp.evt_summaryState.aget()
             try:
                 summaryState = summary_state.summaryState
-            except NameError:
+            except Exception as e:
+                self.log.debug(f"Exception: {e}")
                 summaryState = summary_state
             if salobj.State(summaryState) != salobj.State(salobj.State.ENABLED):
                 raise RuntimeError(f"{comp} is not ENABLED")

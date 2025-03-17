@@ -49,6 +49,8 @@ class TestSetupWhiteFlats(
         self.log.debug("Starting basic_make script")
         self.script = ParkCalibrationProjector(index=index)
 
+        await self.mock_calsys()
+
         self.log.debug("Finished initializing from basic_make_script")
         return (self.script,)
 
@@ -83,13 +85,13 @@ class TestSetupWhiteFlats(
         self.script.led_projector.evt_summaryState.summaryState = (
             unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
         )
-        self.script.mtcalsys.tunablelaser = unittest.mock.AsyncMock()
-        self.script.mtcalsys.tunablelaser.evt_summaryState.aget = (
-            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
-        )
-        self.script.mtcalsys.tunablelaser.evt_summaryState.summaryState = (
-            unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
-        )
+        # self.script.mtcalsys.tunablelaser = unittest.mock.AsyncMock()
+        # self.script.mtcalsys.tunablelaser.evt_summaryState.aget = (
+        #     unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        # )
+        # self.script.mtcalsys.tunablelaser.evt_summaryState.summaryState = (
+        #     unittest.mock.AsyncMock(return_value=salobj.State.ENABLED)
+        # )
 
     async def test_configure(self):
         async with self.make_script():
@@ -102,7 +104,6 @@ class TestSetupWhiteFlats(
             assert self.script.state.state == Script.ScriptState.CONFIGURED
 
             self.log.debug("Starting Mtcalsys mocks")
-            await self.mock_mtcalsys()
             await self.mock_calsys()
 
             self.log.debug("Enable all CSCs")
