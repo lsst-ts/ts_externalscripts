@@ -19,15 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["TakeRotatedComCam"]
+__all__ = ["TakeRotatedLSSTCam"]
 
-from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
+from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 
 from ..base_take_rotated import BaseTakeRotated
 
 
-class TakeRotatedComCam(BaseTakeRotated):
-    """Take AOS sequences with ComCam at different rotator angles.
+class TakeRotatedLSSTCam(BaseTakeRotated):
+    """Take AOS sequences with LSSTCam at different rotator angles.
 
     Parameters
     ----------
@@ -42,11 +42,11 @@ class TakeRotatedComCam(BaseTakeRotated):
     - "Taking images at rotator angle {angle} degrees.": Before taking images.
     """
 
-    def __init__(self, index, descr="Take AOS rotated sequence with ComCam.") -> None:
+    def __init__(self, index, descr="Take AOS rotated sequence with LsstCam.") -> None:
         super().__init__(index=index, descr=descr)
 
         self._camera = None
-        self.instrument_name = "LSSTComCam"
+        self.instrument_name = "LSSTCam"
 
     @property
     def camera(self):
@@ -56,8 +56,8 @@ class TakeRotatedComCam(BaseTakeRotated):
         """Handle creating the camera object and waiting remote to start."""
         if self._camera is None:
             self.log.debug("Creating Camera.")
-            self._camera = ComCam(
-                self.domain, intended_usage=ComCamUsages.TakeImage, log=self.log
+            self._camera = LSSTCam(
+                self.domain, intended_usage=LSSTCamUsages.TakeImage, log=self.log
             )
             await self._camera.start_task
         else:
