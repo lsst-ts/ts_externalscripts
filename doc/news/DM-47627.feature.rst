@@ -1,2 +1,0 @@
-Add a `short_long_slews.py` script.
-This script moves the Simonyi Telescope with short and long slews around each grid position provided by the user.
