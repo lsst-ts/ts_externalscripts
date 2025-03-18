@@ -25,6 +25,7 @@ from .parameter_march_lsstcam import *
 from .take_comcam_guider_image import *
 from .take_ptc_flats_comcam import *
 from .take_rotated_comcam import *
+from .take_rotated_lsstcam import *
 from .take_twilight_flats_comcam import *
 from .take_twilight_flats_lsstcam import *
 from .track_target_sched import *
