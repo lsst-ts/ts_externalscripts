@@ -1,1 +1,0 @@
-BaseMakeCalibrations.call_pipetask and BaseMakeCalibrations.verify_calib use a string representation of a tuple for the exposure_ids.  This adds a trailing comma if the tuple has only one element, causing a syntax error.

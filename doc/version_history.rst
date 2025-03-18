@@ -8,6 +8,57 @@ Version History
 
 .. towncrier release notes start
 
+v0.30.0 (2025-03-18)
+====================
+
+New Features
+------------
+
+- Update the implementation of the ignore feature in all scripts to use the ``RemoteGroup.disable_checks_for_components`` method.
+
+  Updated scripts:
+  - ``base_parameter_march.py``
+  - ``base_take_ptc_flats.py``
+  - ``maintel/tma/random_walk.py``
+  - ``maintel/tma/random_walk_and_take_image_gencam.py``
+  - ``maintel/tma/serpent_walk.py``
+  - ``base_take_twilight_flats.py`` (`DM-47619 <https://rubinobs.atlassian.net/browse/DM-47619>`_)
+- Add a `short_long_slews.py` script.
+  This script moves the Simonyi Telescope with short and long slews around each grid position provided by the user. (`DM-47627 <https://rubinobs.atlassian.net/browse/DM-47627>`_)
+- Move make_love_stress_tests received messages log from debug to info level. (`DM-47890 <https://rubinobs.atlassian.net/browse/DM-47890>`_)
+- Update BaseMakeCalibrations.callpipetask to remove a call to ack.print_vars. (`DM-47890 <https://rubinobs.atlassian.net/browse/DM-47890>`_)
+
+
+Bug Fixes
+---------
+
+- Remove outdated config overrides in BaseMakeCalibrations. (`DM-45831 <https://rubinobs.atlassian.net/browse/DM-45831>`_)
+- BaseMakeCalibrations.call_pipetask would fail to find pipeline if a subset was supplied. (`DM-48380 <https://rubinobs.atlassian.net/browse/DM-48380>`_)
+- BaseMakeCalibrations.call_pipetask did not have the updated location for default pipelines. (`DM-48380 <https://rubinobs.atlassian.net/browse/DM-48380>`_)
+- BaseMakeCalibrations.call_pipetask and BaseMakeCalibrations.verify_calib use a string representation of a tuple for the exposure_ids.  This adds a trailing comma if the tuple has only one element, causing a syntax error. (`DM-48380 <https://rubinobs.atlassian.net/browse/DM-48380>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Improve compatibility with kafka. (`DM-47627 <https://rubinobs.atlassian.net/browse/DM-47627>`_)
+- Improve the warmup_hexapod.py to recover from the failure and change the step size in the runtime. (`DM-48447 <https://rubinobs.atlassian.net/browse/DM-48447>`_)
+- Improve the warmup_hexapod.py to mute/unmute the alarm. (`DM-48531 <https://rubinobs.atlassian.net/browse/DM-48531>`_)
+- Improve the warmup_hexapod.py to add a verification stage. (`DM-48608 <https://rubinobs.atlassian.net/browse/DM-48608>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- - Following the split of the `ts_standardscripts` repository into `maintel` and `auxtel`:
+
+    - Import statements were revised to use `from lsst.ts.maintel.standardscripts` instead of `from lsst.ts.standardscripts.maintel`.
+    - Jenkinsfile content was updated to include the new paths for `maintel` and `auxtel` standard scripts.
+
+  - A few scripts have been refactored to comply with the latest `flake8 <https://flake8.pycqa.org/en/latest/>`_ hook guidelines. (`DM-47627 <https://rubinobs.atlassian.net/browse/DM-47627>`_)
+- Fixed unit tests for LatissIntraExtraFocalData to work with new take_image command procedure. (`DM-47667 <https://rubinobs.atlassian.net/browse/DM-47667>`_)
+
+
 v0.29.0 (2024-12-05)
 ====================
 

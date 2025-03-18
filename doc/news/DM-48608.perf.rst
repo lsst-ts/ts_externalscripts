@@ -1,1 +1,0 @@
-Improve the warmup_hexapod.py to add a verification stage.
