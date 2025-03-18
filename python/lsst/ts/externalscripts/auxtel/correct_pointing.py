@@ -320,7 +320,6 @@ class CorrectPointing(BaseScript):
             mount_positions = await self.atcs.rem.atptg.tel_mountPositions.aget(
                 timeout=self.atcs.fast_timeout
             )
-
             return np.mean(mount_positions.nasmythCalculatedAngle)
         except asyncio.TimeoutError:
             self.log.warning("Could not determine Nasmyth angle. Fallback to zero.")
