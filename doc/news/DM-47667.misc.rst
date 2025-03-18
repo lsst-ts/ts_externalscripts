@@ -1,0 +1,1 @@
+Fixed unit tests for LatissIntraExtraFocalData to work with new take_image command procedure.

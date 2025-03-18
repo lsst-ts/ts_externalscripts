@@ -27,6 +27,7 @@ import numpy as np
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel.tma import RandomWalk
 from lsst.ts.idl.enums import Script
+from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 
 
 class TestRandomWalk(
@@ -40,6 +41,12 @@ class TestRandomWalk(
     async def basic_make_script(self, index):
         self.log.debug("Starting basic_make_script")
         self.script = RandomWalk(index=index, remotes=False)
+        self.script._mtcs = MTCS(
+            domain=self.script.domain,
+            log=self.script.log,
+            intended_usage=MTCSUsages.DryTest,
+        )
+        self.script._mtcs.disable_checks_for_components = unittest.mock.Mock()
 
         self.log.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
@@ -62,6 +69,19 @@ class TestRandomWalk(
             await self.configure_script(total_time=total_time)
 
             assert self.script.config.total_time == total_time
+
+    async def test_configure_ignore(self):
+        async with self.make_script():
+            # Try configure with minimum set of parameters declared
+            # Note that all are scalars and should be converted to arrays
+            total_time = 3600.0
+            components = ["mtptg", "no_comp"]
+
+            await self.configure_script(total_time=total_time, ignore=components)
+
+            self.script._mtcs.disable_checks_for_components.assert_called_once_with(
+                components=components
+            )
 
     async def test_run(self):
         async with self.make_script():

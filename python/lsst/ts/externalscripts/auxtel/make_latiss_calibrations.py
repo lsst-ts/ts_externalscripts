@@ -45,10 +45,8 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
             "LATISS/AuxTel, and constructs combined calibrations, verify and "
             "certify the results.",
         )
-        self._latiss = LATISS(domain=self.domain, log=self.log)
-        self._ocps_group = RemoteGroup(
-            domain=self.domain, components=["OCPS:1"], log=self.log
-        )
+        self._latiss = None
+        self._ocps_group = None
 
     @property
     def camera(self):
@@ -179,3 +177,14 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
 
     def get_instrument_configuration(self):
         return dict(filter=self.config.filter, grating=self.config.grating)
+
+    async def start_remotes(self):
+        if self._latiss is None:
+            self._latiss = LATISS(domain=self.domain, log=self.log)
+            await self._latiss.start_task
+
+        if self._ocps_group is None:
+            self._ocps_group = RemoteGroup(
+                domain=self.domain, components=["OCPS:1"], log=self.log
+            )
+            await self._ocps_group.start_task

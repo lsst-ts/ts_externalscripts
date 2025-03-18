@@ -1,0 +1,6 @@
+- Following the split of the `ts_standardscripts` repository into `maintel` and `auxtel`:
+
+  - Import statements were revised to use `from lsst.ts.maintel.standardscripts` instead of `from lsst.ts.standardscripts.maintel`.
+  - Jenkinsfile content was updated to include the new paths for `maintel` and `auxtel` standard scripts.
+
+- A few scripts have been refactored to comply with the latest `flake8 <https://flake8.pycqa.org/en/latest/>`_ hook guidelines.

@@ -77,6 +77,19 @@ class TestTakePTCFlatsComCam(
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(**bad_config)
 
+    async def test_configure_ignore(self):
+        config = {
+            "flats_exp_times": [7.25, 5.25, 0.75, 12.75],
+            "ignore": ["ccoods", "no_comp"],
+        }
+
+        async with self.make_script():
+            await self.configure_script(**config)
+
+            self.script.comcam.disable_checks_for_components.assert_called_once_with(
+                components=config["ignore"]
+            )
+
     async def test_take_ptc_flats(self):
         config = {
             "filter": "r_03",

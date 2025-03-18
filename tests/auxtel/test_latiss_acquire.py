@@ -31,6 +31,7 @@ from lsst.ts import salobj
 from lsst.ts.externalscripts import get_scripts_dir
 from lsst.ts.externalscripts.auxtel import LatissAcquire
 from lsst.ts.idl.enums.Script import ScriptState
+from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
 from lsst.ts.standardscripts import BaseScriptTestCase
 from lsst.utils import getPackageDir
 
@@ -88,6 +89,16 @@ class TestLatissAcquire(BaseScriptTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def basic_make_script(self, index):
         self.script = LatissAcquire(index=index, add_remotes=self.remotes_needed)
+        self.script.atcs = ATCS(
+            domain=self.script.domain,
+            intended_usage=ATCSUsages.DryTest,
+            log=self.script.log,
+        )
+        self.script.latiss = LATISS(
+            domain=self.script.domain,
+            intended_usage=LATISSUsages.DryTest,
+            log=self.script.log,
+        )
 
         # Mock the method that returns the BestEffortIsr class if it is
         # not available for import

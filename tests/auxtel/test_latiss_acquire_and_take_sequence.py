@@ -31,6 +31,7 @@ import lsst.daf.butler as dafButler
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
+from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
 from lsst.utils import getPackageDir
 
 # Make matplotlib less chatty
@@ -94,6 +95,16 @@ class TestLatissAcquireAndTakeSequence(
     async def basic_make_script(self, index):
         logger.debug("Starting basic_make_script")
         self.script = LatissAcquireAndTakeSequence(index=index)
+        self.script.atcs = ATCS(
+            domain=self.script.domain,
+            intended_usage=ATCSUsages.DryTest,
+            log=self.script.log,
+        )
+        self.script.latiss = LATISS(
+            domain=self.script.domain,
+            intended_usage=LATISSUsages.DryTest,
+            log=self.script.log,
+        )
 
         # Mock the telescope slews and offsets
         self.script.atcs.slew_object = unittest.mock.AsyncMock()

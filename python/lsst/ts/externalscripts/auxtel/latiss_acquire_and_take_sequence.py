@@ -80,12 +80,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             " for LATISS instrument.",
         )
 
-        self.atcs = ATCS(self.domain, log=self.log)
-        self.latiss = LATISS(
-            self.domain,
-            log=self.log,
-            tcs_ready_to_take_data=self.atcs.ready_to_take_data,
-        )
+        self.atcs = None
+        self.latiss = None
         # instantiate the quick measurement class
         try:
             qm_config = QuickFrameMeasurementTask.ConfigClass()
@@ -271,6 +267,16 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
         config : `types.SimpleNamespace`
             Script configuration, as defined by `schema`.
         """
+        if self.atcs is None:
+            self.atcs = ATCS(self.domain, log=self.log)
+            await self.atcs.start_task
+        if self.latiss is None:
+            self.latiss = LATISS(
+                self.domain,
+                log=self.log,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+            )
+            await self.latiss.start_task
 
         # Instantiate BestEffortIsr
         self.best_effort_isr = self.get_best_effort_isr()

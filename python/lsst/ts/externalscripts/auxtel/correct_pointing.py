@@ -42,7 +42,7 @@ except ImportError:
     warnings.warn("Cannot import required libraries. Script will not work.")
 
 
-from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
+from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants.latiss_constants import boresight
 from lsst.ts.observatory.control.utils.enums import RotType
 from lsst.ts.salobj import BaseScript
@@ -60,20 +60,8 @@ class CorrectPointing(BaseScript):
             descr="Correct pointing.",
         )
 
-        if remotes:
-            self.atcs = ATCS(domain=self.domain, log=self.log)
-            self.latiss = LATISS(
-                domain=self.domain,
-                log=self.log,
-                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
-            )
-        else:
-            self.atcs = ATCS(
-                domain=self.domain, log=self.log, intended_usage=ATCSUsages.DryTest
-            )
-            self.latiss = LATISS(
-                domain=self.domain, log=self.log, intended_usage=LATISSUsages.DryTest
-            )
+        self.atcs = None
+        self.latiss = None
 
         self.image_in_oods_timeout = 15.0
         self.get_image_timeout = 10.0
@@ -156,6 +144,18 @@ class CorrectPointing(BaseScript):
         config : `types.SimpleNamespace`
             Script configuration, as defined by `schema`.
         """
+        if self.atcs is None:
+            self.atcs = ATCS(domain=self.domain, log=self.log)
+            await self.atcs.start_task
+
+        if self.latiss is None:
+            self.latiss = LATISS(
+                domain=self.domain,
+                log=self.log,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+            )
+            await self.latiss.start_task
+
         self.best_effort_isr = self.get_best_effort_isr()
 
         self.azimuth = config.az
@@ -208,8 +208,8 @@ class CorrectPointing(BaseScript):
         current_elevation = current_position.elevationCalculatedAngle[0]
 
         self.log.info(
-            f"{porigin_x = :0.3f} arcsec, {porigin_y = :0.3f} arcsec, "
-            f"{current_azimuth = :0.3f} deg, {current_elevation = :0.3f} deg"
+            f"{porigin_x=:0.3f} arcsec, {porigin_y=:0.3f} arcsec, "
+            f"{current_azimuth=:0.3f} deg, {current_elevation=:0.3f} deg"
         )
 
         await self.atcs.reset_offsets()

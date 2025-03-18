@@ -21,6 +21,7 @@
 
 import logging
 import unittest
+from unittest.mock import AsyncMock
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
@@ -36,6 +37,8 @@ class TestMakeComCamCalibrations(
     async def basic_make_script(self, index):
         logger.debug("Starting basic_make_script")
         self.script = MakeComCamCalibrations(index=index)
+        self.script._comcam = AsyncMock()
+        self.script._ocps_group = AsyncMock()
 
         logger.debug("Finished initializing from basic_make_script")
         # Return a single element tuple

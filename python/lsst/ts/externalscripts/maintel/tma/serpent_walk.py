@@ -46,13 +46,7 @@ class SerpentWalk(BaseTrackTarget):
             descr="Slew and track targets on an az/el grid going up and down.",
         )
         self.config = None
-        self._mtcs = (
-            MTCS(domain=self.domain, log=self.log, intended_usage=MTCSUsages.Slew)
-            if remotes
-            else MTCS(
-                domain=self.domain, log=self.log, intended_usage=MTCSUsages.DryTest
-            )
-        )
+        self._mtcs = None
 
     @property
     def tcs(self):
@@ -109,7 +103,6 @@ class SerpentWalk(BaseTrackTarget):
                 type: array
                 items:
                   type: string
-                default: []
               rot_value:
                 description: Rotator position value. Actual meaning depends on rot_type.
                 type: number
@@ -155,6 +148,12 @@ class SerpentWalk(BaseTrackTarget):
             Configuration data. See `get_schema` for information about data
             structure.
         """
+        if self._mtcs is None:
+            self._mtcs = MTCS(
+                domain=self.domain, log=self.log, intended_usage=MTCSUsages.Slew
+            )
+            await self._mtcs.start_task
+
         self.log.debug(
             f"Setting up configuration: \n"
             f"  total_time: {config.total_time}\n"
@@ -168,15 +167,7 @@ class SerpentWalk(BaseTrackTarget):
         self.config.rot_type = getattr(RotType, self.config.rot_type)
 
         if hasattr(self.config, "ignore"):
-            for comp in self.config.ignore:
-                if comp not in self.tcs.components_attr:
-                    self.log.warning(
-                        f"Component {comp} not in CSC Group. "
-                        f"Must be one of {self.tcs.components_attr}. Ignoring."
-                    )
-                else:
-                    self.log.debug(f"Ignoring component {comp}.")
-                    setattr(self.tcs.check, comp, False)
+            self.tcs.disable_checks_for_components(components=config.ignore)
 
     def set_metadata(self, metadata):
         """Set estimated duration of the script."""

@@ -24,10 +24,10 @@ __all__ = ["TakeRotatedComCam"]
 import astropy.units
 import yaml
 from astropy.coordinates import ICRS, Angle
-from lsst.ts.observatory.control.utils import RotType
-from lsst.ts.standardscripts.maintel.take_aos_sequence_comcam import (
+from lsst.ts.maintel.standardscripts.take_aos_sequence_comcam import (
     TakeAOSSequenceComCam,
 )
+from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.xml.enums.MTPtg import WrapStrategy
 from lsst.ts.xml.enums.Script import MetadataCoordSys, MetadataRotSys
 

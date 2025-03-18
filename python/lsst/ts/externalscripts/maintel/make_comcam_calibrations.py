@@ -45,10 +45,8 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
             "with LSSTComCam, and constructs combined "
             "calibrations, verify and certify the results.",
         )
-        self._comcam = ComCam(domain=self.domain, log=self.log)
-        self._ocps_group = RemoteGroup(
-            domain=self.domain, components=["OCPS:2"], log=self.log
-        )
+        self._comcam = None
+        self._ocps_group = None
 
     @property
     def camera(self):
@@ -187,3 +185,14 @@ class MakeComCamCalibrations(BaseMakeCalibrations):
 
     def get_instrument_configuration(self):
         return dict(filter=self.config.filter)
+
+    async def start_remotes(self):
+        if self._comcam is None:
+            self._comcam = ComCam(domain=self.domain, log=self.log)
+            await self._comcam.start_task
+
+        if self._ocps_group is None:
+            self._ocps_group = RemoteGroup(
+                domain=self.domain, components=["OCPS:2"], log=self.log
+            )
+            await self._ocps_group.start_task
