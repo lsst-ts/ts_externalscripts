@@ -231,6 +231,34 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 type: boolean
                 default: True
 
+              rot_value:
+                description: >-
+                  Rotator position value. Actual meaning depends on rot_type.
+                type: number
+                default: 0
+
+              rot_type:
+                description: >-
+                  Rotator strategy. Options are:
+                    Sky: Sky position angle strategy. The rotator is positioned with respect
+                         to the North axis so rot_angle=0. means y-axis is aligned with North.
+                         Angle grows clock-wise.
+                    SkyAuto: Same as sky position angle but it will verify that the requested
+                             angle is achievable and wrap it to a valid range.
+                    Parallactic: This strategy is required for taking optimum spectra with
+                                 LATISS. If set to zero, the rotator is positioned so that the
+                                 y-axis (dispersion axis) is aligned with the parallactic
+                                 angle.
+                    PhysicalSky: This strategy allows users to select the **initial** position
+                                  of the rotator in terms of the physical rotator angle (in the
+                                  reference frame of the telescope). Note that the telescope
+                                  will resume tracking the sky rotation.
+                    Physical: Select a fixed position for the rotator in the reference frame of
+                              the telescope. Rotator will not track in this mode.
+                type: string
+                enum: ["Sky", "SkyAuto", "Parallactic", "PhysicalSky", "Physical"]
+                default: Parallactic
+
               reason:
                 description: Optional reason for taking the data.
                 anyOf:
@@ -360,6 +388,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             else config.time_on_target
         )
 
+        self.rot_type = config.rot_type
+        self.rot_value = config.rot_value
+
     def compute_time_on_target(self):
         """Determine the amount of time spent on target so the rotator position
         can be optimized.
@@ -471,7 +502,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 self.object_ra,
                 self.object_dec,
                 target_name=self.object_name,
-                rot_type=RotType.Parallactic,
+                rot=self.rot_value,
+                rot_type=getattr(RotType, self.rot_type),
                 slew_timeout=240,
                 az_wrap_strategy=WrapStrategy.OPTIMIZE,
                 time_on_target=self.time_on_target,
@@ -482,7 +514,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             self.log.debug("Using slew_object (object name designation)")
             _slew_coro = self.atcs.slew_object(
                 name=self.object_name,
-                rot_type=RotType.Parallactic,
+                rot=self.rot_value,
+                rot_type=getattr(RotType, self.rot_type),
                 slew_timeout=240,
                 az_wrap_strategy=WrapStrategy.OPTIMIZE,
                 time_on_target=self.time_on_target,
