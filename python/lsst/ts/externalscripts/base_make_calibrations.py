@@ -268,6 +268,10 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                   - type: number
                     minimum: 0
                 default: 5
+            wait_between_exposures:
+                type: number
+                default: 0
+                description: Time to wait (in seconds) between consecutive exposures.
             generate_calibrations:
                 type: boolean
                 descriptor: Should the combined calibrations be generated from the images taken? \
@@ -476,22 +480,23 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         self.note = getattr(self.config, "note", None)
         group_id = self.group_id if not self.obs_id else self.obs_id
 
-        return tuple(
-            [
-                (
-                    await self.camera.take_imgtype(
-                        image_type,
-                        exp_time,
-                        1,
-                        reason=self.reason,
-                        program=self.program,
-                        note=self.note,
-                        group_id=group_id,
-                    )
-                )[0]
-                for exp_time in exp_times
-            ]
-        )
+        exposure_ids = []
+        for exp_time in exp_times:
+            exposure_id = (
+                await self.camera.take_imgtype(
+                    image_type,
+                    exp_time,
+                    1,
+                    reason=self.reason,
+                    program=self.program,
+                    note=self.note,
+                    group_id=group_id,
+                )
+            )[0]
+            exposure_ids.append(exposure_id)
+            await asyncio.sleep(self.config.wait_between_exposures)
+
+        return tuple(exposure_ids)
 
     async def image_in_oods_callback(self, data):
         """Callback function to check images are in oods
