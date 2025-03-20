@@ -98,14 +98,6 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.atcs = None
         self.latiss = None
 
-        if remotes:
-            self.atcs = ATCS(self.domain, log=self.log)
-            self.latiss = LATISS(
-                self.domain,
-                log=self.log,
-                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
-            )
-
         # Timeouts used for telescope commands
         self.timeout_short = 5.0  # used with hexapod offset command
         self.timeout_long = 30.0  # used to wait for in-position event from hexapod
@@ -543,6 +535,18 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
             If both `find_target` and `track_target` are defined in the
             configuration.
         """
+
+        if self.atcs is None:
+            self.atcs = ATCS(self.domain, log=self.log)
+            await self.atcs.start_task
+
+        if self.latiss is None:
+            self.latiss = LATISS(
+                self.domain,
+                log=self.log,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+            )
+            await self.latiss.start_task
 
         self.target_config = types.SimpleNamespace()
 
