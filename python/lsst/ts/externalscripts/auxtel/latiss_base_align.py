@@ -749,6 +749,9 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         await self._slew_to_target(checkpoint)
 
+        await asyncio.sleep(30.0)
+        return
+
         if self.take_detection_image:
             if checkpoint:
                 await self.checkpoint("Detection image.")

@@ -536,6 +536,8 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
             await self.atcs.rem.ataos.cmd_offset.set_start(z=self.manual_focus_offset)
             self.manual_focus_offset_applied = True
 
+        return
+
         self.log.debug(
             "Beginning Acquisition Iterative Loop, with a maximum amount of "
             f"iterations set to {self.max_acq_iter}"

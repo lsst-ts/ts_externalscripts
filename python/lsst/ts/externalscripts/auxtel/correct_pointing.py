@@ -302,6 +302,8 @@ class CorrectPointing(BaseScript):
             f"Correcting pointing with a max number of {self.max_iters} iterations.",
         )
 
+        await asyncio.sleep(30.0)
+        return
         await self.center_on_brightest_source()
 
     async def get_rotator_angle(self) -> float:
