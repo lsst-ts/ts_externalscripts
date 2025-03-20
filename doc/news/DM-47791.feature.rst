@@ -1,0 +1,2 @@
+- Adding `make_lsstcam_calibrations.py` in line with ComCam and LATISS versions.
+- Added functionality to wait between exposures in the BaseMakeCalibrations class.
