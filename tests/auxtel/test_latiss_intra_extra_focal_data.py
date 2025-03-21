@@ -35,6 +35,27 @@ class TestLatissIntraExtraFocalData(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     async def basic_make_script(self, index):
+        self.atcamera = salobj.Controller(name="ATCamera")
+        await self.atcamera.start_task
+
+        self.atheaderservice = salobj.Controller(name="ATHeaderService")
+        await self.atheaderservice.start_task
+
+        self.atoods = salobj.Controller(name="ATOODS")
+        await self.atoods.start_task
+
+        self.ataos = salobj.Controller(name="ATAOS")
+        await self.ataos.start_task
+
+        self.athexapod = salobj.Controller(name="ATHexapod")
+        await self.athexapod.start_task
+
+        self.atptg = salobj.Controller(name="ATPtg")
+        await self.atptg.start_task
+
+        self.atmcs = salobj.Controller(name="ATMCS")
+        await self.atmcs.start_task
+
         logger.debug("Starting basic_make_script")
         self.script = LatissIntraExtraFocalData(index=index)
 
@@ -42,34 +63,11 @@ class TestLatissIntraExtraFocalData(
         self.end_image_tasks = []
         self.img_cnt_override_list = None
 
-        self.atcamera = salobj.Controller(name="ATCamera")
-        self.atheaderservice = salobj.Controller(name="ATHeaderService")
-        self.atoods = salobj.Controller(name="ATOODS")
-        self.ataos = salobj.Controller(name="ATAOS")
-        self.athexapod = salobj.Controller(name="ATHexapod")
-        self.atptg = salobj.Controller(name="ATPtg")
-        self.atmcs = salobj.Controller(name="ATMCS")
-
         # Create mocks
         self.atcamera.cmd_takeImages.callback = unittest.mock.AsyncMock(
             wraps=self.cmd_take_images_callback
         )
-        self.script.latiss.ready_to_take_data = unittest.mock.AsyncMock(
-            return_value=True
-        )
 
-        # mock latiss instrument setup
-        self.script.latiss.setup_atspec = unittest.mock.AsyncMock()
-
-        self.ataos.cmd_offset.callback = unittest.mock.AsyncMock(
-            wraps=self.ataos_cmd_offset_callback
-        )
-        self.script.atcs.offset_xy = unittest.mock.AsyncMock()
-        self.script.atcs.add_point_data = unittest.mock.AsyncMock()
-        # callback for boresight angle
-        self.script.atcs.get_bore_sight_angle = unittest.mock.AsyncMock(
-            wraps=self.atcs_get_bore_sight_angle
-        )
         # Set offset_telescope to True
         self.script.offset_telescope = True
 
@@ -86,6 +84,21 @@ class TestLatissIntraExtraFocalData(
         await super().configure_script(**kwargs)
 
         await self.script._configure_target()
+        self.script.latiss.ready_to_take_data = unittest.mock.AsyncMock(
+            return_value=True
+        )
+        # mock latiss instrument setup
+        self.script.latiss.setup_atspec = unittest.mock.AsyncMock()
+
+        self.ataos.cmd_offset.callback = unittest.mock.AsyncMock(
+            wraps=self.ataos_cmd_offset_callback
+        )
+        self.script.atcs.offset_xy = unittest.mock.AsyncMock()
+        self.script.atcs.add_point_data = unittest.mock.AsyncMock()
+        # callback for boresight angle
+        self.script.atcs.get_bore_sight_angle = unittest.mock.AsyncMock(
+            wraps=self.atcs_get_bore_sight_angle
+        )
 
     async def test_configure(self):
         # Try configure with minimum set of parameters declared
