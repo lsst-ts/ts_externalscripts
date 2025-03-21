@@ -93,8 +93,24 @@ except PermissionError:
 class TestLatissCWFSAlign(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
+
+    def setUp(self):
+        self.mock_configured = False
+
     async def basic_make_script(self, index):
         self.script = LatissCWFSAlign(index=index, remotes=True)
+
+        # Mock method that returns the BestEffortIsr class if it is
+        # not available for import
+        if not DATA_AVAILABLE:
+            self.script.get_best_effort_isr = unittest.mock.AsyncMock()
+
+        # Return a single element tuple
+        return (self.script,)
+
+    async def configure_mock(self):
+
+        self.mock_configured
 
         self.visit_id_angles = {}
         self.end_image_tasks = []
@@ -131,18 +147,10 @@ class TestLatissCWFSAlign(
             wraps=self.atcs_get_bore_sight_angle
         )
 
-        # Mock method that returns the BestEffortIsr class if it is
-        # not available for import
-        if not DATA_AVAILABLE:
-            self.script.get_best_effort_isr = unittest.mock.AsyncMock()
-
         # things to track
         self.nimages = 0
         self.date = None  # Used to fake dataId output from takeImages
         self.seq_num_start = None  # Used to fake proper dataId from takeImages
-
-        # Return a single element tuple
-        return (self.script,)
 
     async def ataos_cmd_offset_callback(self, data):
         """Publishes event from hexapod saying movement completed.
@@ -165,18 +173,19 @@ class TestLatissCWFSAlign(
 
     async def close(self):
         """Optional cleanup before closing the scripts and etc."""
-        logger.debug("Closing Remotes")
-        await asyncio.gather(*self.end_image_tasks, return_exceptions=True)
-        await asyncio.gather(
-            self.atoods.close(),
-            self.atcamera.close(),
-            self.atheaderservice.close(),
-            self.ataos.close(),
-            self.athexapod.close(),
-            self.atptg.close(),
-            self.atmcs.close(),
-        )
-        logger.debug("Remotes Closed")
+        if self.mock_configured:
+            logger.debug("Closing Remotes")
+            await asyncio.gather(*self.end_image_tasks, return_exceptions=True)
+            await asyncio.gather(
+                self.atoods.close(),
+                self.atcamera.close(),
+                self.atheaderservice.close(),
+                self.ataos.close(),
+                self.athexapod.close(),
+                self.atptg.close(),
+                self.atmcs.close(),
+            )
+            logger.debug("Remotes Closed")
 
     async def cmd_take_images_callback(self, data):
         logger.debug(f"cmd_take_images callback came with data of {data}")
@@ -229,6 +238,9 @@ class TestLatissCWFSAlign(
 
         # Try configure with minimum set of parameters declared
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             grating = "test_disp1"
             filter = "test_filt1"
             exposure_time = 1.0
@@ -250,6 +262,9 @@ class TestLatissCWFSAlign(
         # don't get a target so the mag_range is large to
         # prevent this
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             find_target = dict(az=-180.0, el=60.0, mag_limit=6.0, mag_range=14)
             await self.configure_script(find_target=find_target)
 
@@ -259,24 +274,36 @@ class TestLatissCWFSAlign(
 
         # Test with find_target; fail if only az is provided
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             find_target = dict(az=0.0)
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
         # Test with find_target; fail if only el is provided
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             find_target = dict(el=60.0)
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
         # Test with find_target; fail if only az and el is provided
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             find_target = dict(az=0.0, el=60.0)
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
         # Test with track_target; give target name only
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             track_target = dict(target_name="HD 185975")
             await self.configure_script(track_target=track_target)
 
@@ -286,6 +313,9 @@ class TestLatissCWFSAlign(
 
         # Test with track_target; give target name and ra/dec
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5, dec=-87.5))
             await self.configure_script(track_target=track_target)
 
@@ -295,18 +325,27 @@ class TestLatissCWFSAlign(
 
         # Test with track_target; fail if name is not provided ra/dec
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             track_target = dict(icrs=dict(ra=20.5, dec=-87.5))
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
 
         # Test with track_target; fail if only ra is provided
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5))
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
 
         # Test with track_target; fail if only dec is provided
         async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
             track_target = dict(target_name="HD 185975", icrs=dict(dec=-87.5))
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
@@ -366,6 +405,15 @@ class TestLatissCWFSAlign(
             self.seq_num_start = 950
             grating = "empty_1"
             filter = "FELH0600"
+            # exposures are 20s but putting short time here for speed
+            exposure_time = 0.5
+            await self.configure_script(
+                grating=grating,
+                filter=filter,
+                exposure_time=exposure_time,
+            )
+            await self.configure_mock()
+
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2021110400950: [76.5, 96.16]})
             self.visit_id_angles.update({2021110400951: [76.5, 96.75]})
@@ -379,14 +427,6 @@ class TestLatissCWFSAlign(
             self.img_cnt_override_list = [950, 951, 954, 955, 958, 959, 960]
             # publish required events
             await self.atptg.evt_currentTarget.set_write(targetName=target_name)
-
-            # exposures are 20s but putting short time here for speed
-            exposure_time = 0.5
-            await self.configure_script(
-                grating=grating,
-                filter=filter,
-                exposure_time=exposure_time,
-            )
 
             # await self.run_script()
             await self.script.arun()
@@ -538,6 +578,7 @@ class TestLatissCWFSAlign(
         """
         async with self.make_script():
             await self.configure_script()
+            await self.configure_mock()
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2021110400954: [76.95, 89.09]})
             self.visit_id_angles.update({2021110400955: [76.96, 88.79]})
@@ -659,6 +700,7 @@ class TestLatissCWFSAlign(
         """
         async with self.make_script():
             await self.configure_script()
+            await self.configure_mock()
             # visitID: elevationCalculatedAngle, nasymth2CalculatedAngle
             self.visit_id_angles.update({2022031600232: [51.07, 0.58]})
             self.visit_id_angles.update({2022031600233: [51.07, 0.58]})
