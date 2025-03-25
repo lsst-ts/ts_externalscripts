@@ -321,6 +321,8 @@ class TestLatissAcquireAndTakeSequence(
                 acq_exposure_time=acq_exposure_time,
                 max_acq_iter=max_acq_iter,
                 target_pointing_tolerance=target_pointing_tolerance,
+                rot_value=90,
+                rot_type="PhysicalSky",
                 filter_sequence=filter_sequence,
                 grating_sequence=grating_sequence,
                 exposure_time_sequence=exposure_time_sequence,
