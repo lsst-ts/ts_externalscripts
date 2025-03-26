@@ -26,6 +26,7 @@ __version__ = "{version}"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "-vsx"
 
 [tool.isort]
 profile = "black"
