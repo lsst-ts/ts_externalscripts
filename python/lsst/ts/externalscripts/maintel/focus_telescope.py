@@ -75,7 +75,7 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
     def configure_butler(self) -> None:
         """Configure the butler."""
         if self.butler is None:
-            self.butler = Butler("/repo/LSSTCam")
+            self.butler = Butler("LSSTCam")
         else:
             self.log.debug("Butler already defined, skipping.")
 
