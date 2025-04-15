@@ -231,7 +231,6 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
             visitId=visit_id,
             extraId=None,
             useOCPS=True,
-            config=self.wep_config,
             timeout=2 * CMD_TIMEOUT,
         )
         await take_second_snap_task
