@@ -330,7 +330,7 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
                 await self.checkpoint(f"[{i + 1}/{self.max_iter}]: Taking image...")
 
             # Take in-focus image and trigger WEP processing
-            image_id = self.take_images(self.next_supplemented_group_id())
+            image_id = await self.take_images(self.next_supplemented_group_id())
 
             # Compute z offset with fitDonutRadius task
             z_offset = await self.compute_z_offset(
