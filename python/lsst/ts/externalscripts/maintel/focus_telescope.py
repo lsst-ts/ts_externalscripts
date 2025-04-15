@@ -23,6 +23,7 @@ __all__ = ["FocusTelescope"]
 
 import abc
 import asyncio
+import time
 import types
 import typing
 import warnings
@@ -232,6 +233,7 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
             extraId=None,
             useOCPS=True,
             timeout=2 * CMD_TIMEOUT,
+            wait_done=False,
         )
         await take_second_snap_task
 
@@ -256,11 +258,34 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
             If no valid intra/extra detector pairs found in the data.
         """
         collections = ["LSSTCam/raw/all", "LSSTCam/runs/quickLook"]
-        stamps_datasets = self.butler.query_datasets(
-            "donutStampsExtra",
-            collections=collections,
-            where=f"visit in ({image_id}) and instrument='LSSTCam'",
-        )
+
+        start_time = time.time()
+        elapsed_time = 0.0
+        poll_interval = 5.0
+
+        while elapsed_time < CMD_TIMEOUT:
+            try:
+                self.log.info("Querying datasets: donutStampsExtra")
+                stamps_datasets = self.butler.query_datasets(
+                    "donutStampsExtra",
+                    collections=collections,
+                    where=f"visit in ({image_id}) and instrument='LSSTCam'",
+                )
+                self.log.debug(f"Query returned {len(stamps_datasets)} results.")
+            except Exception:
+                self.log.exception(
+                    f"Dataset donutStampsExtra not found. Waiting {poll_interval}s."
+                )
+                continue
+            finally:
+                await asyncio.sleep(poll_interval)
+                elapsed_time = time.time() - start_time
+        else:
+            self.log.error(f"Polling loop timed out {CMD_TIMEOUT=}s, {elapsed_time=}s.")
+            raise TimeoutError(
+                f"Timeout: Could not find donutStampsExtra "
+                f"with visit id {image_id} within {CMD_TIMEOUT} seconds."
+            )
 
         if len(stamps_datasets) == 0:
             raise ValueError("No valid intra/extra detector pairs found in the data.")
