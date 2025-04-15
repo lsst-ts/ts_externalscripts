@@ -255,7 +255,7 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
         ValueError
             If no valid intra/extra detector pairs found in the data.
         """
-        collections = ["LSSTCam/raw/all", "LSSTCam/run/quickLook"]
+        collections = ["LSSTCam/raw/all", "LSSTCam/runs/quickLook"]
         stamps_datasets = self.butler.query_datasets(
             "donutStampsExtra",
             collections=collections,
