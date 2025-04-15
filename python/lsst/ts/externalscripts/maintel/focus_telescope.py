@@ -230,7 +230,7 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
         await self.mtcs.rem.mtaos.cmd_runWEP.set_start(
             visitId=visit_id,
             extraId=None,
-            useOCPS=self.use_ocps,
+            useOCPS=True,
             config=self.wep_config,
             timeout=2 * CMD_TIMEOUT,
         )
