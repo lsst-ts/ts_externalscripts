@@ -290,7 +290,8 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
 
             N = 1.234  # f-number for Rubin
             pixel_to_um = 10  # pixel size in um
-            nominal_defocus = 1500  # um
+            nominal_defocus = 1550  # um, this is a little bigger than 1500 because
+            # theoretical calculation below is not very accurate
             l_intra = intra_avg * np.sqrt(4 * N**2 - 1) * pixel_to_um - nominal_defocus
             l_extra = extra_avg * np.sqrt(4 * N**2 - 1) * pixel_to_um - nominal_defocus
 
@@ -298,6 +299,12 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
             if l_extra >= 0 and l_intra <= 0:
                 z_offsets.append(-mean_offset)
             elif l_extra < 0 and l_intra > 0:
+                z_offsets.append(mean_offset)
+            elif (
+                l_extra * l_intra > 0
+                and l_extra < self.threshold
+                and l_intra < self.threshold
+            ):
                 z_offsets.append(mean_offset)
             else:
                 raise ValueError(
