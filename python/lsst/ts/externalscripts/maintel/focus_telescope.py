@@ -26,11 +26,9 @@ import asyncio
 import types
 import typing
 import warnings
-from collections import defaultdict
 
 import numpy as np
 import yaml
-from astropy.table import QTable
 from lsst.daf.butler import Butler
 from lsst.ts import salobj
 from lsst.ts.observatory.control import BaseCamera
@@ -256,91 +254,58 @@ class FocusTelescope(salobj.BaseScript, metaclass=abc.ABCMeta):
         Raises
         ------
         ValueError
-            If no valid SW0+SW1 intra/extra detector pairs found in the data.
+            If no valid intra/extra detector pairs found in the data.
         """
-        detector_pairs = [
-            ("R00_SW0", "R00_SW1"),
-            ("R04_SW0", "R04_SW1"),
-            ("R40_SW0", "R40_SW1"),
-            ("R44_SW0", "R44_SW1"),
-        ]
-
-        intra_datasets = self.butler.query_datasets(
-            "donutStampsIntra",
-            collections=["LSSTCam/raw/all", "LSSTCam/quickLook"],
-            where=f"visit in ({image_id})",
-        )
-        extra_datasets = self.butler.query_datasets(
+        collections = ["LSSTCam/raw/all", "LSSTCam/run/quickLook"]
+        stamps_datasets = self.butler.query_datasets(
             "donutStampsExtra",
-            collections=["LSSTCam/raw/all", "LSSTCam/quickLook"],
-            where=f"visit in ({image_id})",
+            collections=collections,
+            where=f"visit in ({image_id}) and instrument='LSSTCam'",
         )
 
-        donut_stamps_intra = [self.butler.get(dataset) for dataset in intra_datasets]
-        donut_stamps_extra = [self.butler.get(dataset) for dataset in extra_datasets]
+        if len(stamps_datasets) == 0:
+            raise ValueError("No valid intra/extra detector pairs found in the data.")
 
         config = FitDonutRadiusTaskConfig()
         task = FitDonutRadiusTask(config=config)
-        table = task.run(donut_stamps_intra, donut_stamps_extra).donutRadiiTable
 
-        intra_avg = self.average_radii_by_detector(table[table["DFC_TYPE"] == "intra"])
-        extra_avg = self.average_radii_by_detector(table[table["DFC_TYPE"] == "extra"])
-
-        valid = any(
-            sw0 in intra_avg and sw1 in extra_avg for sw0, sw1 in detector_pairs
-        )
-        if not valid:
-            raise ValueError(
-                "No valid SW0+SW1 intra/extra detector pairs found in the data."
+        donut_stamps_intra = [
+            self.butler.get(
+                "donutStampsIntra", dataId=dataset.dataId, collections=collections
             )
+            for dataset in stamps_datasets
+        ]
+        donut_stamps_extra = [
+            self.butler.get(
+                "donutStampsExtra", dataId=dataset.dataId, collections=collections
+            )
+            for dataset in stamps_datasets
+        ]
 
-        focus_per_pair = {}
-        for sw0, sw1 in detector_pairs:
-            if sw0 in intra_avg and sw1 in extra_avg:
-                N = 1.234  # f-number for Rubin
-                pixel_to_um = 10  # pixel size in um
-                nominal_defocus = 1500  # um
-                l_intra = (
-                    intra_avg[sw0] * np.sqrt(4 * N**2 - 1) * pixel_to_um
-                    - nominal_defocus
+        z_offsets = []
+        for donut_intra, donut_extra in zip(donut_stamps_intra, donut_stamps_extra):
+            table = task.run(donut_intra, donut_extra).donutRadiiTable
+
+            intra_avg = np.median(table[table["DFC_TYPE"] == "intra"]["RADIUS"].value)
+            extra_avg = np.median(table[table["DFC_TYPE"] == "extra"]["RADIUS"].value)
+
+            N = 1.234  # f-number for Rubin
+            pixel_to_um = 10  # pixel size in um
+            nominal_defocus = 1500  # um
+            l_intra = intra_avg * np.sqrt(4 * N**2 - 1) * pixel_to_um - nominal_defocus
+            l_extra = extra_avg * np.sqrt(4 * N**2 - 1) * pixel_to_um - nominal_defocus
+
+            mean_offset = (np.abs(l_extra) + np.abs(l_intra)) / 2
+            if l_extra >= 0 and l_intra <= 0:
+                z_offsets.append(-mean_offset)
+            elif l_extra < 0 and l_intra > 0:
+                z_offsets.append(mean_offset)
+            else:
+                raise ValueError(
+                    f"Unexpected donut radius values "
+                    f"intra: {l_intra}, extra: {l_extra}"
                 )
-                l_extra = (
-                    extra_avg[sw1] * np.sqrt(4 * N**2 - 1) * pixel_to_um
-                    - nominal_defocus
-                )
-
-                mean_offset = (np.abs(l_extra) + np.abs(l_intra)) / 2
-                if l_extra > 0 and l_intra < 0:
-                    # Extra is positive and intra negative, focus is negative
-                    focus_per_pair[f"{sw0}"] = -mean_offset
-                elif l_extra < 0 and l_intra > 0:
-                    # Extra is negative and intra positive, focus is positive
-                    focus_per_pair[f"{sw0}"] = mean_offset
-                else:
-                    raise ValueError(
-                        f"Unexpected donut radius values for {sw0} and {sw1}: "
-                        f"{l_intra}, {l_extra}"
-                    )
-
-        return np.mean(list(focus_per_pair.values()))
-
-    def average_radii_by_detector(qtable: QTable) -> typing.Dict[str, float]:
-        """Average donut radii by detector.
-
-        Parameters
-        ----------
-        qtable : `astropy.table.QTable`
-            Table with donut radii.
-
-        Returns
-        -------
-        result : `dict`
-            Dictionary with average donut radii by detector.
-        """
-        result = defaultdict(list)
-        for row in qtable:
-            result[row["DET_NAME"]].append(row["RADIUS"])
-        return {det: np.mean(radii) for det, radii in result.items()}
+        return np.mean(z_offsets)
 
     async def arun(self, checkpoint: bool = False) -> None:
         """Focus telescope.
