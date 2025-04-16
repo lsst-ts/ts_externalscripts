@@ -91,7 +91,7 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
     @property
     def image_in_oods(self):
         """OODS imageInOODS event."""
-        return self.camera.rem.ccoods.evt_imageInOODS
+        return self.camera.rem.mtoods.evt_imageInOODS
 
     async def start_remotes(self):
         if self._lsstcam is None:
