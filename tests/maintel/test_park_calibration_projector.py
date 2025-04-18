@@ -64,6 +64,7 @@ class TestParkCalibrationProjector(
             return_value=self.projector_setup
         )
         self.script.mtcalsys.led_rest_position = 100.0
+        self.script.mtcalsys.linearstage_projector_pos_tolerance = 0.2
 
     async def test_configure(self):
         config = {
