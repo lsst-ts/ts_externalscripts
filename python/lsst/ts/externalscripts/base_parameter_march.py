@@ -116,7 +116,7 @@ class BaseParameterMarch(BaseBlockScript):
                 description: Azimuth position to point to.
                 anyOf:
                   - type: number
-                    minimum: 0
+                    minimum: -360
                     maximum: 360
                   - type: "null"
                 default: null
