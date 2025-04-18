@@ -105,7 +105,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         self.use_camera = config.use_camera
         self.sequence_name = config.sequence_name
         self.n_iterations = config.n_iterations
-        self.config_data = await self.mtcalsys.get_calibration_configuration(
+        self.config_data = self.mtcalsys.get_calibration_configuration(
             config.sequence_name
         )
         self.log.debug(f"Config data: {self.config_data}")
