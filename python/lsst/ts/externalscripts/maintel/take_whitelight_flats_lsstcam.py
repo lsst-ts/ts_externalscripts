@@ -84,6 +84,18 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         return schema_dict
 
     async def configure(self, config) -> None:
+        """Handle creating the camera object and waiting remote to start."""
+        if self.lsstcam is None:
+            self.log.debug("Creating Camera.")
+            self.lsstcam = LSSTCam(
+                self.domain,
+                intended_usage=LSSTCamUsages.TakeImage,
+                log=self.log,
+            )
+            await self.lsstcam.start_task
+        else:
+            self.log.debug("Camera already defined, skipping.")
+
         """Handle creating the MTCalsys object and waiting remote to start."""
         if self.mtcalsys is None:
             self.log.debug("Creating MTCalsys.")
@@ -110,24 +122,13 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         )
         self.log.debug(f"Config data: {self.config_data}")
 
-        """Handle creating the camera object and waiting remote to start."""
-        if self.lsstcam is None:
-            self.log.debug("Creating Camera.")
-            self.lsstcam = LSSTCam(
-                self.domain,
-                intended_usage=LSSTCamUsages.TakeImage,
-                log=self.log,
-            )
-            await self.lsstcam.start_task
-        else:
-            self.log.debug("Camera already defined, skipping.")
-
     def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
         """Set script metadata, including estimated duration."""
         # Initialize estimate flat exposure time
         self.log.debug(self.config_data)
 
-        target_flat_exptime = sum(self.config_data["exposure_times"])
+        self.log.debug(self.config_data.get("exposure_times"))
+        target_flat_exptime = sum(self.config_data.get("exposure_times"))
 
         # Setup time for the camera (readout and shutter time)
         setup_time_per_image = self.lsstcam.read_out_time + self.lsstcam.shutter_time
