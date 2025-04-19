@@ -214,7 +214,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         """
 
         self.exposure_metadata["group_id"] = (
-            self.group_id if self.obs_id is None else self.obs_id
+            self.group_id if not self.obs_id else self.obs_id
         )
         await self.mtcalsys.prepare_for_flat(self.sequence_name)
         for i in range(self.n_iterations):
