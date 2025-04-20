@@ -60,6 +60,7 @@ class TestMakeLSSTCamCalibrations(
             program = "BLOCK-123"
             reason = "SITCOM-321"
             wait_between_exposures = 5
+            script_mode = "BIAS_DARK_FLAT"
 
             self.script.get_obs_id = unittest.mock.AsyncMock(
                 side_effect=["202306060001"]
@@ -76,6 +77,7 @@ class TestMakeLSSTCamCalibrations(
                 program=program,
                 reason=reason,
                 wait_between_exposures=wait_between_exposures,
+                script_mode=script_mode,
             )
 
             assert self.script.config.n_bias == n_bias

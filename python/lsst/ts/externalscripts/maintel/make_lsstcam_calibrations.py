@@ -183,6 +183,8 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
                 descriptor: Butler repository.
                 default: "/repo/LSSTCam/butler+sasquatch.yaml"
         additionalProperties: false
+        required:
+            - script_mode
         """
         schema_dict = yaml.safe_load(schema)
         base_schema_dict = super().get_schema()
