@@ -1,0 +1,1 @@
+Add new `parameter_march_triplet_lsstcam.py` to take triplets while running a parameter march.

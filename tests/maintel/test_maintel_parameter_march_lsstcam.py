@@ -336,3 +336,8 @@ class TestParameterMarchLSSTCam(
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "maintel" / "parameter_march_lsstcam.py"
         await self.check_executable(script_path)
+
+    async def test_executable_triplet(self):
+        scripts_dir = externalscripts.get_scripts_dir()
+        script_path = scripts_dir / "maintel" / "parameter_march_triplet_lsstcam.py"
+        await self.check_executable(script_path)
