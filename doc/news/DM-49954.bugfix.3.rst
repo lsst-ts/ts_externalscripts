@@ -1,0 +1,1 @@
+Add focus_telescope script import to init.
