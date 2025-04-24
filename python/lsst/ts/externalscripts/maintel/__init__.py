@@ -23,6 +23,7 @@ from .make_comcam_calibrations import *
 from .make_lsstcam_calibrations import *
 from .parameter_march_comcam import *
 from .parameter_march_lsstcam import *
+from .parameter_march_triplet_lsstcam import *
 from .park_calibration_projector import *
 from .setup_whitelight_flats import *
 from .take_comcam_guider_image import *
