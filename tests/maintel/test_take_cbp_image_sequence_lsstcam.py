@@ -32,7 +32,7 @@ class TestTakeCBPImageSequenceLSSTCam(
         """Mock camera instance and its methods."""
         self.script.lsstcam = mock.AsyncMock()
         self.script.lsstcam.assert_liveliness = mock.AsyncMock()
-        self.script.lsstam.assert_all_enabled = mock.AsyncMock()
+        self.script.lsstcam.assert_all_enabled = mock.AsyncMock()
         self.script.lsstcam.take_imgtype = mock.AsyncMock(return_value=[1234])
         self.script.lsstcam.take_acq = mock.AsyncMock(return_value=([32, 0]))
 
