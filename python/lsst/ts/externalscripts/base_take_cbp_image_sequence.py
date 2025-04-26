@@ -272,6 +272,7 @@ class BaseTakeCBPImageSequence(BaseBlockScript, metaclass=abc.ABCMeta):
               exposure_times:
                 description: camera exposure times
                 type: array
+                default: [10]
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
