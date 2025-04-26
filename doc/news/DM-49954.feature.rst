@@ -1,0 +1,10 @@
+In focus_telescope.py:
+- Update to use donutFitRadiusTask in WEP.
+- Fix butler repo path. 
+- Add await on take_images calls.
+- Set useOCPS in runWep to True.
+- Fix typo in butler collections.
+- Add polling butler feature.
+- Remove await from evt_wavefrontError.
+- Remove wep_config. 
+- Update call to take_image in unit test.

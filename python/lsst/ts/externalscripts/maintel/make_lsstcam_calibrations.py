@@ -91,7 +91,7 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
     @property
     def image_in_oods(self):
         """OODS imageInOODS event."""
-        return self.camera.rem.ccoods.evt_imageInOODS
+        return self.camera.rem.mtoods.evt_imageInOODS
 
     async def start_remotes(self):
         if self._lsstcam is None:
@@ -183,6 +183,8 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
                 descriptor: Butler repository.
                 default: "/repo/LSSTCam/butler+sasquatch.yaml"
         additionalProperties: false
+        required:
+            - script_mode
         """
         schema_dict = yaml.safe_load(schema)
         base_schema_dict = super().get_schema()

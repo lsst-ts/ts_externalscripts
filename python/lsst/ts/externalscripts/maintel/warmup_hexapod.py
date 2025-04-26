@@ -138,9 +138,7 @@ class WarmUpHexapod(salobj.BaseScript):
             await self.mtcs.start_task
 
         if self.watcher is None:
-            self.watcher = salobj.Remote(
-                domain=self.domain, name="Watcher", includes=[]
-            )
+            self.watcher = salobj.Remote(domain=self.domain, name="Watcher", include=[])
             await self.watcher.start_task
 
         self.log.debug(

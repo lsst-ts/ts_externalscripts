@@ -75,7 +75,7 @@ class TestFocusTelescope(
         return (self.script,)
 
     async def take_image(self, *args, **kwargs):
-        return 1000
+        return [1000]
 
     async def compute_offset(self, *args, **kwargs):
         return 500.0

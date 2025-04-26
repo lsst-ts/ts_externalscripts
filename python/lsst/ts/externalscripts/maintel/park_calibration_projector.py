@@ -104,4 +104,7 @@ class ParkCalibrationProjector(salobj.BaseScript):
         )
 
         led_location = params[1]
-        assert led_location == self.mtcalsys.led_rest_position
+        assert (
+            abs(led_location - self.mtcalsys.led_rest_position)
+            < self.mtcalsys.linearstage_projector_pos_tolerance
+        )

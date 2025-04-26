@@ -74,6 +74,13 @@ class TestTakeWhiteLightFlatsLSSTCam(
         }
 
         async with self.make_script():
+            self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
+                return_value={
+                    "mtcamera_filter": "r_57",
+                    "exposure_times": [15.0],
+                    "calib_type": "WhiteLight",
+                }
+            )
             await self.configure_script(**config)
 
             assert self.script.sequence_name == "whitelight_r"
@@ -100,18 +107,16 @@ class TestTakeWhiteLightFlatsLSSTCam(
         }
 
         async with self.make_script():
-            self.script.mtcalsys.get_calibration_configuration = (
-                unittest.mock.AsyncMock(
-                    return_value={
-                        "mtcamera_filter": "z",
-                        "exposure_times": [15.0],
-                        "calib_type": "WhiteLight",
-                    }
-                )
+            self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
+                return_value={
+                    "mtcamera_filter": "z_20",
+                    "exposure_times": [15.0],
+                    "calib_type": "WhiteLight",
+                }
             )
             await self.configure_script(**config)
             await self.run_script()
-            assert self.script.get_instrument_filter() == "z"
+            assert self.script.get_instrument_filter() == "z_20"
 
     async def test_take_whitelight_source(self):
         config = {
@@ -121,15 +126,13 @@ class TestTakeWhiteLightFlatsLSSTCam(
         }
 
         async with self.make_script():
-            self.script.mtcalsys.get_calibration_configuration = (
-                unittest.mock.AsyncMock(
-                    return_value={
-                        "mtcamera_filter": "r",
-                        "wavelength": 612.5,
-                        "exposure_times": [5.0, 5.0],
-                        "calib_type": "WhiteLight",
-                    }
-                )
+            self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
+                return_value={
+                    "mtcamera_filter": "r_57",
+                    "wavelength": 612.5,
+                    "exposure_times": [5.0, 5.0],
+                    "calib_type": "WhiteLight",
+                }
             )
 
             await self.configure_script(**config)
@@ -145,6 +148,14 @@ class TestTakeWhiteLightFlatsLSSTCam(
         }
 
         async with self.make_script():
+            self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
+                return_value={
+                    "mtcamera_filter": "r_57",
+                    "wavelength": 612.5,
+                    "exposure_times": [5.0],
+                    "calib_type": "WhiteLight",
+                }
+            )
             await self.configure_script(**config)
             await self.run_script()
 

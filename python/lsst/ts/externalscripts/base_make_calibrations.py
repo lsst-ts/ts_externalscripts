@@ -183,6 +183,8 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         title: BaseMakeCalibrations v1
         description: Configuration for BaseMakeCalibrations.
         type: object
+        required:
+          - script_mode
         properties:
             script_mode:
                 description: Type of images to make. If "BIAS", only biases will be taken \
@@ -192,7 +194,6 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                         produced.
                 type: string
                 enum: ["BIAS", "BIAS_DARK", "BIAS_DARK_FLAT"]
-                default: "BIAS_DARK_FLAT"
             n_bias:
                 anyOf:
                   - type: integer
