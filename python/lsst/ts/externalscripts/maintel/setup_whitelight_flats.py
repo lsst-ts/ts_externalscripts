@@ -59,7 +59,7 @@ class SetupWhiteLightFlats(salobj.BaseScript):
               sequence_name:
                 description: Name of sequence in MTCalsys
                 type: string
-                default: whitelight_r
+                default: whitelight_u_source
               ignore:
                 description: >-
                     CSCs from the group to ignore in status check
