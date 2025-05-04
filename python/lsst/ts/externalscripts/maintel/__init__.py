@@ -22,6 +22,7 @@
 from .focus_telescope import *
 from .make_comcam_calibrations import *
 from .make_lsstcam_calibrations import *
+from .offset_and_take_images_lsstcam import *
 from .parameter_march_comcam import *
 from .parameter_march_lsstcam import *
 from .parameter_march_triplet_lsstcam import *
