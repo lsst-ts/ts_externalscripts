@@ -24,6 +24,7 @@ __all__ = ["SetupWhiteLightFlats"]
 
 import yaml
 from lsst.ts import salobj
+from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam
 from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys
 
 
@@ -43,6 +44,7 @@ class SetupWhiteLightFlats(salobj.BaseScript):
             descr="Setup for White Light Flats",
         )
 
+        self.lsstcam = None
         self.mtcalsys = None
 
     @classmethod
@@ -83,9 +85,17 @@ class SetupWhiteLightFlats(salobj.BaseScript):
 
         """
         self.log.info("Configure started")
+
+        if self.lsstcam is None:
+            self.log.debug("Creating LSSTCam.")
+            self.lsstcam = LSSTCam(domain=self.domain, log=self.log)
+            await self.lsstcam.start_task
+
         if self.mtcalsys is None:
             self.log.debug("Creating MTCalSys.")
-            self.mtcalsys = MTCalsys(domain=self.domain, log=self.log)
+            self.mtcalsys = MTCalsys(
+                domain=self.domain, log=self.log, mtcamera=self.lsstcam
+            )
             await self.mtcalsys.start_task
 
         if hasattr(config, "ignore"):
