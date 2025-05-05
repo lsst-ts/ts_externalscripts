@@ -1,0 +1,2 @@
+In `setup_whitelight_flats.py`, change default sequence name to 'whitelight_u_source'.
+Additionally, update unit test to ensure it reflects the new sequence name and verify functionality.
