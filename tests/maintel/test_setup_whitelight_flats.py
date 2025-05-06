@@ -52,16 +52,18 @@ class TestSetupWhiteLightFlats(
         self.script.mtcalsys.assert_all_enabled = unittest.mock.AsyncMock()
 
         self.script.mtcalsys.start_task = utils.make_done_future()
-        self.script.mtcalsys.load_calibration_config_file = unittest.mock.AsyncMock()
-        self.script.mtcalsys.assert_valid_configuration_option = (
-            unittest.mock.AsyncMock()
+        self.script.mtcalsys.load_calibration_config_file = unittest.mock.Mock()
+        self.script.mtcalsys.assert_valid_configuration_option = unittest.mock.Mock()
+        # Return a plain dict so no coroutine is left unawaited
+        self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
+            return_value={}
         )
 
     async def test_configure(self):
         async with self.make_script():
             await self.configure_script(ignore=["TunableLaser"])
             assert self.script.state.state == Script.ScriptState.CONFIGURED
-            assert self.script.sequence_name == "whitelight_r"
+            assert self.script.sequence_name == "whitelight_u_source"
 
     async def test_run_without_failures(self):
         async with self.make_script():
