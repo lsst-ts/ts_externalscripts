@@ -68,8 +68,7 @@ class TestTakeWhiteLightFlatsLSSTCam(
 
     async def test_configure(self):
         config = {
-            "sequence_name": "whitelight_r",
-            "n_iterations": 1,
+            "sequence_names": ["whitelight_r_57_dark"],
             "use_camera": True,
         }
 
@@ -79,18 +78,17 @@ class TestTakeWhiteLightFlatsLSSTCam(
                     "mtcamera_filter": "r_57",
                     "exposure_times": [15.0],
                     "calib_type": "WhiteLight",
+                    "n_flat": 20,
                 }
             )
             await self.configure_script(**config)
 
-            assert self.script.sequence_name == "whitelight_r"
-            assert self.script.n_iterations == 1
+            assert self.script.sequence_names == ["whitelight_r_57_dark"]
             assert self.script.use_camera
 
     async def test_invalid_configuration(self):
         bad_configs = [
             {
-                "n_iterations": -20,
                 "filter": "whitelight_led",
             },
         ]
@@ -102,8 +100,7 @@ class TestTakeWhiteLightFlatsLSSTCam(
 
     async def test_take_whitelight_flats(self):
         config = {
-            "sequence_name": "whitelight_z",
-            "n_iterations": 1,
+            "sequence_names": ["whitelight_z_20_dark"],
         }
 
         async with self.make_script():
@@ -112,16 +109,15 @@ class TestTakeWhiteLightFlatsLSSTCam(
                     "mtcamera_filter": "z_20",
                     "exposure_times": [15.0],
                     "calib_type": "WhiteLight",
+                    "n_flat": 20,
                 }
             )
             await self.configure_script(**config)
             await self.run_script()
-            assert self.script.get_instrument_filter() == "z_20"
 
     async def test_take_whitelight_source(self):
         config = {
-            "sequence_name": "whitelight_r_source",
-            "n_iterations": 1,
+            "sequence_names": ["whitelight_r_source"],
             "use_camera": False,
         }
 
@@ -132,6 +128,7 @@ class TestTakeWhiteLightFlatsLSSTCam(
                     "wavelength": 612.5,
                     "exposure_times": [5.0, 5.0],
                     "calib_type": "WhiteLight",
+                    "n_flat": 1,
                 }
             )
 
@@ -139,27 +136,38 @@ class TestTakeWhiteLightFlatsLSSTCam(
             await self.run_script()
 
             assert not self.script.use_camera
-            assert self.script.config_data["wavelength"] == 612.5
 
-    async def test_take_multiple_iterations(self):
+    async def test_make_daily_cals(self):
         config = {
-            "sequence_name": "whitelight_r_source",
-            "n_iterations": 2,
+            "sequence_names": ["daily"],
         }
 
         async with self.make_script():
             self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
                 return_value={
-                    "mtcamera_filter": "r_57",
-                    "wavelength": 612.5,
-                    "exposure_times": [5.0],
+                    "exposure_times": [10.0],
                     "calib_type": "WhiteLight",
+                    "n_flat": 1,
                 }
             )
+            self.script.lsstcam.get_available_filters = unittest.mock.AsyncMock(
+                return_value=[
+                    "u_24",
+                    "g_6",
+                    "r_57",
+                    "i_39",
+                    "z_20",
+                ]
+            )
             await self.configure_script(**config)
-            await self.run_script()
 
-            assert self.script.mtcalsys.run_calibration_sequence.await_count == 2
+            assert self.script.sequence_names == [
+                "whitelight_u_24_daily",
+                "whitelight_g_6_daily",
+                "whitelight_r_57_daily",
+                "whitelight_i_39_daily",
+                "whitelight_z_20_daily",
+            ]
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
