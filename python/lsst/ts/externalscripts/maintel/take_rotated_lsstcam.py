@@ -61,7 +61,7 @@ class TakeRotatedLSSTCam(BaseTakeRotated):
         if self._camera is None:
             self.log.debug("Creating Camera.")
             self._camera = LSSTCam(
-                self.domain, intended_usage=LSSTCamUsages.TakeImage, log=self.log
+                self.domain, intended_usage=LSSTCamUsages.All, log=self.log
             )
             await self._camera.start_task
         else:
