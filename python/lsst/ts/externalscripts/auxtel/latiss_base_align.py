@@ -30,12 +30,12 @@ import typing
 import numpy as np
 import yaml
 from lsst.ts import salobj
-from lsst.ts.idl.enums.ATPtg import WrapStrategy
-from lsst.ts.idl.enums.Script import ScriptState
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
 from lsst.ts.observatory.control.constants import atcs_constants
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.xml.enums.ATPtg import WrapStrategy
+from lsst.ts.xml.enums.Script import ScriptState
 
 STD_TIMEOUT = 10
 

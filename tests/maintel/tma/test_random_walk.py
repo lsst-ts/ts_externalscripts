@@ -26,8 +26,8 @@ import unittest
 import numpy as np
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel.tma import RandomWalk
-from lsst.ts.idl.enums import Script
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
+from lsst.ts.xml.enums import Script
 
 
 class TestRandomWalk(
