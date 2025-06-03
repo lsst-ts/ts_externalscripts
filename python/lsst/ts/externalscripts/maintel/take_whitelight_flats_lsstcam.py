@@ -40,7 +40,6 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
 
         self.mtcalsys = None
         self.lsstcam = None
-        self.config_data = None
 
         self.instrument_setup_time = 30
         self.long_timeout = 30
@@ -52,19 +51,16 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_externalscripts/base_take_dome_flats.yaml
-            title: BaseTakeDomeFlats v1
-            description: Configuration for BaseTakeDomeFlats.
+            $id: https://github.com/lsst-ts/ts_externalscripts/take_whitelight_flats_lsstcam.yaml
+            title: TakeWhiteLightFlatsLSSTCam v1
+            description: Configuration for TakeWhiteLightFlatsLSSTCam.
             type: object
             properties:
-              sequence_name:
-                description: Name of sequence in MTCalsys
-                type: string
-                default: whitelight_r
-              n_iterations:
-                description: Number of iterations to do with this sequence
-                type: integer
-                default: 1
+              sequence_names:
+                description: List of sequence names to run flats for. If "daily",
+                             then it polls all available filters.
+                type: array
+                default: ["daily"]
               use_camera:
                 description: Will you use the camera during these flats
                 type: boolean
@@ -115,42 +111,40 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         self.exposure_metadata["program"] = getattr(config, "program", None)
 
         self.use_camera = config.use_camera
-        self.sequence_name = config.sequence_name
-        self.n_iterations = config.n_iterations
-        self.config_data = self.mtcalsys.get_calibration_configuration(
-            config.sequence_name
-        )
-        self.log.debug(f"Config data: {self.config_data}")
+        self.sequence_names = config.sequence_names
+        if self.sequence_names[0] == "daily":
+            self.sequence_names = await self.get_avail_filters()
+
+        self.log.debug(f"Sequences: {self.sequence_names}")
 
     def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
         """Set script metadata, including estimated duration."""
         # Initialize estimate flat exposure time
-        self.log.debug(self.config_data)
 
-        self.log.debug(self.config_data.get("exposure_times"))
-        target_flat_exptime = sum(self.config_data.get("exposure_times"))
+        total_duration = 0
+        self.log.debug(f"Sequence Names: {self.sequence_names}")
+        for sequence_name in self.sequence_names:
+            config_data = self.mtcalsys.get_calibration_configuration(sequence_name)
 
-        # Setup time for the camera (readout and shutter time)
-        setup_time_per_image = self.lsstcam.read_out_time + self.lsstcam.shutter_time
+            self.log.debug(config_data)
+            target_flat_exptime = (
+                sum(config_data["exposure_times"]) * config_data["n_flat"]
+            )
 
-        # Total duration calculation
-        total_duration = (
-            self.instrument_setup_time  # Initial setup time for the instrument
-            + target_flat_exptime * (self.n_iterations)  # Time for taking all flats
-            + setup_time_per_image * (self.n_iterations)  # Setup time p/image
-        )
+            # Setup time for the camera (readout and shutter time)
+            setup_time_per_image = (
+                self.lsstcam.read_out_time + self.lsstcam.shutter_time
+            )
+
+            # Total duration calculation
+            total_duration += (
+                self.instrument_setup_time  # Initial setup time for the instrument
+                + target_flat_exptime  # Time for taking all flats
+                + setup_time_per_image  # Setup time p/image
+            )
+
         metadata.instrument = "LSSTCam"
-        metadata.filter = self.get_instrument_filter()
         metadata.duration = total_duration
-        metadata.calib_type = self.config_data["calib_type"]
-
-    def get_instrument_filter(self) -> str:
-        """Get instrument filter configuration.
-        Returns
-        -------
-        instrument_filter: `string`
-        """
-        return f"{self.config_data['mtcamera_filter']}"
 
     async def prepare_summary_table(self):
         """Prepare final summary table.
@@ -208,21 +202,34 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
             self.log.exception(msg)
             raise RuntimeError(msg)
 
+    async def get_avail_filters(self):
+        """If sequence_names in daily, poll for all installed filters
+        and produce a list of sequence names
+        Returns
+        -------
+        `list` of `str`
+            The set of sequence names to run based on what filters
+            are available.
+        """
+        avail_filters = await self.lsstcam.get_available_filters()
+        sequence_names = [f"whitelight_{filter_}_daily" for filter_ in avail_filters]
+
+        return sequence_names
+
     async def run_block(self):
         """Run to setup the flatfield projector for flats and then take
         the flat images, including fiber spectrograph and electrometer
         """
-
-        self.exposure_metadata["group_id"] = (
-            self.group_id if not self.obs_id else self.obs_id
-        )
-        await self.mtcalsys.prepare_for_flat(self.sequence_name)
-        for i in range(self.n_iterations):
-            self.log.info(
-                f"Running calibration sequence iteration {i + 1}/{self.n_iterations}"
+        for i, sequence_name in enumerate(self.sequence_names):
+            self.exposure_metadata["group_id"] = (
+                self.group_id + f"_{self.salinfo.index}_{i:03}"
+                if not self.obs_id
+                else self.obs_id
             )
+            await self.mtcalsys.prepare_for_flat(sequence_name)
+            self.log.info("Running calibration sequence")
             sequence_summary = await self.mtcalsys.run_calibration_sequence(
-                sequence_name=self.sequence_name,
+                sequence_name=sequence_name,
                 exposure_metadata=self.exposure_metadata,
             )
             self.sequence_summary.update(sequence_summary)
