@@ -28,6 +28,7 @@ import yaml
 from lsst.ts import salobj, utils
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys
+from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 from lsst.ts.standardscripts.utils import get_s3_bucket
 
@@ -39,6 +40,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         super().__init__(index=index, descr="Take Whitelight flats with LSSTCam.")
 
         self.mtcalsys = None
+        self.mtcs = None
         self.lsstcam = None
 
         self.instrument_setup_time = 30
@@ -61,6 +63,16 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
                              then it polls all available filters.
                 type: array
                 default: ["daily"]
+              config_tcs:
+                description: Specifies whether an instance of MTCS should be created.
+                             If True then it will be used to take the steps
+                             required to set it up the telescope for changing
+                             the filter.
+                             If False, the filter change operation will be
+                             attempted without any prior telescope setup,
+                             which may result in failure.
+                type: boolean
+                default: True
               use_camera:
                 description: Will you use the camera during these flats
                 type: boolean
@@ -80,13 +92,30 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         return schema_dict
 
     async def configure(self, config) -> None:
+
+        self.use_camera = config.use_camera
+        self.config_tcs = config.config_tcs
+
         """Handle creating the camera object and waiting remote to start."""
+
+        if self.config_tcs and self.mtcs is None:
+            self.log.debug("Creating MTCS.")
+            self.mtcs = MTCS(
+                domain=self.domain,
+                intended_usage=MTCSUsages.Slew | MTCSUsages.StateTransition,
+                log=self.log,
+            )
+            await self.mtcs.start_task
+        elif self.config_tcs:
+            self.log.debug("MTCS already defined, skipping.")
+
         if self.lsstcam is None:
             self.log.debug("Creating Camera.")
             self.lsstcam = LSSTCam(
                 self.domain,
-                intended_usage=LSSTCamUsages.TakeImage,
+                intended_usage=LSSTCamUsages.All,
                 log=self.log,
+                mtcs=self.mtcs,
             )
             await self.lsstcam.start_task
         else:
