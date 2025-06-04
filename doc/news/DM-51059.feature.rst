@@ -1,0 +1,1 @@
+Adding mtcs to lsstcam initialization so that the filter will be changed.
