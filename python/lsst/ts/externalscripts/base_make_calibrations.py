@@ -479,7 +479,9 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         """
 
         self.note = getattr(self.config, "note", None)
-        group_id = self.group_id if not self.obs_id else self.obs_id
+        group_id = (
+            self.group_id + f"_{self.salinfo.index}" if not self.obs_id else self.obs_id
+        )
 
         exposure_ids = []
         for exp_time in exp_times:
