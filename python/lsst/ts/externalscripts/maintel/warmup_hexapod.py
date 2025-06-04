@@ -120,6 +120,14 @@ class WarmUpHexapod(salobj.BaseScript):
                 exclusiveMinimum: 0.0
                 maximum: 11000.0
                 default: 2000.0
+              max_warmup_iterations:
+                description: >-
+                  Maximum number of iterations to try warming up the hexapod.
+                  The sequence will stop early if successful.
+                type: integer
+                minimum: 1
+                maximum: 5
+                default: 5
             additionalProperties: false
             """
         return yaml.safe_load(yaml_schema)
@@ -219,14 +227,9 @@ class WarmUpHexapod(salobj.BaseScript):
                 raise
         await self.checkpoint("Done")
 
-    async def warm_up(self, max_count: int = 5) -> None:
+    async def warm_up(self) -> None:
         """Run the `single_loop` function for each step_size/sleep_time pair
         of values.
-
-        Parameters
-        ----------
-        max_count : `int`, optional
-            Maximum count to try. (the default is 5)
 
         Raises
         ------
@@ -261,6 +264,8 @@ class WarmUpHexapod(salobj.BaseScript):
             is_mutted = False
 
         # Do the warming followed by the verification
+        max_count = self.config.max_warmup_iterations
+
         count = 0
         while count < max_count:
             try:

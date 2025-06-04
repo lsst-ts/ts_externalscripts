@@ -66,6 +66,7 @@ class TestCameraHexapodWarmUp(
             step_size = 250
             sleep_time = 2.0
             max_position = 13000
+            max_warmup_iterations = 5
 
             await self.configure_script(
                 hexapod=hexapod,
@@ -73,6 +74,7 @@ class TestCameraHexapodWarmUp(
                 step_size=step_size,
                 sleep_time=sleep_time,
                 max_position=max_position,
+                max_warmup_iterations=max_warmup_iterations,
             )
 
             assert self.script.config.hexapod == hexapod
@@ -84,6 +86,7 @@ class TestCameraHexapodWarmUp(
                 sleep_time
             ]  # int/float are converted to lists
             assert self.script.config.max_position == max_position
+            assert self.script.config.max_warmup_iterations == max_warmup_iterations
 
             assert self.script.hexapod_name == f"{hexapod}_hexapod"
             assert self.script.hexapod_sal_index == getattr(
@@ -100,6 +103,7 @@ class TestCameraHexapodWarmUp(
             step_size = 2000
             sleep_time = 0.1
             max_position = 13000
+            max_warmup_iterations = 5
 
             # Configure the script
             await self.configure_script(
@@ -108,6 +112,7 @@ class TestCameraHexapodWarmUp(
                 step_size=step_size,
                 sleep_time=sleep_time,
                 max_position=max_position,
+                max_warmup_iterations=max_warmup_iterations,
             )
             assert self.script.state.state == Script.ScriptState.CONFIGURED
 
