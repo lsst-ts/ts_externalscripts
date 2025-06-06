@@ -56,13 +56,13 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
     def ocps_group(self):
         """Access the Remote OCPS Groups in the constructor.
 
-        The OCPS index will be 2 for LSSTCam: OCPS:2.
+        The OCPS index will be 3 for LSSTCam: OCPS:3.
         """
         return self._ocps_group
 
     @property
     def ocps(self):
-        return self.ocps_group.rem.ocps_2
+        return self.ocps_group.rem.ocps_3
 
     @property
     def instrument_name(self):
@@ -100,7 +100,7 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
 
         if self._ocps_group is None:
             self._ocps_group = RemoteGroup(
-                domain=self.domain, components=["OCPS:2"], log=self.log
+                domain=self.domain, components=["OCPS:3"], log=self.log
             )
             await self._ocps_group.start_task
 
