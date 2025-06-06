@@ -30,9 +30,9 @@ import pytest
 from lsst.ts import salobj
 from lsst.ts.externalscripts import get_scripts_dir
 from lsst.ts.externalscripts.auxtel import LatissAcquire
-from lsst.ts.idl.enums.Script import ScriptState
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
 from lsst.ts.standardscripts import BaseScriptTestCase
+from lsst.ts.xml.enums.Script import ScriptState
 from lsst.utils import getPackageDir
 
 logger = logging.getLogger(__name__)

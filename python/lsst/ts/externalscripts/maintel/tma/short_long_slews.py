@@ -23,10 +23,10 @@ __all__ = ["ShortLongSlews"]
 import asyncio
 
 import yaml
-from lsst.ts.idl.enums.Script import ScriptState
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.salobj import type_hints
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
+from lsst.ts.xml.enums.Script import ScriptState
 
 
 class ShortLongSlews(BaseBlockScript):
