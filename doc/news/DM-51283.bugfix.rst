@@ -1,0 +1,1 @@
+Updated get_avail_filters so that it splits the output of lsstcam.get_available_filters.

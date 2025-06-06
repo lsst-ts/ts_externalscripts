@@ -241,6 +241,9 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
             are available.
         """
         avail_filters = await self.lsstcam.get_available_filters()
+        avail_filters = avail_filters.split(",")
+        if "NONE" in avail_filters:
+            avail_filters.remove("NONE")
         sequence_names = [f"whitelight_{filter_}_daily" for filter_ in avail_filters]
 
         return sequence_names
