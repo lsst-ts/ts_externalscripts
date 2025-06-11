@@ -1,0 +1,1 @@
+Added ignore list as a default for setup whitelight.
