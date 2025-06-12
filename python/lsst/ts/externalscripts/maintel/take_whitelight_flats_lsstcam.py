@@ -253,6 +253,8 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         the flat images, including fiber spectrograph and electrometer
         """
         for i, sequence_name in enumerate(self.sequence_names):
+            self.log.debug(f"GroupID: {self.group_id}")
+            self.log.debug(f"ObsID: {self.obs_id}")
             self.exposure_metadata["group_id"] = (
                 self.group_id + f"_{self.salinfo.index}_{i:03}"
                 if not self.obs_id
