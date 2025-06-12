@@ -1,0 +1,1 @@
+Changed how group id and obs id are being reported in take_whitelight_flats.

@@ -256,9 +256,9 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
             self.log.debug(f"GroupID: {self.group_id}")
             self.log.debug(f"ObsID: {self.obs_id}")
             self.exposure_metadata["group_id"] = (
-                self.group_id + f"_{self.salinfo.index}_{i:03}"
+                self.group_id
                 if not self.obs_id
-                else self.obs_id
+                else self.obs_id + f"_{self.salinfo.index}_{i:03}"
             )
             await self.mtcalsys.prepare_for_flat(sequence_name)
             self.log.info("Running calibration sequence")
