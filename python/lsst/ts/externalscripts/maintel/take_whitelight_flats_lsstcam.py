@@ -140,7 +140,6 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         self.exposure_metadata["reason"] = getattr(config, "reason", None)
         self.exposure_metadata["program"] = getattr(config, "program", None)
 
-        self.use_camera = config.use_camera
         self.sequence_names = config.sequence_names
         if self.sequence_names[0] == "daily":
             self.sequence_names = await self.get_avail_filters()
@@ -256,6 +255,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         for i, sequence_name in enumerate(self.sequence_names):
             self.log.debug(f"GroupID: {self.group_id}")
             self.log.debug(f"ObsID: {self.obs_id}")
+            self.log.debug(f"Using camera: {self.use_camera}")
             self.exposure_metadata["group_id"] = (
                 self.group_id
                 if not self.obs_id
