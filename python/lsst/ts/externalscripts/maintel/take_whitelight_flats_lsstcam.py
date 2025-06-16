@@ -94,6 +94,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
     async def configure(self, config) -> None:
 
         self.use_camera = config.use_camera
+        self.log.debug(f"Use camera: {self.use_camera}")
         self.config_tcs = config.config_tcs
 
         """Handle creating the camera object and waiting remote to start."""
@@ -109,7 +110,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         elif self.config_tcs:
             self.log.debug("MTCS already defined, skipping.")
 
-        if self.lsstcam is None:
+        if self.use_camera and self.lsstcam is None:
             self.log.debug("Creating Camera.")
             self.lsstcam = LSSTCam(
                 self.domain,
@@ -124,7 +125,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         """Handle creating the MTCalsys object and waiting remote to start."""
         if self.mtcalsys is None:
             self.log.debug("Creating MTCalsys.")
-            if config.use_camera:
+            if self.use_camera:
                 self.mtcalsys = MTCalsys(
                     domain=self.domain, log=self.log, mtcamera=self.lsstcam
                 )
