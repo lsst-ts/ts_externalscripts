@@ -151,13 +151,7 @@ class TestTakeWhiteLightFlatsLSSTCam(
                 }
             )
             self.script.lsstcam.get_available_filters = unittest.mock.AsyncMock(
-                return_value=[
-                    "u_24",
-                    "g_6",
-                    "r_57",
-                    "i_39",
-                    "z_20",
-                ]
+                return_value=["u_24,g_6,r_57,i_39,z_20"]
             )
             await self.configure_script(**config)
 
