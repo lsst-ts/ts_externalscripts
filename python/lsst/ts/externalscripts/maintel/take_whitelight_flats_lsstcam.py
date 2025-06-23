@@ -161,9 +161,12 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
             )
 
             # Setup time for the camera (readout and shutter time)
-            setup_time_per_image = (
-                self.lsstcam.read_out_time + self.lsstcam.shutter_time
-            )
+            if self.use_camera:
+                setup_time_per_image = (
+                    self.lsstcam.read_out_time + self.lsstcam.shutter_time
+                )
+            else:
+                setup_time_per_image = 0
 
             # Total duration calculation
             total_duration += (
