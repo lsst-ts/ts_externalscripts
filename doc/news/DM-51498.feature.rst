@@ -1,0 +1,1 @@
+Adding electrometer and fiberspectrographs as options in take_whitelight_flats script. Will overwrite what is in mtcalsys.yaml.
