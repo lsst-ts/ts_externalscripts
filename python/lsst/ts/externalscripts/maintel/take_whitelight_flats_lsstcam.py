@@ -74,7 +74,21 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
                 type: boolean
                 default: True
               use_camera:
-                description: Will you use the camera during these flats
+                description: Will you use the camera during these flats.
+                             It overrides what is written in the mtcalsys.yaml
+                             configuration.
+                type: boolean
+                default: True
+              use_electrometer:
+                description: Will you use the electrometer in these tests.
+                             It overrides what is written in the mtcalsys.yaml
+                             configuration.
+                type: boolean
+                default: True
+              use_fiberspectrographs:
+                description: Will you use the fiber spectrographs (both blue and red)
+                             in these tests. It overrides what is written in the
+                             mtcalsys.yaml configuration.
                 type: boolean
                 default: True
 
@@ -94,6 +108,8 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
     async def configure(self, config) -> None:
 
         self.use_camera = config.use_camera
+        self.use_electrometer = config.use_electrometer
+        self.use_fiberspectrographs = config.use_fiberspectrographs
         self.config_tcs = config.config_tcs
 
         """Handle creating the camera object and waiting remote to start."""
@@ -109,7 +125,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         elif self.config_tcs:
             self.log.debug("MTCS already defined, skipping.")
 
-        if self.lsstcam is None:
+        if self.use_camera and self.lsstcam is None:
             self.log.debug("Creating Camera.")
             self.lsstcam = LSSTCam(
                 self.domain,
@@ -138,8 +154,10 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         self.exposure_metadata["note"] = getattr(config, "note", None)
         self.exposure_metadata["reason"] = getattr(config, "reason", None)
         self.exposure_metadata["program"] = getattr(config, "program", None)
+        self.exposure_metadata["use_camera"] = self.use_camera
+        self.exposure_metadata["use_electrometer"] = self.use_electrometer
+        self.exposure_metadata["use_fiberspectrographs"] = self.use_fiberspectrographs
 
-        self.use_camera = config.use_camera
         self.sequence_names = config.sequence_names
         if self.sequence_names[0] == "daily":
             self.sequence_names = await self.get_avail_filters()
