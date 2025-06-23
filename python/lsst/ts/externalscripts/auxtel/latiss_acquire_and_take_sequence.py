@@ -726,6 +726,9 @@ class LatissAcquireAndTakeSequence(salobj.BaseScript):
                 f" filter={filt}, grating={grating})"
             )
 
+            self.log.info("Sleeping for 5s before starting next image.")
+            await asyncio.sleep(5)
+
         # Remove the focus offset if applied
         if self.manual_focus_offset_applied:
             self.log.debug(
