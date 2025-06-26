@@ -193,7 +193,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                         to produce a dark. If "BIAS_DARK_FLAT" (default), biases, darks, and flats will be
                         produced.
                 type: string
-                enum: ["BIAS", "BIAS_DARK", "BIAS_DARK_FLAT"]
+                enum: ["BIAS", "DARK", "BIAS_DARK", "BIAS_DARK_FLAT"]
             n_bias:
                 anyOf:
                   - type: integer
@@ -1565,6 +1565,8 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         mode = self.config.script_mode
         if mode == "BIAS":
             image_types = ["BIAS"]
+        elif mode == "DARK":
+            image_types = ["DARK"]
         elif mode == "BIAS_DARK":
             image_types = ["BIAS", "DARK"]
         elif mode == "BIAS_DARK_FLAT":
