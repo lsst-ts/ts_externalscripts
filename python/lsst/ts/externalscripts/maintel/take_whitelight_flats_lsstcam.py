@@ -92,7 +92,6 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         return schema_dict
 
     async def configure(self, config) -> None:
-
         self.use_camera = config.use_camera
         self.config_tcs = config.config_tcs
 
@@ -109,7 +108,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         elif self.config_tcs:
             self.log.debug("MTCS already defined, skipping.")
 
-        if self.lsstcam is None:
+        if self.use_camera and self.lsstcam is None:
             self.log.debug("Creating Camera.")
             self.lsstcam = LSSTCam(
                 self.domain,
@@ -124,7 +123,7 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         """Handle creating the MTCalsys object and waiting remote to start."""
         if self.mtcalsys is None:
             self.log.debug("Creating MTCalsys.")
-            if config.use_camera:
+            if self.use_camera:
                 self.mtcalsys = MTCalsys(
                     domain=self.domain, log=self.log, mtcamera=self.lsstcam
                 )
@@ -236,7 +235,9 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
 
     async def get_avail_filters(self):
         """If sequence_names in daily, poll for all installed filters
-        and produce a list of sequence names
+        and produce a list of sequence names. Only produce sequence names for
+        standard filters.
+
         Returns
         -------
         `list` of `str`
@@ -246,8 +247,9 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         avail_filters = await self.lsstcam.get_available_filters()
         self.log.debug(avail_filters)
         avail_filters = avail_filters[0].split(",")
-        if "NONE" in avail_filters:
-            avail_filters.remove("NONE")
+        standard_filters = {"u_24", "g_6", "r_57", "i_39", "z_20", "y_10"}
+        avail_filters = [f for f in avail_filters if f in standard_filters]
+
         sequence_names = [f"whitelight_{filter_}_daily" for filter_ in avail_filters]
         return sequence_names
 
