@@ -41,6 +41,56 @@ class TestMakeCalibrations(
         self.script._ocsp_group = AsyncMock()
         return (self.script,)
 
+    async def test_assert_feasibility_called_per_image_type(self):
+        async with self.make_script():
+            await self.configure_script(
+                n_bias=1,
+                n_dark=1,
+                n_flat=1,
+                exp_times_dark=1,
+                exp_times_flat=1,
+                script_mode="BIAS_DARK_FLAT",
+            )
+
+            class _Dummy:
+                pass
+
+            dummy_camera = _Dummy()
+            dummy_camera.assert_all_enabled = AsyncMock()
+            dummy_camera.setup_instrument = AsyncMock()
+            dummy_camera.read_out_time = 0
+
+            dummy_ocps_group = _Dummy()
+            dummy_ocps_group.assert_all_enabled = AsyncMock()
+
+            original_camera_prop = self.script.__class__.camera
+            original_ocps_prop = self.script.__class__.ocps_group
+            try:
+                self.script.__class__.camera = property(lambda s: dummy_camera)
+                self.script.__class__.ocps_group = property(lambda s: dummy_ocps_group)
+
+                self.script.take_images = AsyncMock(return_value=[1])
+                self.script.process_images = AsyncMock()
+                self.script.process_calibration = AsyncMock()
+
+                self.script.assert_feasibility = AsyncMock()
+
+                await self.run_script()
+            finally:
+                # Restore original properties to avoid side-effects
+                # on other tests
+                self.script.__class__.camera = original_camera_prop
+                self.script.__class__.ocps_group = original_ocps_prop
+
+                self.script.assert_feasibility.assert_has_awaits(
+                    [
+                        unittest.mock.call("BIAS"),
+                        unittest.mock.call("DARK"),
+                        unittest.mock.call("FLAT"),
+                    ],
+                    any_order=False,
+                )
+
     @unittest.mock.patch(
         "lsst.ts.standardscripts.BaseBlockScript.obs_id", "202306060001"
     )

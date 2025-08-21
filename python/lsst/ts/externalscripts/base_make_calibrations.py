@@ -415,6 +415,15 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return exp_times
 
+    async def assert_feasibility(self, image_type):
+        """Hook to assert preconditions for a given image type.
+
+        By default this does nothing. Subclasses may override to enforce
+        instrument- or environment-specific checks (e.g., CSC states)
+        prior to taking data for a specific image type.
+        """
+        return None
+
     async def configure(self, config):
         """Configure the script.
 
@@ -1589,6 +1598,8 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 await self.checkpoint(f"Taking {self.config.n_dark} darks.")
             elif im_type == "FLAT":
                 await self.checkpoint(f"Taking {self.config.n_flat} flats.")
+
+            await self.assert_feasibility(im_type)
 
             # TODO: Before taking flats with LATISS (and also
             #  with LSSTComCam), check that the telescope is in

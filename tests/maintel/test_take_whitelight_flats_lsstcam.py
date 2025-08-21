@@ -42,6 +42,12 @@ class TestTakeWhiteLightFlatsLSSTCam(
     async def basic_make_script(self, index):
         self.script = TakeWhiteLightFlatsLSSTCam(index=index)
 
+        self.script.mtcs = mock.AsyncMock()
+        self.script.mtcs.long_timeout = 30.0
+        self.script.mtcs.rem = mock.MagicMock()
+        self.script.mtcs.rem.mtdometrajectory = mock.MagicMock()
+        self.script.mtcs.rem.mtdome = mock.MagicMock()
+
         self.mock_mtcalsys()
         self.mock_camera()
 
@@ -55,6 +61,14 @@ class TestTakeWhiteLightFlatsLSSTCam(
         self.script.mtcalsys.assert_valid_configuration_option = (
             unittest.mock.AsyncMock()
         )
+        self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
+            return_value={
+                "mtcamera_filter": "r_57",
+                "exposure_times": [15.0],
+                "calib_type": "WhiteLight",
+                "n_flat": 20,
+            }
+        )
         self.script.mtcalsys.run_calibration_sequence = unittest.mock.AsyncMock(
             side_effect=[
                 {"sequence_id": 1, "duration": 10},
@@ -66,6 +80,21 @@ class TestTakeWhiteLightFlatsLSSTCam(
         """Mock camera instance and its methods."""
         self.script.lsstcam = mock.AsyncMock()
 
+    async def _inject_mtcs_check_mocks(self):
+        """Mock the .check attribute of mtcs for ignore functionality"""
+        self.script.mtcs.check = mock.MagicMock()
+        self.script.mtcs.check.mtdometrajectory = True
+        self.script.mtcs.check.mtdome = True
+
+    async def _set_summary_states(self, trajectory_state, dome_state):
+        """Set up mock summary states for dome components"""
+        self.script.mtcs.rem.mtdometrajectory.evt_summaryState.aget = mock.AsyncMock(
+            return_value=type("Evt", (), {"summaryState": trajectory_state})()
+        )
+        self.script.mtcs.rem.mtdome.evt_summaryState.aget = mock.AsyncMock(
+            return_value=type("Evt", (), {"summaryState": dome_state})()
+        )
+
     async def test_configure(self):
         config = {
             "sequence_names": ["whitelight_r_57_dark"],
@@ -73,14 +102,6 @@ class TestTakeWhiteLightFlatsLSSTCam(
         }
 
         async with self.make_script():
-            self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
-                return_value={
-                    "mtcamera_filter": "r_57",
-                    "exposure_times": [15.0],
-                    "calib_type": "WhiteLight",
-                    "n_flat": 20,
-                }
-            )
             await self.configure_script(**config)
 
             assert self.script.sequence_names == ["whitelight_r_57_dark"]
@@ -101,17 +122,24 @@ class TestTakeWhiteLightFlatsLSSTCam(
     async def test_take_whitelight_flats(self):
         config = {
             "sequence_names": ["whitelight_z_20_dark"],
+            "config_tcs": False,
         }
 
         async with self.make_script():
-            self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
-                return_value={
-                    "mtcamera_filter": "z_20",
-                    "exposure_times": [15.0],
-                    "calib_type": "WhiteLight",
-                    "n_flat": 20,
-                }
-            )
+            await self.configure_script(**config)
+            await self.run_script()
+
+    async def test_take_whitelight_flats_with_tcs(self):
+        """Test whitelight flats with TCS configured and feasibility
+        checks enabled"""
+        config = {
+            "sequence_names": ["whitelight_z_20_dark"],
+            "config_tcs": True,
+        }
+
+        async with self.make_script():
+            await self._inject_mtcs_check_mocks()
+            await self._set_summary_states(salobj.State.ENABLED, salobj.State.DISABLED)
             await self.configure_script(**config)
             await self.run_script()
 
@@ -119,19 +147,10 @@ class TestTakeWhiteLightFlatsLSSTCam(
         config = {
             "sequence_names": ["whitelight_r_source"],
             "use_camera": False,
+            "config_tcs": False,
         }
 
         async with self.make_script():
-            self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
-                return_value={
-                    "mtcamera_filter": "r_57",
-                    "wavelength": 612.5,
-                    "exposure_times": [5.0, 5.0],
-                    "calib_type": "WhiteLight",
-                    "n_flat": 1,
-                }
-            )
-
             await self.configure_script(**config)
             await self.run_script()
 
@@ -143,13 +162,6 @@ class TestTakeWhiteLightFlatsLSSTCam(
         }
 
         async with self.make_script():
-            self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
-                return_value={
-                    "exposure_times": [10.0],
-                    "calib_type": "WhiteLight",
-                    "n_flat": 1,
-                }
-            )
             self.script.lsstcam.get_available_filters = unittest.mock.AsyncMock(
                 return_value=["u_24,g_6,r_57,i_39,z_20"]
             )
@@ -162,6 +174,113 @@ class TestTakeWhiteLightFlatsLSSTCam(
                 "whitelight_i_39_daily",
                 "whitelight_z_20_daily",
             ]
+
+    async def test_assert_feasibility_ok(self):
+        """Test that feasibility check passes when dome components are in
+        correct states"""
+        async with self.make_script():
+            await self.configure_script(
+                sequence_names=["whitelight_r_57_dark"], config_tcs=True
+            )
+            await self._inject_mtcs_check_mocks()
+            await self._set_summary_states(salobj.State.ENABLED, salobj.State.DISABLED)
+            await self.script.assert_feasibility()
+
+    async def test_assert_feasibility_bad_trajectory(self):
+        """Test that feasibility check fails when MTDomeTrajectory is not
+        ENABLED"""
+        async with self.make_script():
+            await self.configure_script(
+                sequence_names=["whitelight_r_57_dark"], config_tcs=True
+            )
+            await self._inject_mtcs_check_mocks()
+            await self._set_summary_states(salobj.State.DISABLED, salobj.State.ENABLED)
+            with pytest.raises(RuntimeError, match="MTDomeTrajectory must be ENABLED"):
+                await self.script.assert_feasibility()
+
+    async def test_assert_feasibility_bad_dome(self):
+        """Test that feasibility check fails when MTDome is in invalid
+        state"""
+        async with self.make_script():
+            await self.configure_script(
+                sequence_names=["whitelight_r_57_dark"], config_tcs=True
+            )
+            await self._inject_mtcs_check_mocks()
+            await self._set_summary_states(salobj.State.ENABLED, salobj.State.OFFLINE)
+            with pytest.raises(RuntimeError, match="MTDome must be in"):
+                await self.script.assert_feasibility()
+
+    async def test_assert_feasibility_trajectory_and_dome_ignored(self):
+        """Test that feasibility check passes when both dome components
+        are ignored"""
+        async with self.make_script():
+            await self.configure_script(
+                sequence_names=["whitelight_r_57_dark"],
+                config_tcs=True,
+                ignore=["mtdometrajectory", "mtdome"],
+            )
+            await self._inject_mtcs_check_mocks()
+            self.script.mtcs.check.mtdometrajectory = False
+            self.script.mtcs.check.mtdome = False
+            await self._set_summary_states(salobj.State.DISABLED, salobj.State.OFFLINE)
+            await self.script.assert_feasibility()
+
+    async def test_assert_feasibility_trajectory_not_ignored_bad_state(self):
+        """Test that feasibility check fails when MTDomeTrajectory is
+        not ignored but in bad state"""
+        async with self.make_script():
+            await self.configure_script(
+                sequence_names=["whitelight_r_57_dark"], config_tcs=True
+            )
+            await self._inject_mtcs_check_mocks()
+            self.script.mtcs.check.mtdometrajectory = True
+            self.script.mtcs.check.mtdome = False
+            await self._set_summary_states(salobj.State.DISABLED, salobj.State.OFFLINE)
+            with pytest.raises(RuntimeError, match="MTDomeTrajectory must be ENABLED"):
+                await self.script.assert_feasibility()
+
+    async def test_assert_feasibility_dome_not_ignored_bad_state(self):
+        """Test that feasibility check fails when MTDome is not ignored
+        but in bad state"""
+        async with self.make_script():
+            await self.configure_script(
+                sequence_names=["whitelight_r_57_dark"], config_tcs=True
+            )
+            await self._inject_mtcs_check_mocks()
+            self.script.mtcs.check.mtdometrajectory = False
+            self.script.mtcs.check.mtdome = True
+            await self._set_summary_states(salobj.State.ENABLED, salobj.State.OFFLINE)
+            with pytest.raises(RuntimeError, match="MTDome must be in"):
+                await self.script.assert_feasibility()
+
+    async def test_assert_feasibility_no_tcs(self):
+        """Test that feasibility check does nothing when config_tcs is False"""
+        async with self.make_script():
+            await self.configure_script(
+                sequence_names=["whitelight_r_57_dark"], config_tcs=False
+            )
+            await self.script.assert_feasibility()
+
+    async def test_configure_ignore(self):
+        """Test that ignore functionality works correctly in configure"""
+        async with self.make_script():
+            self.script.mtcs.disable_checks_for_components = mock.MagicMock()
+
+            config = type(
+                "Config",
+                (),
+                {
+                    "sequence_names": ["whitelight_r_57_dark"],
+                    "use_camera": True,
+                    "config_tcs": True,
+                    "ignore": ["mtmount", "mtptg"],
+                },
+            )()
+            await self.script.configure(config)
+
+            self.script.mtcs.disable_checks_for_components.assert_any_call(
+                components=["mtmount", "mtptg"]
+            )
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
