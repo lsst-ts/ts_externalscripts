@@ -77,7 +77,14 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
                 description: Will you use the camera during these flats
                 type: boolean
                 default: True
-
+              ignore:
+                description: >-
+                  CSCs from the MTCS group to ignore in status check. Name must
+                  match those in self.mtcs.components_attr, e.g.; mtmount, mtptg.
+                  Only effective when config_tcs is True.
+                type: array
+                items:
+                  type: string
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
@@ -107,6 +114,9 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
             await self.mtcs.start_task
         elif self.config_tcs:
             self.log.debug("MTCS already defined, skipping.")
+
+        if hasattr(config, "ignore") and config.ignore and self.mtcs is not None:
+            self.mtcs.disable_checks_for_components(components=config.ignore)
 
         if self.use_camera and self.lsstcam is None:
             self.log.debug("Creating Camera.")
@@ -144,6 +154,45 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
             self.sequence_names = await self.get_avail_filters()
 
         self.log.debug(f"Sequences: {self.sequence_names}")
+
+    async def assert_feasibility(self):
+        """Ensure dome components are in the required state before flats."""
+        if not self.config_tcs or self.mtcs is None:
+            return None
+
+        mtdometrajectory_ignored = not self.mtcs.check.mtdometrajectory
+        mtdome_ignored = not self.mtcs.check.mtdome
+
+        if not mtdometrajectory_ignored:
+            dome_trajectory_evt = (
+                await self.mtcs.rem.mtdometrajectory.evt_summaryState.aget(
+                    timeout=self.mtcs.long_timeout
+                )
+            )
+            dome_trajectory_summary_state = salobj.State(
+                dome_trajectory_evt.summaryState
+            )
+
+            if dome_trajectory_summary_state != salobj.State.ENABLED:
+                raise RuntimeError(
+                    "MTDomeTrajectory must be ENABLED before taking flats to ensure "
+                    "vignetting state is published. "
+                    f"Current state {dome_trajectory_summary_state.name}."
+                )
+
+        if not mtdome_ignored:
+            dome_evt = await self.mtcs.rem.mtdome.evt_summaryState.aget(
+                timeout=self.mtcs.long_timeout
+            )
+            dome_summary_state = salobj.State(dome_evt.summaryState)
+
+            acceptable_mtdome_state = {salobj.State.DISABLED, salobj.State.ENABLED}
+
+            if dome_summary_state not in acceptable_mtdome_state:
+                raise RuntimeError(
+                    f"MTDome must be in {acceptable_mtdome_state} before taking flats, "
+                    f"current state {dome_summary_state.name}."
+                )
 
     def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
         """Set script metadata, including estimated duration."""
@@ -257,6 +306,8 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
         """Run to setup the flatfield projector for flats and then take
         the flat images, including fiber spectrograph and electrometer
         """
+        await self.assert_feasibility()
+
         for i, sequence_name in enumerate(self.sequence_names):
             self.exposure_metadata["group_id"] = (
                 self.group_id

@@ -21,8 +21,10 @@
 __all__ = ["MakeLSSTCamCalibrations"]
 
 import yaml
+from lsst.ts import salobj
 from lsst.ts.observatory.control import RemoteGroup
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam
+from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 
 from ..base_make_calibrations import BaseMakeCalibrations
 
@@ -47,6 +49,7 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
         )
         self._lsstcam = None
         self._ocps_group = None
+        self.mtcs = None
 
     @property
     def camera(self):
@@ -103,6 +106,29 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
                 domain=self.domain, components=["OCPS:3"], log=self.log
             )
             await self._ocps_group.start_task
+
+        if not hasattr(self, "_mtcs") or self.mtcs is None:
+            self.mtcs = MTCS(
+                domain=self.domain, log=self.log, intended_usage=MTCSUsages.Slew
+            )
+            await self.mtcs.start_task
+
+    async def configure(self, config):
+        """Configure script.
+
+        Parameters
+        ----------
+        config : `types.SimpleNamespace`
+            Script configuration, as defined by `schema`.
+        """
+        await super().configure(config)
+
+        # Start remotes if not already started
+        await self.start_remotes()
+
+        # Handle ignore functionality
+        if hasattr(self.config, "ignore") and self.config.ignore:
+            self.mtcs.disable_checks_for_components(components=self.config.ignore)
 
     @classmethod
     def get_schema(cls):
@@ -182,6 +208,13 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
                 type: string
                 descriptor: Butler repository.
                 default: "/repo/LSSTCam/butler+sasquatch.yaml"
+            ignore:
+                description: >-
+                  CSCs from the MTCS group to ignore in status check. Name must
+                  match those in self._mtcs.components_attr, e.g.; mtmount, mtptg.
+                type: array
+                items:
+                  type: string
         additionalProperties: false
         required:
             - script_mode
@@ -198,3 +231,42 @@ class MakeLSSTCamCalibrations(BaseMakeCalibrations):
 
     def get_instrument_configuration(self):
         return dict(filter=self.config.filter)
+
+    async def assert_feasibility(self, image_type):
+        """Ensure dome components are in the required state before flats."""
+        if image_type != "FLAT":
+            return None
+
+        mtdometrajectory_ignored = not self.mtcs.check.mtdometrajectory
+        mtdome_ignored = not self.mtcs.check.mtdome
+
+        if not mtdometrajectory_ignored:
+            dome_trajectory_evt = (
+                await self.mtcs.rem.mtdometrajectory.evt_summaryState.aget(
+                    timeout=self.mtcs.long_timeout
+                )
+            )
+            dome_trajectory_summary_state = salobj.State(
+                dome_trajectory_evt.summaryState
+            )
+
+            if dome_trajectory_summary_state != salobj.State.ENABLED:
+                raise RuntimeError(
+                    "MTDomeTrajectory must be ENABLED before taking flats to ensure "
+                    "vignetting state is published. "
+                    f"Current state {dome_trajectory_summary_state.name}."
+                )
+
+        if not mtdome_ignored:
+            dome_evt = await self.mtcs.rem.mtdome.evt_summaryState.aget(
+                timeout=self.mtcs.long_timeout
+            )
+            dome_summary_state = salobj.State(dome_evt.summaryState)
+
+            acceptable_mtdome_state = {salobj.State.DISABLED, salobj.State.ENABLED}
+
+            if dome_summary_state not in acceptable_mtdome_state:
+                raise RuntimeError(
+                    f"MTDome must be in {acceptable_mtdome_state} before taking flats, "
+                    f"current state {dome_summary_state.name}."
+                )
