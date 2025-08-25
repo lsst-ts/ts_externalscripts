@@ -1,3 +1,0 @@
-In parameter_march_lsstcam.py:
-- Fix lsstcam attribute name.
-- Add StateTransition to the LSSTCam usages.

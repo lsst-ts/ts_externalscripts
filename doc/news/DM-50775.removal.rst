@@ -1,1 +1,0 @@
-Remove dependencies on ``lsst.ts.idl`` from all scripts and tests, and use ``lsst.ts.xml`` instead.

@@ -1,1 +1,0 @@
-In latiss_acquire_and_take_sequence.py, add configurable option to set rot_value (default 0) and rot_type (default Parallactic).

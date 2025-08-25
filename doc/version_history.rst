@@ -8,6 +8,93 @@ Version History
 
 .. towncrier release notes start
 
+v0.31.0 (2025-08-25)
+====================
+
+New Features
+------------
+
+- Add new maintel/offset_and_take_images_lsstcam script to perform an offset sequence and take images in each position. (`DM-45605 <https://rubinobs.atlassian.net/browse/DM-45605>`_)
+- Add script to take CBP scans. (`DM-47708 <https://rubinobs.atlassian.net/browse/DM-47708>`_)
+- - Adding `make_lsstcam_calibrations.py` in line with ComCam and LATISS versions.
+  - Added functionality to wait between exposures in the BaseMakeCalibrations class. (`DM-47791 <https://rubinobs.atlassian.net/browse/DM-47791>`_)
+- Added a script that sets up the Calibration Projector for white light flats, relying on MTCalsys (`DM-49063 <https://rubinobs.atlassian.net/browse/DM-49063>`_)
+- Adding base script for Dome flats and one for taking white light flats with LSSTCam (`DM-49068 <https://rubinobs.atlassian.net/browse/DM-49068>`_)
+- Included a script that parks the calibration projector in a safe place and turns off the LEDs (`DM-49346 <https://rubinobs.atlassian.net/browse/DM-49346>`_)
+- In latiss_acquire_and_take_sequence.py, add configurable option to set rot_value (default 0) and rot_type (default Parallactic). (`DM-49414 <https://rubinobs.atlassian.net/browse/DM-49414>`_)
+- Update `BaseMakeCalibrations` to remove default value for the script_mode parameter and to make it required. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In park_calibration_projector.py, include tolerance in stage alignment assertion and update unit test. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In focus_telescope.py:
+  - Update to use donutFitRadiusTask in WEP.
+  - Fix butler repo path. 
+  - Add await on take_images calls.
+  - Set useOCPS in runWep to True.
+  - Fix typo in butler collections.
+  - Add polling butler feature.
+  - Remove await from evt_wavefrontError.
+  - Remove wep_config. 
+  - Update call to take_image in unit test. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- Add `focus_telescope.py` script to focus telescope in Z automatically. (`DM-49995 <https://rubinobs.atlassian.net/browse/DM-49995>`_)
+- Add new `parameter_march_triplet_lsstcam.py` to take triplets while running a parameter march. (`DM-50478 <https://rubinobs.atlassian.net/browse/DM-50478>`_)
+- Removed n_iterations. This is set by n_flat in mtcalsys.yaml. (`DM-50869 <https://rubinobs.atlassian.net/browse/DM-50869>`_)
+- Instead of sending a single sequence name, send a list of sequences names. Can choose "daily" and scan for available filters. (`DM-50869 <https://rubinobs.atlassian.net/browse/DM-50869>`_)
+- In warmup_hexapod.py, add a configurable max_warmup_iterations parameter. (`DM-50986 <https://rubinobs.atlassian.net/browse/DM-50986>`_)
+- Adding mtcs to lsstcam initialization so that the filter will be changed. (`DM-51059 <https://rubinobs.atlassian.net/browse/DM-51059>`_)
+- Added the salIndex for the script run to the groupID. (`DM-51157 <https://rubinobs.atlassian.net/browse/DM-51157>`_)
+- Changes OCPS group from 2 to 3. (`DM-51283 <https://rubinobs.atlassian.net/browse/DM-51283>`_)
+- Added ignore list as a default for park projector. (`DM-51355 <https://rubinobs.atlassian.net/browse/DM-51355>`_)
+- Added ignore list as a default for setup whitelight. (`DM-51355 <https://rubinobs.atlassian.net/browse/DM-51355>`_)
+- Added DARK as a calibration option in base_lsstcam_calibratios.py. (`DM-51569 <https://rubinobs.atlassian.net/browse/DM-51569>`_)
+- Ensure scripts used to take calibrations for SimonyiTel are enforcing the required MTCS state. (`OSW-897 <https://rubinobs.atlassian.net/browse/OSW-897>`_)
+
+
+Bug Fixes
+---------
+
+- Updates to latiss_wep_align to make the donut_catalog compatible with ts_wep 13.4.0 (`DM-49046 <https://rubinobs.atlassian.net/browse/DM-49046>`_)
+- In parameter_march_lsstcam.py:
+  - Fix lsstcam attribute name.
+  - Add StateTransition to the LSSTCam usages. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In warmup_hexapod, fix instantiating Watcher remote. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- Add focus_telescope script import to init. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In base_parameter_march.py:
+  - Update instantiation of MTCS to limit resources to slew and state transition.
+  - Fix valid azimuth range. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In base_make_calibrations.py, fix reference to ccoods that should be mtoods. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In take_whitelight_flats_lsstcam.py:
+  - Remove await in get_configuration call.
+  - Move lsstcam instantiation and updated mocks in unit test.
+  - Fix selection between group_id and block_id/obs_id. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- Add missing oods implementation to take_rotated_camera.py scripts. (`DM-50478 <https://rubinobs.atlassian.net/browse/DM-50478>`_)
+- In `maintel/take_rotated_lsstcam.py`, updated LSSTCam `intended_usage` to All. (`DM-50700 <https://rubinobs.atlassian.net/browse/DM-50700>`_)
+- In `maintel/setup_whitelight_flats`, initialized `LSSTCam` and passed it to `MTCalsys`. (`DM-50700 <https://rubinobs.atlassian.net/browse/DM-50700>`_)
+- Updated get_avail_filters so that it splits the output of lsstcam.get_available_filters. (`DM-51283 <https://rubinobs.atlassian.net/browse/DM-51283>`_)
+- Changed how group id and obs id are being reported in take_whitelight_flats. (`DM-51369 <https://rubinobs.atlassian.net/browse/DM-51369>`_)
+- Changed how group id and obs id are being reported in base_make_calibrations. (`DM-51369 <https://rubinobs.atlassian.net/browse/DM-51369>`_)
+- Added use_camera in metadata settings in take_whitelight_flats_lsstcam (`DM-51424 <https://rubinobs.atlassian.net/browse/DM-51424>`_)
+- In take_whitelight_flats_lsstcam, fix big with use camera. (`DM-51639 <https://rubinobs.atlassian.net/browse/DM-51639>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Abstract `base_take_rotated.py` and add `take_rotated_lsstcam.py` (`DM-49523 <https://rubinobs.atlassian.net/browse/DM-49523>`_)
+
+
+API Removal or Deprecation
+--------------------------
+
+- Remove dependencies on ``lsst.ts.idl`` from all scripts and tests, and use ``lsst.ts.xml`` instead. (`DM-50775 <https://rubinobs.atlassian.net/browse/DM-50775>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- In `setup_whitelight_flats.py`, change default sequence name to 'whitelight_u_source'.
+  Additionally, update unit test to ensure it reflects the new sequence name and verify functionality. (`DM-50398 <https://rubinobs.atlassian.net/browse/DM-50398>`_)
+- In maintel/take_whitelight_flats_lsstcam.py, change how the sequence names are constructed for daily flats to only include filters in the standard filter set. (`DM-51639 <https://rubinobs.atlassian.net/browse/DM-51639>`_)
+
+
 v0.30.0 (2025-03-18)
 ====================
 

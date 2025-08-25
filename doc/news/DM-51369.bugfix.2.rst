@@ -1,1 +1,0 @@
-Changed how group id and obs id are being reported in base_make_calibrations.

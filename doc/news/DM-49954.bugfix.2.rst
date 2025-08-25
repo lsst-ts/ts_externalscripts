@@ -1,1 +1,0 @@
-In warmup_hexapod, fix instantiating Watcher remote.

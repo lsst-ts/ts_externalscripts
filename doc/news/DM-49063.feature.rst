@@ -1,1 +1,0 @@
-Added a script that sets up the Calibration Projector for white light flats, relying on MTCalsys

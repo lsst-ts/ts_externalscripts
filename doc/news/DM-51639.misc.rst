@@ -1,1 +1,0 @@
-In maintel/take_whitelight_flats_lsstcam.py, change how the sequence names are constructed for daily flats to only include filters in the standard filter set.
