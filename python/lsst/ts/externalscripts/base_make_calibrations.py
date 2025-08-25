@@ -183,6 +183,8 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         title: BaseMakeCalibrations v1
         description: Configuration for BaseMakeCalibrations.
         type: object
+        required:
+          - script_mode
         properties:
             script_mode:
                 description: Type of images to make. If "BIAS", only biases will be taken \
@@ -191,8 +193,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                         to produce a dark. If "BIAS_DARK_FLAT" (default), biases, darks, and flats will be
                         produced.
                 type: string
-                enum: ["BIAS", "BIAS_DARK", "BIAS_DARK_FLAT"]
-                default: "BIAS_DARK_FLAT"
+                enum: ["BIAS", "DARK", "BIAS_DARK", "BIAS_DARK_FLAT"]
             n_bias:
                 anyOf:
                   - type: integer
@@ -268,6 +269,10 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                   - type: number
                     minimum: 0
                 default: 5
+            wait_between_exposures:
+                type: number
+                default: 0
+                description: Time to wait (in seconds) between consecutive exposures.
             generate_calibrations:
                 type: boolean
                 descriptor: Should the combined calibrations be generated from the images taken? \
@@ -410,6 +415,15 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
 
         return exp_times
 
+    async def assert_feasibility(self, image_type):
+        """Hook to assert preconditions for a given image type.
+
+        By default this does nothing. Subclasses may override to enforce
+        instrument- or environment-specific checks (e.g., CSC states)
+        prior to taking data for a specific image type.
+        """
+        return None
+
     async def configure(self, config):
         """Configure the script.
 
@@ -474,24 +488,27 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         """
 
         self.note = getattr(self.config, "note", None)
-        group_id = self.group_id if not self.obs_id else self.obs_id
-
-        return tuple(
-            [
-                (
-                    await self.camera.take_imgtype(
-                        image_type,
-                        exp_time,
-                        1,
-                        reason=self.reason,
-                        program=self.program,
-                        note=self.note,
-                        group_id=group_id,
-                    )
-                )[0]
-                for exp_time in exp_times
-            ]
+        group_id = (
+            self.group_id if not self.obs_id else self.obs_id + f"_{self.salinfo.index}"
         )
+
+        exposure_ids = []
+        for exp_time in exp_times:
+            exposure_id = (
+                await self.camera.take_imgtype(
+                    image_type,
+                    exp_time,
+                    1,
+                    reason=self.reason,
+                    program=self.program,
+                    note=self.note,
+                    group_id=group_id,
+                )
+            )[0]
+            exposure_ids.append(exposure_id)
+            await asyncio.sleep(self.config.wait_between_exposures)
+
+        return tuple(exposure_ids)
 
     async def image_in_oods_callback(self, data):
         """Callback function to check images are in oods
@@ -1557,6 +1574,8 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
         mode = self.config.script_mode
         if mode == "BIAS":
             image_types = ["BIAS"]
+        elif mode == "DARK":
+            image_types = ["DARK"]
         elif mode == "BIAS_DARK":
             image_types = ["BIAS", "DARK"]
         elif mode == "BIAS_DARK_FLAT":
@@ -1579,6 +1598,8 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
                 await self.checkpoint(f"Taking {self.config.n_dark} darks.")
             elif im_type == "FLAT":
                 await self.checkpoint(f"Taking {self.config.n_flat} flats.")
+
+            await self.assert_feasibility(im_type)
 
             # TODO: Before taking flats with LATISS (and also
             #  with LSSTComCam), check that the telescope is in

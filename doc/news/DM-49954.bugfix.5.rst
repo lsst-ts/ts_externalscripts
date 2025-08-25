@@ -1,0 +1,4 @@
+In take_whitelight_flats_lsstcam.py:
+- Remove await in get_configuration call.
+- Move lsstcam instantiation and updated mocks in unit test.
+- Fix selection between group_id and block_id/obs_id.

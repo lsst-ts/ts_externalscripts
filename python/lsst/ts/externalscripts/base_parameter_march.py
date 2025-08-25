@@ -28,7 +28,7 @@ import types
 import numpy as np
 import yaml
 from lsst.ts import salobj
-from lsst.ts.observatory.control.maintel.mtcs import MTCS
+from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 
 
@@ -78,6 +78,7 @@ class BaseParameterMarch(BaseBlockScript):
             self.mtcs = MTCS(
                 domain=self.domain,
                 log=self.log,
+                intended_usage=MTCSUsages.Slew | MTCSUsages.StateTransition,
             )
             await self.mtcs.start_task
         else:
@@ -115,7 +116,7 @@ class BaseParameterMarch(BaseBlockScript):
                 description: Azimuth position to point to.
                 anyOf:
                   - type: number
-                    minimum: 0
+                    minimum: -360
                     maximum: 360
                   - type: "null"
                 default: null

@@ -30,12 +30,12 @@ import typing
 import numpy as np
 import yaml
 from lsst.ts import salobj
-from lsst.ts.idl.enums.ATPtg import WrapStrategy
-from lsst.ts.idl.enums.Script import ScriptState
 from lsst.ts.observatory.control.auxtel.atcs import ATCS
 from lsst.ts.observatory.control.auxtel.latiss import LATISS
 from lsst.ts.observatory.control.constants import atcs_constants
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.xml.enums.ATPtg import WrapStrategy
+from lsst.ts.xml.enums.Script import ScriptState
 
 STD_TIMEOUT = 10
 
@@ -97,14 +97,6 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
 
         self.atcs = None
         self.latiss = None
-
-        if remotes:
-            self.atcs = ATCS(self.domain, log=self.log)
-            self.latiss = LATISS(
-                self.domain,
-                log=self.log,
-                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
-            )
 
         # Timeouts used for telescope commands
         self.timeout_short = 5.0  # used with hexapod offset command
@@ -543,6 +535,18 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
             If both `find_target` and `track_target` are defined in the
             configuration.
         """
+
+        if self.atcs is None:
+            self.atcs = ATCS(self.domain, log=self.log)
+            await self.atcs.start_task
+
+        if self.latiss is None:
+            self.latiss = LATISS(
+                self.domain,
+                log=self.log,
+                tcs_ready_to_take_data=self.atcs.ready_to_take_data,
+            )
+            await self.latiss.start_task
 
         self.target_config = types.SimpleNamespace()
 

@@ -60,6 +60,7 @@ class TestMakeComCamCalibrations(
             n_processes = 4
             program = "BLOCK-123"
             reason = "SITCOM-321"
+            script_mode = "BIAS_DARK_FLAT"
 
             self.script.get_obs_id = unittest.mock.AsyncMock(
                 side_effect=["202306060001"]
@@ -75,6 +76,7 @@ class TestMakeComCamCalibrations(
                 n_processes=n_processes,
                 program=program,
                 reason=reason,
+                script_mode=script_mode,
             )
 
             assert self.script.config.n_bias == n_bias

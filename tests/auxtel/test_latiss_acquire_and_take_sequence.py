@@ -26,6 +26,7 @@ import os
 import random
 import tempfile
 import unittest
+from contextlib import asynccontextmanager
 
 import lsst.daf.butler as dafButler
 import pytest
@@ -125,20 +126,11 @@ class TestLatissAcquireAndTakeSequence(
         if not DATA_AVAILABLE:
             self.script.get_best_effort_isr = unittest.mock.Mock()
 
-        # Load controllers and required callbacks to simulate
-        # telescope/instrument behaviour
-        self.atcamera = salobj.Controller(name="ATCamera")
-        self.atcamera.cmd_takeImages.callback = unittest.mock.AsyncMock(
-            wraps=self.cmd_take_images_callback
-        )
-
-        self.atheaderservice = salobj.Controller(name="ATHeaderService")
-        self.atoods = salobj.Controller(name="ATOODS")
-        # Need ataos as the script waits for corrections to be applied on
-        # grating/filter changes
-        self.ataos = salobj.Controller(name="ATAOS")
-
-        self.atspectrograph = salobj.Controller(name="ATSpectrograph")
+        self.atcamera = None
+        self.atheaderservice = None
+        self.atoods = None
+        self.ataos = None
+        self.atspectrograph = None
 
         self.end_image_tasks = []
 
@@ -150,6 +142,24 @@ class TestLatissAcquireAndTakeSequence(
         logger.debug("Finished initializing from basic_make_script")
         # Return a single element tuple
         return (self.script,)
+
+    @asynccontextmanager
+    async def make_controllers(self):
+
+        async with salobj.Controller("ATCamera") as self.atcamera, salobj.Controller(
+            "ATHeaderService"
+        ) as self.atheaderservice, salobj.Controller(
+            "ATOODS"
+        ) as self.atoods, salobj.Controller(
+            "ATAOS"
+        ) as self.ataos, salobj.Controller(
+            "ATSpectrograph"
+        ) as self.atspectrograph:
+
+            self.atcamera.cmd_takeImages.callback = unittest.mock.AsyncMock(
+                wraps=self.cmd_take_images_callback
+            )
+            yield
 
     async def cmd_setup_atspec_callback(
         self, grating=None, filter=None, linear_stage=None
@@ -191,15 +201,6 @@ class TestLatissAcquireAndTakeSequence(
         """Optional cleanup before closing the scripts and etc."""
         logger.debug("Closing end_image_tasks")
         await asyncio.gather(*self.end_image_tasks, return_exceptions=True)
-        logger.debug("Closing remotes")
-        await asyncio.gather(
-            self.atoods.close(),
-            self.atcamera.close(),
-            self.atspectrograph.close(),
-            self.ataos.close(),
-            self.atheaderservice.close(),
-        )
-        logger.debug("Remotes closed")
 
     async def cmd_take_images_callback(self, data):
         logger.debug(f"cmd_take_images callback came with data of {data}")
@@ -321,6 +322,8 @@ class TestLatissAcquireAndTakeSequence(
                 acq_exposure_time=acq_exposure_time,
                 max_acq_iter=max_acq_iter,
                 target_pointing_tolerance=target_pointing_tolerance,
+                rot_value=90,
+                rot_type="PhysicalSky",
                 filter_sequence=filter_sequence,
                 grating_sequence=grating_sequence,
                 exposure_time_sequence=exposure_time_sequence,

@@ -1,0 +1,1 @@
+Abstract `base_take_rotated.py` and add `take_rotated_lsstcam.py`

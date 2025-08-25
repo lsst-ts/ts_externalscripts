@@ -29,10 +29,10 @@ import numpy as np
 import yaml
 from lsst.geom import PointD
 from lsst.ts import salobj
-from lsst.ts.idl.enums.ATPtg import WrapStrategy
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS
 from lsst.ts.observatory.control.constants import latiss_constants
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.xml.enums.ATPtg import WrapStrategy
 
 try:
     from lsst.pipe.tasks.quickFrameMeasurement import QuickFrameMeasurementTask

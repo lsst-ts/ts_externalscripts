@@ -51,13 +51,9 @@ class StressLOVE(salobj.BaseScript):
         # each one an instance of ManagerClient
         self.clients = []
 
-        # dict to store remote connections,
-        # with each item in the form of
-        # `CSC_name[:index]`: `lsst.ts.salobj.Remote`
-        self.remotes = {}
-
         # commands timeout
         self.cmd_timeout = 10
+        self.std_timeout = 10
 
         # time to wait for each message collection
         self.loop_time_message_collection = 1
@@ -167,39 +163,28 @@ class StressLOVE(salobj.BaseScript):
                 "Configuration failed: environment variable USER_USER_PASS not defined"
             )
 
-        # construct remotes
-        remotes = dict()
-        for name_index in config.data:
-            name, index = salobj.name_to_name_index(name_index)
-            self.log.debug(f"Create remote {name}:{index}")
-            if name_index not in remotes:
-                remote = salobj.Remote(domain=self.domain, name=name, index=index)
-                remotes[name_index] = remote
-        self.remotes = remotes
-
     async def run(self):
         """Run script."""
 
         self.log.info(f"Waiting for {len(self.remotes)} remotes to be ready")
-        await asyncio.gather(*[remote.start_task for remote in self.remotes.values()])
-
-        # Checking all CSCs are enabled
-        for remote_name, remote in self.remotes.items():
-            summary_state_evt = await remote.evt_summaryState.aget()
-            remote_summary_state = salobj.State(summary_state_evt.summaryState)
-            if remote_summary_state != salobj.State.ENABLED:
-                raise RuntimeError(f"{remote_name} CSC must be enabled")
-
         event_streams = dict()
         telemetry_streams = dict()
-        for name_index in self.remotes:
+
+        for name_index in self.config.data:
             name, index = salobj.name_to_name_index(name_index)
-            salinfo = salobj.SalInfo(self.domain, name)
-            try:
-                event_streams[name_index] = salinfo.event_names
-                telemetry_streams[name_index] = salinfo.telemetry_names
-            finally:
-                await salinfo.close()
+            self.log.debug(f"Create remote {name}:{index}")
+            async with salobj.Remote(
+                domain=self.domain, name=name, index=index
+            ) as remote:
+
+                summary_state_evt = await remote.evt_summaryState.aget(
+                    timeout=self.std_timeout
+                )
+                remote_summary_state = salobj.State(summary_state_evt.summaryState)
+                if remote_summary_state != salobj.State.ENABLED:
+                    raise RuntimeError(f"{name_index} CSC must be enabled")
+            event_streams[name_index] = remote.salinfo.event_names
+            telemetry_streams[name_index] = remote.salinfo.telemetry_names
 
         # Create clients and listen to ws messages
         self.log.info(

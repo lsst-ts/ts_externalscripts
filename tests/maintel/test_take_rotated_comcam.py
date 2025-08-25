@@ -23,12 +23,12 @@ import unittest
 
 from lsst.ts import externalscripts, standardscripts
 from lsst.ts.externalscripts.maintel import TakeRotatedComCam
-from lsst.ts.idl.enums.Script import ScriptState
-from lsst.ts.maintel.standardscripts import Mode
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.standardscripts.base_take_aos_sequence import Mode
 from lsst.ts.xml.enums.ATPtg import WrapStrategy
+from lsst.ts.xml.enums.Script import ScriptState
 
 
 class TestTakeRotatedComCam(
@@ -43,7 +43,7 @@ class TestTakeRotatedComCam(
             log=self.script.log,
         )
 
-        self.script.camera = ComCam(
+        self.script._camera = ComCam(
             domain=self.script.domain,
             intended_usage=ComCamUsages.DryTest,
             log=self.script.log,
@@ -54,9 +54,9 @@ class TestTakeRotatedComCam(
         self.script.mtcs.assert_feasibility = unittest.mock.AsyncMock()
         self.script.mtcs.ready_to_take_data = unittest.mock.AsyncMock()
         self.script.mtcs.offset_camera_hexapod = unittest.mock.AsyncMock()
-        self.script.camera.expose = unittest.mock.AsyncMock()
-        self.script.camera.setup_instrument = unittest.mock.AsyncMock()
-        self.script.camera.ready_to_take_data = unittest.mock.AsyncMock()
+        self.script._camera.expose = unittest.mock.AsyncMock()
+        self.script._camera.setup_instrument = unittest.mock.AsyncMock()
+        self.script._camera.ready_to_take_data = unittest.mock.AsyncMock()
         self.script.take_aos_sequence = unittest.mock.AsyncMock()
 
         return (self.script,)
@@ -150,10 +150,16 @@ class TestTakeRotatedComCam(
                     called_kwargs["az_wrap_strategy"], WrapStrategy.NOUNWRAP
                 )
 
-    async def test_executable_script(self) -> None:
+    async def test_executable_comcam_script(self) -> None:
         """Test that the script is executable."""
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = scripts_dir / "maintel" / "take_rotated_comcam.py"
+        await self.check_executable(script_path)
+
+    async def test_executable_lsstcam_script(self) -> None:
+        """Test that the script is executable."""
+        scripts_dir = externalscripts.get_scripts_dir()
+        script_path = scripts_dir / "maintel" / "take_rotated_lsstcam.py"
         await self.check_executable(script_path)
 
 

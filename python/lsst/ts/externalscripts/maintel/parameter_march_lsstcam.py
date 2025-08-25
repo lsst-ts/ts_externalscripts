@@ -44,7 +44,7 @@ class ParameterMarchLSSTCam(BaseParameterMarch):
         super().__init__(index=index, descr=descr)
 
         self.mtcs = None
-        self.LSSTCam = None
+        self.lsstcam = None
 
         self.instrument_name = "LSSTCam"
 
@@ -57,7 +57,9 @@ class ParameterMarchLSSTCam(BaseParameterMarch):
         if self.lsstcam is None:
             self.log.debug("Creating Camera.")
             self.lsstcam = LSSTCam(
-                self.domain, intended_usage=LSSTCamUsages.TakeImage, log=self.log
+                self.domain,
+                intended_usage=LSSTCamUsages.TakeImage | LSSTCamUsages.StateTransition,
+                log=self.log,
             )
             await self.lsstcam.start_task
         else:
