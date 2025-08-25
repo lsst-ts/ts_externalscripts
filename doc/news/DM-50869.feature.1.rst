@@ -1,1 +1,0 @@
-Instead of sending a single sequence name, send a list of sequences names. Can choose "daily" and scan for available filters.

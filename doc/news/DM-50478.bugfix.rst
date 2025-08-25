@@ -1,1 +1,0 @@
-Add missing oods implementation to take_rotated_camera.py scripts.

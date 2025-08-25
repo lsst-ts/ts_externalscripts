@@ -1,1 +1,0 @@
-In `maintel/take_rotated_lsstcam.py`, updated LSSTCam `intended_usage` to All.

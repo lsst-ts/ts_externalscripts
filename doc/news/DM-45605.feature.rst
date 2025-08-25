@@ -1,1 +1,0 @@
-Add new maintel/offset_and_take_images_lsstcam script to perform an offset sequence and take images in each position.

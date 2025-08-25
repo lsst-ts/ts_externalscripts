@@ -1,1 +1,0 @@
-In `maintel/setup_whitelight_flats`, initialized `LSSTCam` and passed it to `MTCalsys`.

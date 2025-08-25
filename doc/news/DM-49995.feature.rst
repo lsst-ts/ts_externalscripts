@@ -1,1 +1,0 @@
-Add `focus_telescope.py` script to focus telescope in Z automatically.

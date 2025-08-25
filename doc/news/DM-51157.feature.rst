@@ -1,1 +1,0 @@
-Added the salIndex for the script run to the groupID.

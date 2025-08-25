@@ -1,1 +1,0 @@
-Ensure scripts used to take calibrations for SimonyiTel are enforcing the required MTCS state.

@@ -1,1 +1,0 @@
-In park_calibration_projector.py, include tolerance in stage alignment assertion and update unit test.

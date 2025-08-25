@@ -1,3 +1,0 @@
-In base_parameter_march.py:
-- Update instantiation of MTCS to limit resources to slew and state transition.
-- Fix valid azimuth range.

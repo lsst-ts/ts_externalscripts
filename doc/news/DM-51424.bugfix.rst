@@ -1,1 +1,0 @@
-Added use_camera in metadata settings in take_whitelight_flats_lsstcam
