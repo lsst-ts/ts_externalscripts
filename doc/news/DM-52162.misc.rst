@@ -1,0 +1,1 @@
+In latiss_acquire_and_take_sequence.py, add sleep function in between images to handle filter changes starting too early.

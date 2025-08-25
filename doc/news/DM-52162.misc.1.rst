@@ -1,0 +1,1 @@
+In auxtel/correct_pointing.py, remove atpg position used in info.
