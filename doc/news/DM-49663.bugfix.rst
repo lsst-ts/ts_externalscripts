@@ -1,0 +1,2 @@
+Switch LATISS repo in `make_latiss_calibrations.py` to point to sasquatch backed version.
+Demote log message from info to debug, as it contains no day-to-day useful information.

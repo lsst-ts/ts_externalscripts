@@ -162,7 +162,7 @@ class MakeLatissCalibrations(BaseMakeCalibrations):
             repo:
                 type: string
                 descriptor: Butler repository.
-                default: "/repo/LATISS/butler+sasquatch.yaml"
+                default: "LATISS+sasquatch"
         additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema)

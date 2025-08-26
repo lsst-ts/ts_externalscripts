@@ -1683,7 +1683,7 @@ class BaseMakeCalibrations(BaseBlockScript, metaclass=abc.ABCMeta):
             response_ocps_calib_pipetask = await self.call_pipetask(im_type)
             job_id_calib = response_ocps_calib_pipetask["jobId"]
         else:
-            self.log.info(
+            self.log.debug(
                 f"A combined {im_type} will not be generated from the "
                 "images taken as part of this script. Any needed input "
                 "calibrations by the verification pipetasks will be "
