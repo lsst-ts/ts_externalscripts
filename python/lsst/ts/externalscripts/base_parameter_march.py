@@ -356,8 +356,6 @@ class BaseParameterMarch(BaseBlockScript):
             el=self.config.el,
             rot_tel=rotation_angle,
         )
-        await self.tcs.stop_tracking()
-        await asyncio.sleep(5.0)
         await self.tcs.start_tracking()
         await self.tcs.check_tracking(track_duration=1.0)
 
