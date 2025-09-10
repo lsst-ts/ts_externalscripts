@@ -350,14 +350,12 @@ class BaseParameterMarch(BaseBlockScript):
         return cam_hex_values, m2_hex_values, m1m3_bend_values, m2_bend_values
 
     async def track_target_with_rotation(self, rotation_angle) -> None:
-        await self.tcs.offset_rot(0.0)
+        # await self.tcs.offset_rot(0.0)
         await self.tcs.point_azel(
             az=self.config.az,
             el=self.config.el,
             rot_tel=rotation_angle,
         )
-        await self.tcs.stop_tracking()
-        await asyncio.sleep(5.0)
         await self.tcs.start_tracking()
         await self.tcs.check_tracking(track_duration=1.0)
 
@@ -415,18 +413,10 @@ class BaseParameterMarch(BaseBlockScript):
             self.total_offset += offset
 
             if self.rotation_sequence is not None:
-                rotation = await self.tcs.rem.mtrotator.tel_rotation.next(
-                    flush=True, timeout=self.tcs.long_timeout
-                )
-                rot_tracking_correction = (
-                    rotation.actualPosition
-                    - self.rotation_sequence[self.iterations_executed - 1]
-                )
 
-                await self.tcs.offset_rot(
-                    rot_offsets[self.iterations_executed] - rot_tracking_correction
+                await self.track_target_with_rotation(
+                    rot_offsets[self.iterations_executed]
                 )
-                await self.tcs.check_tracking(track_duration=1.0)
 
             # Take images at the current dof position
             await self.take_images()
@@ -479,8 +469,6 @@ class BaseParameterMarch(BaseBlockScript):
                 for i, dof_offset in enumerate(self.dofs * -self.total_offset):
                     offset_dof_data.value[i] = dof_offset
                 await self.tcs.rem.mtaos.cmd_offsetDOF.start(data=offset_dof_data)
-            if self.rotation_sequence is not None:
-                await self.tcs.offset_rot(0.0)
 
         except Exception:
             self.log.exception(
