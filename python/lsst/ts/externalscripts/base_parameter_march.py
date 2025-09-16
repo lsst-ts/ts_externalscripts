@@ -386,12 +386,11 @@ class BaseParameterMarch(BaseBlockScript):
         self.iterations_started = True
 
         # Move rotator
+        rot_offsets = []
         if self.rotation_sequence is not None:
             await self.track_target_with_rotation(self.rotation_sequence[0])
 
-            rot_offsets = [
-                rot - self.rotation_sequence[0] for rot in self.rotation_sequence
-            ]
+            rot_offsets = [rot for rot in self.rotation_sequence]
 
         await self.take_images()
 
@@ -412,8 +411,7 @@ class BaseParameterMarch(BaseBlockScript):
             # Store the total offset
             self.total_offset += offset
 
-            if self.rotation_sequence is not None:
-
+            if rot_offsets:
                 await self.track_target_with_rotation(
                     rot_offsets[self.iterations_executed]
                 )
