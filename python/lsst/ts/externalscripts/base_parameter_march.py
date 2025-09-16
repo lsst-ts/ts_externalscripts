@@ -331,13 +331,13 @@ class BaseParameterMarch(BaseBlockScript):
         # Format the first 5 elements as Cam Hexapod
         cam_hex_values = [
             f"{val:+0.2f} {'um' if i < 3 else 'arcsec'}"
-            for i, val in enumerate(offset_values[:5])
+            for i, val in enumerate(offset_values[5:10])
         ]
 
         # Format the next 5 elements as M2 Hexapod
         m2_hex_values = [
             f"{val:+0.2f} {'um' if i < 3 else 'arcsec'}"
-            for i, val in enumerate(offset_values[5:10])
+            for i, val in enumerate(offset_values[:5])
         ]
 
         # Format the next 20 elements as M1M3 Bend (all in um)
