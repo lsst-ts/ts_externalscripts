@@ -27,7 +27,8 @@ from .parameter_march_comcam import *
 from .parameter_march_lsstcam import *
 from .parameter_march_triplet_lsstcam import *
 from .park_calibration_projector import *
-from .setup_whitelight_flats import *
+from .setup_calsys_flats import *
+from .take_calsys_flats_lsstcam import *
 from .take_cbp_images_lsstcam import *
 from .take_comcam_guider_image import *
 from .take_ptc_flats_comcam import *
@@ -35,6 +36,5 @@ from .take_rotated_comcam import *
 from .take_rotated_lsstcam import *
 from .take_twilight_flats_comcam import *
 from .take_twilight_flats_lsstcam import *
-from .take_whitelight_flats_lsstcam import *
 from .track_target_sched import *
 from .warmup_hexapod import *

@@ -24,13 +24,13 @@ import os
 import unittest
 
 from lsst.ts import externalscripts, standardscripts, utils
-from lsst.ts.externalscripts.maintel.setup_whitelight_flats import SetupWhiteLightFlats
+from lsst.ts.externalscripts.maintel.setup_calsys_flats import SetupCalsysFlats
 from lsst.ts.xml.enums import Script
 
 index_gen = utils.index_generator()
 
 
-class TestSetupWhiteLightFlats(
+class TestSetupCalsysFlats(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     def setUp(self):
@@ -39,7 +39,7 @@ class TestSetupWhiteLightFlats(
 
     async def basic_make_script(self, index):
         self.log.debug("Starting basic_make script")
-        self.script = SetupWhiteLightFlats(index=index)
+        self.script = SetupCalsysFlats(index=index)
         self.log.debug("Starting Mtcalsys mocks")
         await self.mock_mtcalsys()
         self.log.debug("Finished initializing from basic_make_script")
@@ -68,7 +68,7 @@ class TestSetupWhiteLightFlats(
     async def test_run_without_failures(self):
         async with self.make_script():
             await self.configure_script(
-                sequence_name="whitelight_u", ignore=["TunableLaser"]
+                sequence_name="whitelight_u_source", ignore=["TunableLaser"]
             )
             assert self.script.state.state == Script.ScriptState.CONFIGURED
 
@@ -80,7 +80,7 @@ class TestSetupWhiteLightFlats(
     async def test_executable(self):
         self.log.debug("Testing executable")
         scripts_dir = externalscripts.get_scripts_dir()
-        script_path = os.path.join(scripts_dir, "maintel", "setup_whitelight_flats.py")
+        script_path = os.path.join(scripts_dir, "maintel", "setup_calsys_flats.py")
         await self.check_executable(script_path)
 
 

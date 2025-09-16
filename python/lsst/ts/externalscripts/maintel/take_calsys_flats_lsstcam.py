@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["TakeWhiteLightFlatsLSSTCam"]
+__all__ = ["TakeCalsysFlatsLSSTCam"]
 
 import hashlib
 import io
@@ -33,11 +33,11 @@ from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 from lsst.ts.standardscripts.utils import get_s3_bucket
 
 
-class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
-    """Specialized script for taking Whitelight flats with LSSTCam."""
+class TakeCalsysFlatsLSSTCam(BaseBlockScript):
+    """Specialized script for taking Calibration flatfields with LSSTCam."""
 
     def __init__(self, index):
-        super().__init__(index=index, descr="Take Whitelight flats with LSSTCam.")
+        super().__init__(index=index, descr="Take Calibration Flats with LSSTCam.")
 
         self.mtcalsys = None
         self.mtcs = None
@@ -53,9 +53,9 @@ class TakeWhiteLightFlatsLSSTCam(BaseBlockScript):
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_externalscripts/take_whitelight_flats_lsstcam.yaml
-            title: TakeWhiteLightFlatsLSSTCam v1
-            description: Configuration for TakeWhiteLightFlatsLSSTCam.
+            $id: https://github.com/lsst-ts/ts_externalscripts/take_calsys_flats_lsstcam.yaml
+            title: TakeCalsysFlatsLSSTCam v1
+            description: Configuration for TakeCalsysFlatsLSSTCam.
             type: object
             properties:
               sequence_names:
