@@ -331,13 +331,13 @@ class BaseParameterMarch(BaseBlockScript):
         # Format the first 5 elements as Cam Hexapod
         cam_hex_values = [
             f"{val:+0.2f} {'um' if i < 3 else 'arcsec'}"
-            for i, val in enumerate(offset_values[:5])
+            for i, val in enumerate(offset_values[5:10])
         ]
 
         # Format the next 5 elements as M2 Hexapod
         m2_hex_values = [
             f"{val:+0.2f} {'um' if i < 3 else 'arcsec'}"
-            for i, val in enumerate(offset_values[5:10])
+            for i, val in enumerate(offset_values[:5])
         ]
 
         # Format the next 20 elements as M1M3 Bend (all in um)
@@ -386,12 +386,11 @@ class BaseParameterMarch(BaseBlockScript):
         self.iterations_started = True
 
         # Move rotator
+        rot_offsets = []
         if self.rotation_sequence is not None:
             await self.track_target_with_rotation(self.rotation_sequence[0])
 
-            rot_offsets = [
-                rot - self.rotation_sequence[0] for rot in self.rotation_sequence
-            ]
+            rot_offsets = [rot for rot in self.rotation_sequence]
 
         await self.take_images()
 
@@ -412,8 +411,7 @@ class BaseParameterMarch(BaseBlockScript):
             # Store the total offset
             self.total_offset += offset
 
-            if self.rotation_sequence is not None:
-
+            if rot_offsets:
                 await self.track_target_with_rotation(
                     rot_offsets[self.iterations_executed]
                 )
