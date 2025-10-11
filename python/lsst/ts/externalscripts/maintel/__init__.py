@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from .correct_pointing import *
 from .focus_telescope import *
 from .make_comcam_calibrations import *
 from .make_lsstcam_calibrations import *
