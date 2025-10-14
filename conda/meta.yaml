@@ -7,7 +7,7 @@ source:
   path: ../
 
 build:
-  noarch: python
+  noarch: generic 
   script: {{ PYTHON }} -m pip install --no-deps --ignore-installed .
 
 test:
