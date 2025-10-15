@@ -66,6 +66,7 @@ class CorrectPointing(BaseScript):
         self.max_iterations = 5
         self.exposure_time = 2.0
         self.consdb_timeout = 60.0
+        self.consdb_max_retries = 3
         self.filter = None
 
     @classmethod
@@ -97,6 +98,12 @@ class CorrectPointing(BaseScript):
                 description: Timeout in seconds for waiting for ConsDB data.
                 default: 60.0
                 minimum: 10.0
+            consdb_max_retries:
+                type: number
+                description: >-
+                    Maximum number of retry attempts if ConsDB query times out.
+                default: 3
+                minimum: 1
             filter:
                 description: Filter name or ID. If None, uses current filter.
                 default: null
@@ -125,6 +132,7 @@ class CorrectPointing(BaseScript):
         self.tolerance_arcsec = config.tolerance_arcsec
         self.max_iterations = config.max_iterations
         self.consdb_timeout = config.consdb_timeout
+        self.consdb_max_retries = config.consdb_max_retries
         self.filter = config.filter
 
     async def configure_tcs(self) -> None:
@@ -193,9 +201,11 @@ class CorrectPointing(BaseScript):
         """Execute the pointing correction procedure."""
         await self.assert_feasibility()
 
-        self.log.info("Starting pointing correction procedure.")
-        self.log.info(f"Tolerance: {self.tolerance_arcsec} arcsec")
-        self.log.info(f"Max iterations: {self.max_iterations}")
+        self.log.info(
+            f"Starting pointing correction procedure.\n"
+            f"Tolerance: {self.tolerance_arcsec} arcsec\n"
+            f"Max iterations: {self.max_iterations}"
+        )
 
         target_ra_rad, target_dec_rad = await self.get_target_coordinates()
         target_ra_deg = Angle(target_ra_rad, unit=u.rad).to(u.deg).value
@@ -206,18 +216,18 @@ class CorrectPointing(BaseScript):
         )
 
         offset_magnitude_arcsec = float("inf")
-        iteration = 0
 
-        while iteration < self.max_iterations:
-            iteration += 1
-            self.log.info(f"Starting iteration {iteration} of {self.max_iterations}")
-
+        for iteration in range(1, self.max_iterations + 1):
             if offset_magnitude_arcsec < self.tolerance_arcsec:
                 self.log.info(
                     f"Pointing offset {offset_magnitude_arcsec:.3f} arcsec is within "
                     f"tolerance {self.tolerance_arcsec:.3f} arcsec. Correction complete."
                 )
                 break
+            else:
+                self.log.info(
+                    f"Starting iteration {iteration} of {self.max_iterations}"
+                )
 
             exposure_ids = await self.lsstcam.take_acq(
                 exptime=self.exposure_time,
@@ -241,10 +251,10 @@ class CorrectPointing(BaseScript):
             )
 
             self.log.info(
-                f"Measured coordinates: RA={measured_ra_deg:.6f} deg, Dec={measured_dec_deg:.6f} deg"
-            )
-            self.log.info(
-                f"Offset: RA={offset_ra_arcsec:.3f} arcsec, Dec={offset_dec_arcsec:.3f} arcsec, "
+                f"Measured coordinates: RA={measured_ra_deg:.6f} deg, "
+                f"Dec={measured_dec_deg:.6f} deg\n"
+                f"Offset: RA={offset_ra_arcsec:.3f} arcsec, "
+                f"Dec={offset_dec_arcsec:.3f} arcsec, "
                 f"Magnitude={offset_magnitude_arcsec:.3f} arcsec"
             )
 
@@ -255,8 +265,7 @@ class CorrectPointing(BaseScript):
                     f"Pointing offset {offset_magnitude_arcsec:.3f} arcsec is within "
                     f"tolerance {self.tolerance_arcsec:.3f} arcsec. Correction complete."
                 )
-
-        if offset_magnitude_arcsec >= self.tolerance_arcsec:
+        else:
             raise RuntimeError(
                 f"Failed to correct pointing after {self.max_iterations} iterations. "
                 f"Final offset: {offset_magnitude_arcsec:.3f} arcsec"
@@ -316,28 +325,53 @@ class CorrectPointing(BaseScript):
             timeout=self.consdb_timeout,
         )
 
-        wcs_table = await asyncio.get_running_loop().run_in_executor(None, get_wcs_row)
+        last_exception = None
+        for attempt in range(1, self.consdb_max_retries + 1):
+            try:
+                self.log.debug(
+                    f"ConsDB query attempt {attempt} of {self.consdb_max_retries} "
+                    f"for exposure {exposure_id}"
+                )
 
-        if len(wcs_table) == 0:
-            raise RuntimeError(
-                f"WCS solution not available for exposure {exposure_id} after {self.consdb_timeout}s timeout"
-            )
+                wcs_table = await asyncio.get_running_loop().run_in_executor(
+                    None, get_wcs_row
+                )
 
-        row = wcs_table[0]
-        measured_ra_deg = row["s_ra"]
-        measured_dec_deg = row["s_dec"]
+                if len(wcs_table) == 0:
+                    raise RuntimeError(
+                        f"WCS solution not available for exposure {exposure_id} "
+                        f"after {self.consdb_timeout}s timeout"
+                    )
 
-        if measured_ra_deg is None or measured_dec_deg is None:
-            raise RuntimeError(
-                f"WCS solution incomplete for exposure {exposure_id}: "
-                f"s_ra={measured_ra_deg}, s_dec={measured_dec_deg}"
-            )
+                row = wcs_table[0]
+                measured_ra_deg = row["s_ra"]
+                measured_dec_deg = row["s_dec"]
 
-        self.log.debug(
-            f"Retrieved WCS solution: RA={measured_ra_deg:.6f} deg, Dec={measured_dec_deg:.6f} deg"
-        )
+                if measured_ra_deg is None or measured_dec_deg is None:
+                    raise RuntimeError(
+                        f"WCS solution incomplete for exposure {exposure_id}: "
+                        f"s_ra={measured_ra_deg}, s_dec={measured_dec_deg}"
+                    )
 
-        return measured_ra_deg, measured_dec_deg
+                self.log.debug(
+                    f"Retrieved WCS solution: RA={measured_ra_deg:.6f} deg, "
+                    f"Dec={measured_dec_deg:.6f} deg"
+                )
+
+                return measured_ra_deg, measured_dec_deg
+
+            except RuntimeError as e:
+                last_exception = e
+                if attempt < self.consdb_max_retries:
+                    self.log.warning(
+                        f"ConsDB query failed (attempt {attempt}/{self.consdb_max_retries}): {e}. "
+                        f"Retrying..."
+                    )
+                    # Add a small delay before retry
+                    await asyncio.sleep(1)
+
+        # If we get here, all retries failed
+        raise last_exception
 
     def calculate_offset(
         self,
@@ -368,7 +402,7 @@ class CorrectPointing(BaseScript):
         offset_ra_deg = measured_ra_deg - target_ra_deg
         offset_dec_deg = measured_dec_deg - target_dec_deg
 
-        offset_ra_arcsec = offset_ra_deg * 3600.0 * np.cos(np.deg2rad(target_dec_deg))
+        offset_ra_arcsec = offset_ra_deg * 3600.0
         offset_dec_arcsec = offset_dec_deg * 3600.0
 
         offset_magnitude_arcsec = np.sqrt(offset_ra_arcsec**2 + offset_dec_arcsec**2)
@@ -379,6 +413,9 @@ class CorrectPointing(BaseScript):
         self, offset_ra_arcsec: float, offset_dec_arcsec: float
     ):
         """Apply the pointing offset to the telescope.
+
+        Uses offset_radec to apply RA/Dec offsets, then absorbs the offset
+        into the pointing model.
 
         Parameters
         ----------
@@ -392,6 +429,8 @@ class CorrectPointing(BaseScript):
             f"Dec={offset_dec_arcsec:.3f} arcsec"
         )
 
-        await self.mtcs.offset_xy(x=offset_ra_arcsec, y=offset_dec_arcsec, absorb=True)
+        await self.mtcs.offset_radec(
+            ra=offset_ra_arcsec, dec=offset_dec_arcsec, absorb=True
+        )
 
-        self.log.info("Pointing offset applied.")
+        self.log.info("Pointing offset applied and absorbed.")
