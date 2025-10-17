@@ -105,7 +105,13 @@ class WarmUpHexapod(salobj.BaseScript):
                     items:
                       type: number
                       exclusiveMinimum: 0.0
-                default: 1
+                default: 1.0
+              timeout:
+                description: >-
+                  The timeout of movement in seconds.
+                type: number
+                exclusiveMinimum: 0.0
+                default: 120.0
               max_position:
                 description: Maximum position (absolute value) for the movements.
                 type: number
@@ -155,6 +161,7 @@ class WarmUpHexapod(salobj.BaseScript):
             f"  axis: {config.axis}\n"
             f"  step_size: {config.step_size}\n"
             f"  sleep_time: {config.sleep_time}\n"
+            f"  timeout: {config.timeout}\n"
             f"  max_position: {config.max_position}\n"
             f"  max_verification_position: {config.max_verification_position}\n"
         )
@@ -240,13 +247,13 @@ class WarmUpHexapod(salobj.BaseScript):
         # Mute the watcher alarm
         alarm_name = f"Enabled.MTHexapod:{self.hexapod_sal_index.value}"
         self.log.info(
-            f"Muting {self.hexapod_name} alarm: {alarm_name} for 3600 seconds."
+            f"Muting {self.hexapod_name} alarm: {alarm_name} for 7200 seconds."
         )
 
         try:
             await self.watcher.cmd_mute.set_start(
                 name=alarm_name,
-                duration=3600.0,
+                duration=7200.0,
                 severity=AlarmSeverity.CRITICAL.value,
                 mutedBy="warmup_hexapod.py",
                 timeout=60.0,
@@ -313,14 +320,21 @@ class WarmUpHexapod(salobj.BaseScript):
 
             # Move to the maximum position
             all_positions[self.config.axis] = self.config.max_verification_position
-            await self.move_hexapod(**all_positions, sync=False)
+            await self.move_hexapod(**all_positions, timeout=self.config.timeout)
+
+            # Move back to the origin
+            await self.move_hexapod(
+                0.0, 0.0, 0.0, 0.0, 0.0, w=0.0, timeout=self.config.timeout
+            )
 
             # Move to the minimum position
             all_positions[self.config.axis] = -self.config.max_verification_position
-            await self.move_hexapod(**all_positions, sync=False)
+            await self.move_hexapod(**all_positions, timeout=self.config.timeout)
 
             # Move back to the origin
-            await self.move_hexapod(0.0, 0.0, 0.0, 0.0, 0.0, w=0.0, sync=False)
+            await self.move_hexapod(
+                0.0, 0.0, 0.0, 0.0, 0.0, w=0.0, timeout=self.config.timeout
+            )
 
             return True
 
@@ -489,7 +503,7 @@ class WarmUpHexapod(salobj.BaseScript):
         """
 
         try:
-            await self.move_hexapod(x, y, z, u, v, w=w)
+            await self.move_hexapod(x, y, z, u, v, w=w, timeout=self.config.timeout)
 
             return True
         except (asyncio.CancelledError, TimeoutError, salobj.base.AckError):

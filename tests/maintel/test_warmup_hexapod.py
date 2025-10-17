@@ -65,6 +65,7 @@ class TestCameraHexapodWarmUp(
             axis = "z"
             step_size = 250
             sleep_time = 2.0
+            timeout = 1.0
             max_position = 13000
             max_warmup_iterations = 5
 
@@ -73,6 +74,7 @@ class TestCameraHexapodWarmUp(
                 axis=axis,
                 step_size=step_size,
                 sleep_time=sleep_time,
+                timeout=timeout,
                 max_position=max_position,
                 max_warmup_iterations=max_warmup_iterations,
             )
@@ -85,6 +87,7 @@ class TestCameraHexapodWarmUp(
             assert self.script.config.sleep_time == [
                 sleep_time
             ]  # int/float are converted to lists
+            assert self.script.config.timeout == timeout
             assert self.script.config.max_position == max_position
             assert self.script.config.max_warmup_iterations == max_warmup_iterations
 
@@ -102,6 +105,7 @@ class TestCameraHexapodWarmUp(
             axis = "z"
             step_size = 2000
             sleep_time = 0.1
+            timeout = 60.0
             max_position = 13000
             max_warmup_iterations = 5
 
@@ -111,6 +115,7 @@ class TestCameraHexapodWarmUp(
                 axis=axis,
                 step_size=step_size,
                 sleep_time=sleep_time,
+                timeout=timeout,
                 max_position=max_position,
                 max_warmup_iterations=max_warmup_iterations,
             )
@@ -130,7 +135,7 @@ class TestCameraHexapodWarmUp(
             await self.run_script()
             self.script.watcher.cmd_mute.set_start.assert_awaited_with(
                 name="Enabled.MTHexapod:1",
-                duration=3600.0,
+                duration=7200.0,
                 severity=AlarmSeverity.CRITICAL.value,
                 mutedBy="warmup_hexapod.py",
                 timeout=60.0,

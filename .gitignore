@@ -6,6 +6,7 @@ config.log
 .vscode
 version.py
 python/*.dist-info/
+.DS_Store
 
 # Pytest
 tests/.tests
