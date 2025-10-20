@@ -1,0 +1,1 @@
+Fix make_love_stress call to removed self.remotes attr.
