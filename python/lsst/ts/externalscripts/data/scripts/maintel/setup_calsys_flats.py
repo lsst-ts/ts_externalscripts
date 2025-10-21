@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import SetupWhiteLightFlats
+from lsst.ts.externalscripts.maintel import SetupCalsysFlats
 
-asyncio.run(SetupWhiteLightFlats.amain())
+asyncio.run(SetupCalsysFlats.amain())

@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["SetupWhiteLightFlats"]
+__all__ = ["SetupCalsysFlats"]
 
 
 import yaml
@@ -28,8 +28,8 @@ from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam
 from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys
 
 
-class SetupWhiteLightFlats(salobj.BaseScript):
-    """Sets up Calibration Projector to perform White Light Flats
+class SetupCalsysFlats(salobj.BaseScript):
+    """Sets up Calibration Projector to perform Flatfield Calibrations
 
     Parameters
     ----------
@@ -41,7 +41,7 @@ class SetupWhiteLightFlats(salobj.BaseScript):
     def __init__(self, index):
         super().__init__(
             index=index,
-            descr="Setup for White Light Flats",
+            descr="Setup for Calibration Flats",
         )
 
         self.lsstcam = None
@@ -51,9 +51,9 @@ class SetupWhiteLightFlats(salobj.BaseScript):
     def get_schema(cls):
         schema_yaml = """
             $schema: http://json-schema.org/draft-07/schema#
-            $id: https://github.com/lsst-ts/ts_externalscripts/maintel/calibrations/setup_whitelight_flats.yaml # noqa: E501
-            title: SetupWhiteLightFlats v1
-            description: Configuration for SetupWhiteLightFlats.
+            $id: https://github.com/lsst-ts/ts_externalscripts/maintel/calibrations/setup_calsys_flats.yaml # noqa: E501
+            title: SetupCalsysFlats v1
+            description: Configuration for SetupCalsysFlats.
               Each attribute can be specified as a scalar or array.
               All arrays must have the same length (one item per image).
             type: object

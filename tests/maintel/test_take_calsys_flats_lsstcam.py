@@ -27,12 +27,12 @@ import unittest.mock as mock
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts, utils
-from lsst.ts.externalscripts.maintel.take_whitelight_flats_lsstcam import (
-    TakeWhiteLightFlatsLSSTCam,
+from lsst.ts.externalscripts.maintel.take_calsys_flats_lsstcam import (
+    TakeCalsysFlatsLSSTCam,
 )
 
 
-class TestTakeWhiteLightFlatsLSSTCam(
+class TestTakeCalsysFlatsLSSTCam(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
     def setUp(self):
@@ -40,7 +40,7 @@ class TestTakeWhiteLightFlatsLSSTCam(
         self.log.propagate = True
 
     async def basic_make_script(self, index):
-        self.script = TakeWhiteLightFlatsLSSTCam(index=index)
+        self.script = TakeCalsysFlatsLSSTCam(index=index)
 
         self.script.mtcs = mock.AsyncMock()
         self.script.mtcs.long_timeout = 30.0
@@ -285,6 +285,6 @@ class TestTakeWhiteLightFlatsLSSTCam(
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
         script_path = os.path.join(
-            scripts_dir, "maintel", "take_whitelight_flats_lsstcam.py"
+            scripts_dir, "maintel", "take_calsys_flats_lsstcam.py"
         )
         await self.check_executable(script_path)
