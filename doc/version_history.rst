@@ -8,6 +8,26 @@ Version History
 
 .. towncrier release notes start
 
+v0.32.0 (2025-10-20)
+====================
+
+Bug Fixes
+---------
+
+- In ``BaseParameterMarch``, fixed how rotation offsets are handled. (`DM-52457 <https://rubinobs.atlassian.net/browse/DM-52457>`_)
+- In ``BaseParameterMarch``, fixed camera hexapod vs m2 hexapod offsets.
+  They were reversed. (`DM-52457 <https://rubinobs.atlassian.net/browse/DM-52457>`_)
+- Fix make_love_stress call to removed self.remotes attr. (`OSW-1191 <https://rubinobs.atlassian.net/browse/OSW-1191>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- - In `base_parameter_match.py`, update how rotator is repositioned to re-slew to the target instead of offsetting the rotator.
+    The original way was causing issues with the pointing component.
+  - In `warmup_hexapod`, move hexapod in non synchronous mode. (`DM-52297 <https://rubinobs.atlassian.net/browse/DM-52297>`_)
+
+
 v0.31.0 (2025-08-25)
 ====================
 

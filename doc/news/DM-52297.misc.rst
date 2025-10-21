@@ -1,3 +1,0 @@
-- In `base_parameter_match.py`, update how rotator is repositioned to re-slew to the target instead of offsetting the rotator.
-  The original way was causing issues with the pointing component.
-- In `warmup_hexapod`, move hexapod in non synchronous mode.
