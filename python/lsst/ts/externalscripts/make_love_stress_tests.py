@@ -166,7 +166,7 @@ class StressLOVE(salobj.BaseScript):
     async def run(self):
         """Run script."""
 
-        self.log.info(f"Waiting for {len(self.remotes)} remotes to be ready")
+        self.log.info(f"Checking for {len(self.config.data)} remotes to be ready")
         event_streams = dict()
         telemetry_streams = dict()
 

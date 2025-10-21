@@ -313,14 +313,14 @@ class WarmUpHexapod(salobj.BaseScript):
 
             # Move to the maximum position
             all_positions[self.config.axis] = self.config.max_verification_position
-            await self.move_hexapod(**all_positions)
+            await self.move_hexapod(**all_positions, sync=False)
 
             # Move to the minimum position
             all_positions[self.config.axis] = -self.config.max_verification_position
-            await self.move_hexapod(**all_positions)
+            await self.move_hexapod(**all_positions, sync=False)
 
             # Move back to the origin
-            await self.move_hexapod(0.0, 0.0, 0.0, 0.0, 0.0, w=0.0)
+            await self.move_hexapod(0.0, 0.0, 0.0, 0.0, 0.0, w=0.0, sync=False)
 
             return True
 
