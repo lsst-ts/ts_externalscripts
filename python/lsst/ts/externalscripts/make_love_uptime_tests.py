@@ -212,6 +212,8 @@ class UptimeLOVE(salobj.BaseScript):
         # get max duration
         self.max_duration = self.config.max_duration
 
+        self.log.info("Configure done...")
+
     async def run(self):
         """Run script."""
 
@@ -280,3 +282,14 @@ class UptimeLOVE(salobj.BaseScript):
         # Close the ManagerClient
         if self.client is not None:
             await self.client.close()
+
+    async def close(self):
+
+        await asyncio.gather(*[remote.start_task for remote in self.remotes.values()])
+        for remote_name, remote in self.remotes.items():
+            self.log.debug(f"Closing remote for {remote_name}.")
+            await remote.close()
+
+        del self.remotes
+
+        await super().close()
