@@ -1,1 +1,0 @@
-Changed take_whitelight_flats_lsstcam to take_calsys_flats_lsstcam everywhere.

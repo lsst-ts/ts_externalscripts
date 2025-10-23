@@ -1,1 +1,0 @@
-In ``BaseParameterMarch``, fixed how rotation offsets are handled.

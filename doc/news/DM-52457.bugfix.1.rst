@@ -1,2 +1,0 @@
-In ``BaseParameterMarch``, fixed camera hexapod vs m2 hexapod offsets.
-They were reversed.
