@@ -8,6 +8,17 @@ Version History
 
 .. towncrier release notes start
 
+v0.33.0 (2025-10-23)
+====================
+
+Other Changes and Additions
+---------------------------
+
+- Changed setup_whitelight_flats to setup_calsys_flats everywhere. (`DM-52530 <https://rubinobs.atlassian.net/browse/DM-52530>`_)
+- Changed take_whitelight_flats_lsstcam to take_calsys_flats_lsstcam everywhere. (`DM-52530 <https://rubinobs.atlassian.net/browse/DM-52530>`_)
+- Removed LinearStage:104 and FiberSpectrographs from default ignore lists on setup_whitelight_flats and park_calibration_projector. (`DM-52786 <https://rubinobs.atlassian.net/browse/DM-52786>`_)
+
+
 v0.32.0 (2025-10-20)
 ====================
 

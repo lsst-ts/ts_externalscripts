@@ -1,1 +1,0 @@
-Removed LinearStage:104 and FiberSpectrographs from default ignore lists on setup_whitelight_flats and park_calibration_projector.
