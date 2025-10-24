@@ -22,11 +22,17 @@ __all__ = ["TakeTwilightFlatsLSSTCam"]
 
 import asyncio
 import functools
+import warnings
 
 import yaml
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS
 from lsst.ts.observatory.control.utils import RotType
+
+try:
+    from lsst.summit.utils import ConsDbClient
+except ImportError:
+    warnings.warn("Cannot import required libraries. Script will not work.")
 
 from ..base_take_twilight_flats import BaseTakeTwilightFlats
 
@@ -73,6 +79,14 @@ class TakeTwilightFlatsLSSTCam(BaseTakeTwilightFlats):
             await self.lsstcam.start_task
         else:
             self.log.debug("Camera already defined, skipping.")
+
+    def configure_client(self) -> None:
+        """Handle creating the ConsDB client."""
+        if self.client is None:
+            self.log.debug("Creating ConsDB client.")
+            self.client = ConsDbClient("http://consdb-pq.consdb:8080/consdb")
+        else:
+            self.log.debug("ConsDB client already defined, skipping.")
 
     @classmethod
     def get_schema(cls):
