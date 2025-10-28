@@ -60,6 +60,7 @@ class ParameterMarchLSSTCam(BaseParameterMarch):
                 self.domain,
                 intended_usage=LSSTCamUsages.TakeImage | LSSTCamUsages.StateTransition,
                 log=self.log,
+                tcs_ready_to_take_data=self.mtcs.ready_to_take_data,
             )
             await self.lsstcam.start_task
         else:
