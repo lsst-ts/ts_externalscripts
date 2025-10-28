@@ -381,6 +381,7 @@ class BaseParameterMarch(BaseBlockScript):
         for i, dof_offset in enumerate(offset_values):
             offset_dof_data.value[i] = dof_offset
         await self.tcs.rem.mtaos.cmd_offsetDOF.start(data=offset_dof_data)
+        await self.tcs.ready_to_take_data()
         self.total_offset += start_position
 
         self.iterations_started = True
