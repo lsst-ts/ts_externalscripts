@@ -12,9 +12,8 @@ build:
 
 test:
   requires:
-    - ts-conda-build =0.3
-    - ts-dds
-    - ts-idl {{ idl_version }}
+    - ts-conda-build =0.5
+    - ts-xml {{ xml_version }}
     - ts-salobj {{ salobj_version }}
   source_files:
     - python
@@ -34,11 +33,11 @@ requirements:
     - pip
     - setuptools_scm
     - setuptools
-    - ts-conda-build =0.3
+    - ts-conda-build =0.5
   run:
     - python {{ python }}
     - setuptools
     - setuptools_scm
-    - ts-idl
+    - ts-xml
     - ts-salobj
     - ts-observatory-control
