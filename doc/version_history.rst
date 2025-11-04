@@ -8,6 +8,17 @@ Version History
 
 .. towncrier release notes start
 
+v0.33.1 (2025-11-04)
+====================
+
+Bug Fixes
+---------
+
+- Updated `BaseParameterMarch` to wait for TCS to be ready to take data after applying DOF offset. (`OSW-1309 <https://rubinobs.atlassian.net/browse/OSW-1309>`_)
+- Updated `ParameterMarchLSSTCam` to configure camera with TCS synchronization. (`OSW-1309 <https://rubinobs.atlassian.net/browse/OSW-1309>`_)
+- Updated `ParameterMarchTripletLSSTCam` to configure camera with TCS synchronization. (`OSW-1309 <https://rubinobs.atlassian.net/browse/OSW-1309>`_)
+
+
 v0.33.0 (2025-10-23)
 ====================
 
