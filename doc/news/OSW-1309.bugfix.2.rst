@@ -1,1 +1,0 @@
-Updated `ParameterMarchLSSTCam` to configure camera with TCS synchronization.
