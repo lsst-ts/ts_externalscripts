@@ -3,6 +3,8 @@ import unittest.mock as mock
 
 import numpy as np
 import pytest
+from astropy import units
+from astropy.coordinates import AltAz
 from astropy.table import Table
 from lsst.ts import externalscripts, salobj, standardscripts
 from lsst.ts.externalscripts.maintel.correct_pointing import CorrectPointing
@@ -25,7 +27,10 @@ class TestCorrectPointing(
         self.script.mtcs = mock.AsyncMock()
         self.script.mtcs.assert_liveliness = mock.AsyncMock()
         self.script.mtcs.assert_all_enabled = mock.AsyncMock()
-        self.script.mtcs.offset_radec = mock.AsyncMock()
+        self.script.mtcs.offset_azel = mock.AsyncMock()
+        self.script.mtcs.azel_from_radec = mock.Mock(
+            return_value=AltAz(80 * units.deg, 0 * units.deg)
+        )
         self.script.mtcs.fast_timeout = 5.0
 
         self.script.mtcs.rem = mock.Mock()
@@ -87,7 +92,7 @@ class TestCorrectPointing(
         async with self.make_script():
             await self.configure_script(**config)
 
-            assert self.script.exposure_time == 2.0
+            assert self.script.exposure_time == 30.0
             assert self.script.tolerance_arcsec == 1.0
             assert self.script.max_iterations == 5
             assert self.script.consdb_timeout == 60.0
@@ -165,19 +170,6 @@ class TestCorrectPointing(
             assert offset_dec == 0.0
             assert magnitude == 0.0
 
-    async def test_apply_pointing_offset(self):
-        async with self.make_script():
-            await self.configure_script()
-
-            offset_ra_arcsec = 2.5
-            offset_dec_arcsec = -1.8
-
-            await self.script.apply_pointing_offset(offset_ra_arcsec, offset_dec_arcsec)
-
-            self.script.mtcs.offset_radec.assert_called_once_with(
-                ra=offset_ra_arcsec, dec=offset_dec_arcsec, absorb=True
-            )
-
     async def test_get_measured_coordinates_from_consdb(self):
         async with self.make_script():
             await self.configure_script()
@@ -243,10 +235,10 @@ class TestCorrectPointing(
             await self.script.run()
 
             assert self.script.lsstcam.take_acq.call_count == 2
-            assert self.script.mtcs.offset_radec.call_count == 1
-            # Verify offset_radec was called with absorb=True
-            self.script.mtcs.offset_radec.assert_called_with(
-                ra=mock.ANY, dec=mock.ANY, absorb=True
+            assert self.script.mtcs.offset_azel.call_count == 1
+            # Verify offset_azel was called with absorb=True
+            self.script.mtcs.offset_azel.assert_called_with(
+                az=mock.ANY, el=mock.ANY, absorb=True
             )
 
     async def test_run_fails_max_iterations(self):
@@ -264,8 +256,8 @@ class TestCorrectPointing(
                 await self.script.run()
 
             assert self.script.lsstcam.take_acq.call_count == 2
-            assert self.script.mtcs.offset_radec.call_count == 2
-            for call in self.script.mtcs.offset_radec.call_args_list:
+            assert self.script.mtcs.offset_azel.call_count == 2
+            for call in self.script.mtcs.offset_azel.call_args_list:
                 assert call.kwargs["absorb"] is True
 
     async def test_executable(self):
