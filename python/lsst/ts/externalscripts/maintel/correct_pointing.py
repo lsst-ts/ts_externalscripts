@@ -295,8 +295,21 @@ class CorrectPointing(BaseScript):
                 f"Magnitude={offset_magnitude_arcsec:.3f} arcsec"
             )
 
+            altaz_base = self.mtcs.azel_from_radec(target_ra_angle, target_dec_angle)
+            altaz_meas = self.mtcs.azel_from_radec(
+                Angle(measured_ra_deg, unit=u.deg), Angle(measured_dec_deg, unit=u.deg)
+            )
+
+            offset_alt = altaz_meas.alt - altaz_base.alt
+            offset_az = altaz_meas.az - altaz_base.az
+
             if offset_magnitude_arcsec >= self.tolerance_arcsec:
-                await self.apply_pointing_offset(offset_ra_arcsec, offset_dec_arcsec)
+                await self.mtcs.offset_azel(
+                    az=offset_az.to(u.arcsec).value
+                    * np.cos(altaz_base.alt.to(u.rad).value),
+                    el=offset_alt.to(u.arcsec).value,
+                    absorb=True,
+                )
             else:
                 self.log.info(
                     f"Pointing offset {offset_magnitude_arcsec:.3f} arcsec is within "
@@ -517,29 +530,3 @@ class CorrectPointing(BaseScript):
         offset_magnitude_arcsec = np.sqrt(offset_ra_arcsec**2 + offset_dec_arcsec**2)
 
         return offset_ra_arcsec, offset_dec_arcsec, offset_magnitude_arcsec
-
-    async def apply_pointing_offset(
-        self, offset_ra_arcsec: float, offset_dec_arcsec: float
-    ):
-        """Apply the pointing offset to the telescope.
-
-        Uses offset_radec to apply RA/Dec offsets, then absorbs the offset
-        into the pointing model.
-
-        Parameters
-        ----------
-        offset_ra_arcsec : float
-            RA offset in arcseconds.
-        offset_dec_arcsec : float
-            Dec offset in arcseconds.
-        """
-        self.log.info(
-            f"Applying pointing offset: RA={offset_ra_arcsec:.3f} arcsec, "
-            f"Dec={offset_dec_arcsec:.3f} arcsec"
-        )
-
-        await self.mtcs.offset_radec(
-            ra=offset_ra_arcsec, dec=offset_dec_arcsec, absorb=True
-        )
-
-        self.log.info("Pointing offset applied and absorbed.")
