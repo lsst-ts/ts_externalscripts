@@ -21,8 +21,11 @@
 __all__ = ["CorrectPointing"]
 
 import asyncio
+import enum
 import functools
+import json
 import warnings
+from pathlib import Path
 
 import astropy.units as u
 import numpy as np
@@ -30,12 +33,20 @@ import yaml
 from astropy.coordinates import Angle
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
-from lsst.ts.salobj import BaseScript
+from lsst.ts.salobj.base_script import HEARTBEAT_INTERVAL, BaseScript
+from lsst.ts.utils import current_tai
 
 try:
     from lsst.summit.utils import ConsDbClient
 except ImportError:
     warnings.warn("Cannot import ConsDB client. Script will not work.")
+
+
+class OffsetSource(enum.IntEnum):
+    """Sources of telescope offset."""
+
+    RubinTV = enum.auto()
+    ConsDB = enum.auto()
 
 
 class CorrectPointing(BaseScript):
@@ -51,6 +62,8 @@ class CorrectPointing(BaseScript):
     4. Apply offset to pointing component with absorb=True
     5. Repeat until offsets are below threshold
     """
+
+    offset_source = OffsetSource.ConsDB
 
     def __init__(self, index: int) -> None:
         super().__init__(
@@ -71,7 +84,12 @@ class CorrectPointing(BaseScript):
 
     @classmethod
     def get_schema(cls):
-        schema_yaml = """
+
+        offset_sources = ", ".join(
+            [f'"{offset_source.name}"' for offset_source in OffsetSource]
+        )
+
+        schema_yaml = f"""
         $schema: http://json-schema.org/draft-07/schema#
         $id: https://github.com/lsst-ts/ts_externalscripts/maintel/CorrectPointing.yaml
         title: CorrectPointing v1
@@ -112,6 +130,11 @@ class CorrectPointing(BaseScript):
                   - type: integer
                     minimum: 1
                   - type: "null"
+            offset_source:
+                description: Which source to use to retrieve the offset?
+                default: {cls.offset_source.name}
+                type: string
+                enum: [{offset_sources}]
         additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -134,6 +157,9 @@ class CorrectPointing(BaseScript):
         self.consdb_timeout = config.consdb_timeout
         self.consdb_max_retries = config.consdb_max_retries
         self.filter = config.filter
+        self.offset_source = getattr(
+            OffsetSource, config.offset_source, self.offset_source
+        )
 
     async def configure_tcs(self) -> None:
         """Handle creating the MTCS object and waiting for remote to start."""
@@ -208,8 +234,10 @@ class CorrectPointing(BaseScript):
         )
 
         target_ra_rad, target_dec_rad = await self.get_target_coordinates()
-        target_ra_deg = Angle(target_ra_rad, unit=u.rad).to(u.deg).value
-        target_dec_deg = Angle(target_dec_rad, unit=u.rad).to(u.deg).value
+        target_ra_angle = Angle(target_ra_rad, unit=u.rad)
+        target_dec_angle = Angle(target_dec_rad, unit=u.rad)
+        target_ra_deg = target_ra_angle.to(u.deg).value
+        target_dec_deg = target_dec_angle.to(u.deg).value
 
         self.log.info(
             f"Target coordinates: RA={target_ra_deg:.6f} deg, Dec={target_dec_deg:.6f} deg"
@@ -240,15 +268,24 @@ class CorrectPointing(BaseScript):
             exposure_id = int(exposure_ids[0])
             self.log.info(f"Took exposure {exposure_id}")
 
-            measured_ra_deg, measured_dec_deg = (
-                await self.get_measured_coordinates_from_consdb(exposure_id)
-            )
+            if self.offset_source == OffsetSource.ConsDB:
 
-            offset_ra_arcsec, offset_dec_arcsec, offset_magnitude_arcsec = (
-                self.calculate_offset(
-                    target_ra_deg, target_dec_deg, measured_ra_deg, measured_dec_deg
+                measured_ra_deg, measured_dec_deg = (
+                    await self.get_measured_coordinates_from_consdb(exposure_id)
                 )
-            )
+
+                offset_ra_arcsec, offset_dec_arcsec, offset_magnitude_arcsec = (
+                    self.calculate_offset(
+                        target_ra_deg, target_dec_deg, measured_ra_deg, measured_dec_deg
+                    )
+                )
+            elif self.offset_source == OffsetSource.RubinTV:
+                offset_ra_arcsec, offset_dec_arcsec, offset_magnitude_arcsec = (
+                    await self.get_measured_offset_from_rubintv(exposure_id)
+                )
+
+                measured_ra_deg = target_ra_deg + offset_ra_arcsec / 3600.0
+                measured_dec_deg = target_dec_deg + offset_dec_arcsec / 3600.0
 
             self.log.info(
                 f"Measured coordinates: RA={measured_ra_deg:.6f} deg, "
@@ -291,6 +328,78 @@ class CorrectPointing(BaseScript):
                 "Could not determine current target coordinates from MTPtg. "
                 "Ensure the telescope is tracking."
             )
+
+    async def get_measured_offset_from_rubintv(
+        self, exposure_id: int
+    ) -> tuple[float, float, float]:
+        """Retrieve offset measurements from rubintv.
+
+        Parameters
+        ----------
+        exposure_id : `int`
+            The id of the exposure to retrieve offsets.
+
+        Returns
+        -------
+        offset_ra_arcsec : `float`
+            Right ascentions offset, in arcsec.
+        offset_dec_arcsec : `float`
+            Declination offset, in arcsec.
+        offset_magnitude_arcsec : `float`
+            Magnitude of the offset, in arcsec.
+        """
+        _visit_id = str(exposure_id)
+        year = _visit_id[0:4]
+        month = _visit_id[4:6]
+        day = _visit_id[6:8]
+        seq_num = f"{int(_visit_id[9::])}"
+
+        rubintv_source_file_path = Path(
+            f"/project/rubintv/LSSTCam/sidecar_metadata/dayObs_{year}{month}{day}.json"
+        )
+
+        self.log.debug("Ensuring rubintv data exists.")
+        time_start = current_tai()
+        while not rubintv_source_file_path.exists():
+            if current_tai() - time_start > self.consdb_timeout:
+                raise TimeoutError(
+                    f"Timeout waiting for RubinTV data file ({rubintv_source_file_path}) to exists."
+                )
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+        dec_offset_column = "delta Dec (arcsec)"
+        ra_offset_column = "delta Ra (arcsec)"
+
+        time_start = current_tai()
+
+        self.log.info(
+            f"Waiting for offsets in rubintv data file: {rubintv_source_file_path}."
+        )
+
+        while current_tai() - time_start < self.consdb_timeout:
+            with open(rubintv_source_file_path) as fp:
+                try:
+                    data = json.load(fp)
+                except Exception:
+                    self.log.debug("Failed to read json file. Continuing...")
+                    await asyncio.sleep(HEARTBEAT_INTERVAL)
+                    continue
+
+            if (
+                seq_num in data
+                and ra_offset_column in data[seq_num]
+                and data[seq_num][ra_offset_column] is not None
+            ):
+                offset_ra_arcsec = data[seq_num][ra_offset_column]
+                offset_dec_arcsec = data[seq_num][dec_offset_column]
+                offset_magnitude_arcsec = np.sqrt(
+                    offset_ra_arcsec**2 + offset_dec_arcsec**2
+                )
+                return -offset_ra_arcsec, -offset_dec_arcsec, offset_magnitude_arcsec
+
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+        raise TimeoutError("Timeout waiting for offsets to be available in RubinTV.")
 
     async def get_measured_coordinates_from_consdb(self, exposure_id: int):
         """Get the measured WCS coordinates from ConsDB.
