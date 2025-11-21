@@ -99,7 +99,7 @@ class CorrectPointing(BaseScript):
             exposure_time:
                 type: number
                 description: Exposure time in seconds for each pointing image.
-                default: 2.0
+                default: 30.0
                 minimum: 0.5
             tolerance_arcsec:
                 type: number
