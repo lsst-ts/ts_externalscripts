@@ -1,0 +1,1 @@
+In ``maintel/correct_pointing.py``, fix how offset is applied to the pointing. Instead of using offset_radec, convert the offset to azel and use offset_azel with absorb=True, which ultimately uses offset_xy.
