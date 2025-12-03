@@ -1,0 +1,1 @@
+Added StateTransition to the LSSTCam class in the offset_and_take_image_lsstcam script.

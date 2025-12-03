@@ -25,7 +25,7 @@ from collections.abc import Iterable
 
 import yaml
 from lsst.ts import salobj
-from lsst.ts.observatory.control.maintel.mtcs import MTCS
+from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.xml.enums.MTHexapod import EnabledSubstate, SalIndex
 from lsst.ts.xml.enums.Watcher import AlarmSeverity
 
@@ -142,7 +142,11 @@ class WarmUpHexapod(salobj.BaseScript):
             structure.
         """
         if self.mtcs is None:
-            self.mtcs = MTCS(domain=self.domain, log=self.log)
+            self.mtcs = MTCS(
+                domain=self.domain,
+                log=self.log,
+                intended_usage=MTCSUsages.Slew | MTCSUsages.AOS,
+            )
             await self.mtcs.start_task
 
         if self.watcher is None:

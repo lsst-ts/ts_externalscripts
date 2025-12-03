@@ -109,7 +109,7 @@ class OffsetAndTakeImagesLSSTCam(salobj.BaseScript, metaclass=abc.ABCMeta):
             self.log.debug("Creating Camera.")
             self.lsstcam = LSSTCam(
                 self.domain,
-                intended_usage=LSSTCamUsages.TakeImage,
+                intended_usage=LSSTCamUsages.TakeImage | LSSTCamUsages.StateTransition,
                 log=self.log,
             )
             await self.lsstcam.start_task
