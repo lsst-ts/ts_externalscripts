@@ -31,6 +31,8 @@ from lsst.ts import salobj
 from lsst.ts.externalscripts import get_scripts_dir
 from lsst.ts.externalscripts.auxtel.build_pointing_model import (
     BuildPointingModel,
+)
+from lsst.ts.externalscripts.base_build_pointing_model import (
     GridType,
     generate_rotator_sequence,
 )
@@ -201,11 +203,11 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             self.assert_arun()
 
     def assert_arun(self):
-        self.script.latiss.rem.atspectrograph.cmd_changeFilter.set_start.assert_awaited_with(
-            filter=0, name="empty_1", timeout=self.script.latiss.long_timeout
+        self.script.camera.rem.atspectrograph.cmd_changeFilter.set_start.assert_awaited_with(
+            filter=0, name="empty_1", timeout=self.script.camera.long_timeout
         )
-        self.script.latiss.rem.atspectrograph.cmd_changeDisperser.set_start.assert_awaited_with(
-            disperser=0, name="empty_1", timeout=self.script.latiss.long_timeout
+        self.script.camera.rem.atspectrograph.cmd_changeDisperser.set_start.assert_awaited_with(
+            disperser=0, name="empty_1", timeout=self.script.camera.long_timeout
         )
 
         rot_seq_gen = generate_rotator_sequence(self.script.config.rotator_sequence)
@@ -230,27 +232,27 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         self.script.execute_grid.assert_has_awaits(expected_execute_grid_calls)
 
         ataos_reset_offset_calls = [
-            unittest.mock.call(axis="x", timeout=self.script.atcs.long_timeout),
-            unittest.mock.call(axis="y", timeout=self.script.atcs.long_timeout),
+            unittest.mock.call(axis="x", timeout=self.script.tcs.long_timeout),
+            unittest.mock.call(axis="y", timeout=self.script.tcs.long_timeout),
         ]
 
-        self.script.atcs.rem.ataos.cmd_resetOffset.set_start.assert_has_awaits(
+        self.script.tcs.rem.ataos.cmd_resetOffset.set_start.assert_has_awaits(
             ataos_reset_offset_calls
         )
 
         atptg_porigin_clear_calls = [
-            unittest.mock.call(num=0, timeout=self.script.atcs.fast_timeout),
-            unittest.mock.call(num=1, timeout=self.script.atcs.fast_timeout),
+            unittest.mock.call(num=0, timeout=self.script.tcs.fast_timeout),
+            unittest.mock.call(num=1, timeout=self.script.tcs.fast_timeout),
         ]
         atptg_offset_clear_calls = [
-            unittest.mock.call(num=0, timeout=self.script.atcs.fast_timeout),
-            unittest.mock.call(num=1, timeout=self.script.atcs.fast_timeout),
+            unittest.mock.call(num=0, timeout=self.script.tcs.fast_timeout),
+            unittest.mock.call(num=1, timeout=self.script.tcs.fast_timeout),
         ]
 
-        self.script.atcs.rem.atptg.cmd_poriginClear.set_start.assert_has_awaits(
+        self.script.tcs.rem.atptg.cmd_poriginClear.set_start.assert_has_awaits(
             atptg_porigin_clear_calls
         )
-        self.script.atcs.rem.atptg.cmd_offsetClear.set_start.assert_has_awaits(
+        self.script.tcs.rem.atptg.cmd_offsetClear.set_start.assert_has_awaits(
             atptg_offset_clear_calls
         )
 
@@ -264,10 +266,10 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
 
             target_name = "HD 12345"
 
-            self.script.atcs.find_target = unittest.mock.AsyncMock(
+            self.script.tcs.find_target = unittest.mock.AsyncMock(
                 return_value=target_name
             )
-            self.script.atcs.slew_object = unittest.mock.AsyncMock()
+            self.script.tcs.slew_object = unittest.mock.AsyncMock()
             self.script.center_on_brightest_source = unittest.mock.AsyncMock()
 
             await self.script.execute_grid(
@@ -282,13 +284,13 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             )
 
     def assert_execute_grid(self, azimuth, elevation, rotator, target_name):
-        self.script.atcs.find_target.assert_awaited_once_with(
+        self.script.tcs.find_target.assert_awaited_once_with(
             az=azimuth,
             el=elevation,
             mag_limit=self.script.config.magnitude_limit,
             mag_range=self.script.config.magnitude_range,
         )
-        self.script.atcs.slew_object.assert_awaited_once_with(
+        self.script.tcs.slew_object.assert_awaited_once_with(
             name=target_name,
             rot=rotator,
             rot_type=RotType.PhysicalSky,
@@ -304,10 +306,10 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
                 self.script.elevation_grid[0],
             )
 
-            self.script.atcs.find_target = unittest.mock.AsyncMock(
+            self.script.tcs.find_target = unittest.mock.AsyncMock(
                 side_effect=RuntimeError("Unittesting failure.")
             )
-            self.script.atcs.slew_object = unittest.mock.AsyncMock()
+            self.script.tcs.slew_object = unittest.mock.AsyncMock()
             self.script.center_on_brightest_source = unittest.mock.AsyncMock()
 
             await self.script.execute_grid(
@@ -317,13 +319,13 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             self.assert_execute_grid_fail(azimuth=azimuth, elevation=elevation)
 
     def assert_execute_grid_fail(self, azimuth, elevation):
-        self.script.atcs.find_target.assert_awaited_once_with(
+        self.script.tcs.find_target.assert_awaited_once_with(
             az=azimuth,
             el=elevation,
             mag_limit=self.script.config.magnitude_limit,
             mag_range=self.script.config.magnitude_range,
         )
-        self.script.atcs.slew_object.assert_not_awaited()
+        self.script.tcs.slew_object.assert_not_awaited()
         self.script.center_on_brightest_source.assert_not_awaited()
         assert self.script.iterations["failed"] == 1
         assert self.script.iterations["successful"] == 0
@@ -335,12 +337,12 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             ]
             self.find_offset_return_value = (-10.0, 10.0)
 
-            self.script.latiss.rem.atoods = unittest.mock.AsyncMock()
-            self.script.latiss.rem.atoods.evt_imageInOODS.attach_mock(
+            self.script.camera.rem.atoods = unittest.mock.AsyncMock()
+            self.script.camera.rem.atoods.evt_imageInOODS.attach_mock(
                 unittest.mock.Mock(),
                 "flush",
             )
-            self.script.latiss.take_acq = unittest.mock.AsyncMock(
+            self.script.camera.take_acq = unittest.mock.AsyncMock(
                 return_value=self.find_offset_image_id
             )
 
@@ -348,15 +350,15 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
                 return_value=self.find_offset_return_value
             )
 
-            self.script.atcs.offset_xy = unittest.mock.AsyncMock()
-            self.script.atcs.add_point_data = unittest.mock.AsyncMock()
+            self.script.tcs.offset_xy = unittest.mock.AsyncMock()
+            self.script.tcs.add_point_data = unittest.mock.AsyncMock()
 
             await self.script.center_on_brightest_source()
 
             self.assert_center_on_brightest_source()
 
     def assert_center_on_brightest_source(self):
-        self.script.latiss.rem.atoods.evt_imageInOODS.flush.assert_called_once()
+        self.script.camera.rem.atoods.evt_imageInOODS.flush.assert_called_once()
 
         take_acq_calls = [
             unittest.mock.call(
@@ -375,21 +377,21 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
             ),
         ]
 
-        self.script.latiss.rem.atoods.evt_imageInOODS.next.assert_awaited_once_with(
+        self.script.camera.rem.atoods.evt_imageInOODS.next.assert_awaited_once_with(
             flush=False, timeout=self.script.image_in_oods_timeout
         )
 
-        self.script.latiss.take_acq.assert_has_awaits(take_acq_calls)
+        self.script.camera.take_acq.assert_has_awaits(take_acq_calls)
 
         self.script.find_offset.assert_awaited_once_with(
             image_id=self.find_offset_image_id[0]
         )
 
-        self.script.atcs.offset_xy.assert_awaited_once_with(
+        self.script.tcs.offset_xy.assert_awaited_once_with(
             x=self.find_offset_return_value[0], y=self.find_offset_return_value[1]
         )
 
-        self.script.atcs.add_point_data.assert_awaited_once()
+        self.script.tcs.add_point_data.assert_awaited_once()
 
     async def set_test_configuration(self, grid, **kwargs):
         test_configuration = self._generate_configuration(grid=grid, **kwargs)
@@ -438,8 +440,8 @@ class TestBuildPointingModel(BaseScriptTestCase, unittest.IsolatedAsyncioTestCas
         async with self.make_script():
             test_configuration = await self.set_test_configuration(grid=grid, **kwargs)
 
-            self.script.atcs.rem.ataos = unittest.mock.AsyncMock()
-            self.script.atcs.rem.atptg = unittest.mock.AsyncMock()
-            self.script.latiss.rem.atspectrograph = unittest.mock.AsyncMock()
+            self.script.tcs.rem.ataos = unittest.mock.AsyncMock()
+            self.script.tcs.rem.atptg = unittest.mock.AsyncMock()
+            self.script.camera.rem.atspectrograph = unittest.mock.AsyncMock()
 
             yield test_configuration
