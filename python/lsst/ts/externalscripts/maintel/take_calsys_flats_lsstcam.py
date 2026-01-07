@@ -80,11 +80,11 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
               random_seed:
                 description: Override of random seed for PTC Exposure list generation
                 type: [integer, "null"]
-                default: None
+                default: null
               exp_list_start_idx:
                 description: Override of exposure list start index for PTC
                 type: [integer, "null"]
-                default: None
+                default: null
               ignore:
                 description: >-
                   CSCs from the MTCS group to ignore in status check. Name must
