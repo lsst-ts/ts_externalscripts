@@ -81,6 +81,10 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                 description: Override of random seed for PTC Exposure list generation
                 type: [integer, "null"]
                 default: None
+              exp_list_start_idx:
+                description: Override of exposure list start index for PTC
+                type: [integer, "null"]
+                default: None
               ignore:
                 description: >-
                   CSCs from the MTCS group to ignore in status check. Name must
@@ -106,6 +110,7 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         self.use_camera = config.use_camera
         self.config_tcs = config.config_tcs
         self.random_seed = config.random_seed
+        self.exp_list_start_idx = config.exp_list_start_idx
 
         """Handle creating the camera object and waiting remote to start."""
 
@@ -153,6 +158,14 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                 )["random_seed"] = self.random_seed
 
                 self.log.info(f"Overriding MTCalsys random_seed={self.random_seed}")
+            if self.exp_list_start_idx is not None:
+                self.mtcalsys.config_data.setdefault(
+                    "constrained_random_exposure_times", {}
+                )["exp_list_start_idx"] = self.exp_list_start_idx
+
+                self.log.info(
+                    f"Overriding PTC exposure list start index={self.exp_list_start_idx}"
+                )
 
         else:
             self.log.debug("MTCalsys already defined, skipping.")
