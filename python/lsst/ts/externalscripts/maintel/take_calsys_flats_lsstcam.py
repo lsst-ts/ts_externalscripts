@@ -77,6 +77,10 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                 description: Will you use the camera during these flats
                 type: boolean
                 default: True
+              random_seed:
+                description: Override of random seed for PTC Exposure list generation
+                type: [integer, "null"]
+                default: None
               ignore:
                 description: >-
                   CSCs from the MTCS group to ignore in status check. Name must
@@ -101,6 +105,7 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
     async def configure(self, config) -> None:
         self.use_camera = config.use_camera
         self.config_tcs = config.config_tcs
+        self.random_seed = config.random_seed
 
         """Handle creating the camera object and waiting remote to start."""
 
@@ -140,6 +145,14 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
             else:
                 self.mtcalsys = MTCalsys(domain=self.domain, log=self.log)
             await self.mtcalsys.start_task
+
+            # APPLY OVERRIDES HERE
+            if self.random_seed is not None:
+                self.mtcalsys.config_data.setdefault(
+                    "constrained_random_exposure_times", {}
+                )["random_seed"] = self.random_seed
+
+                self.log.info(f"Overriding MTCalsys random_seed={self.random_seed}")
 
         else:
             self.log.debug("MTCalsys already defined, skipping.")
