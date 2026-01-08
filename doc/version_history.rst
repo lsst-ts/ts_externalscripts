@@ -8,6 +8,36 @@ Version History
 
 .. towncrier release notes start
 
+v0.34.0 (2026-01-07)
+====================
+
+New Features
+------------
+
+- Make a script to center pointing for the Simonyi Telescope (`DM-51225 <https://rubinobs.atlassian.net/browse/DM-51225>`_)
+- In ``maintel/correct_pointing.py``, add option to read offset data from RubinTV data file. (`OSW-1485 <https://rubinobs.atlassian.net/browse/OSW-1485>`_)
+- In ``maintel/correct_pointing.py``, updated default exposure time to 30s. (`OSW-1485 <https://rubinobs.atlassian.net/browse/OSW-1485>`_)
+- Added a new generic script, ``base_build_pointing_model.py``, to contain common functionality for acquiring pointing models. (`RSO-43 <https://rubinobs.atlassian.net/browse/RSO-43>`_)
+- Updated the ``auxtel/build_pointing_model.py`` script to utilize the new ``BaseBuildPointingModel`` class. (`RSO-43 <https://rubinobs.atlassian.net/browse/RSO-43>`_)
+- Introduced a new pointing model building script for maintel (main telescope). (`RSO-43 <https://rubinobs.atlassian.net/browse/RSO-43>`_)
+
+
+Bug Fixes
+---------
+
+- Fix missing ConsDB client initialization in twilight flats LSSTCam (`DM-51225 <https://rubinobs.atlassian.net/browse/DM-51225>`_)
+- Added StateTransition to the LSSTCam class in the offset_and_take_image_lsstcam script. (`DM-53159 <https://rubinobs.atlassian.net/browse/DM-53159>`_)
+- Added usage to the MTCS class in the warmup_hexapod script to limit resources allocated by the script. (`DM-53159 <https://rubinobs.atlassian.net/browse/DM-53159>`_)
+- In ``maintel/correct_pointing.py``, fix how offset is applied to the pointing. Instead of using offset_radec, convert the offset to azel and use offset_azel with absorb=True, which ultimately uses offset_xy. (`OSW-1485 <https://rubinobs.atlassian.net/browse/OSW-1485>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Update conda recipe to use ts-conda-build 0.5, replace ts-idl with ts-xml (`DM-51225 <https://rubinobs.atlassian.net/browse/DM-51225>`_)
+- In auxtel/latiss_acquire_and_take_sequence.py, increase floor for blind_offset y-position. (`DM-53159_2 <https://rubinobs.atlassian.net/browse/DM-53159_2>`_)
+
+
 v0.33.1 (2025-11-04)
 ====================
 

@@ -1,1 +1,0 @@
-In ``maintel/correct_pointing.py``, updated default exposure time to 30s.
