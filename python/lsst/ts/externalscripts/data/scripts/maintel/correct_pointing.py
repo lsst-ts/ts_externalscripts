@@ -1,6 +1,7 @@
-# This file is part of ts_externalcripts.
+#!/usr/bin/env python
+# This file is part of ts_externalscripts
 #
-# Developed for the Rubin Observatory Telescope and Site System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -17,15 +18,9 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .base_build_pointing_model import *
-from .love_manager_client import *
-from .make_love_stress_tests import *
-from .make_love_uptime_tests import *
-from .utils import *
+import asyncio
 
-try:
-    from .version import *
-except ImportError:
-    __version__ = "?"
+from lsst.ts.externalscripts.maintel import CorrectPointing
+
+asyncio.run(CorrectPointing.amain())
