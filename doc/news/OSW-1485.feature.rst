@@ -1,1 +1,0 @@
-In ``maintel/correct_pointing.py``, add option to read offset data from RubinTV data file.
