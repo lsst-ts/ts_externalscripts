@@ -285,7 +285,8 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
     async def get_avail_filters(self):
         """If sequence_names in daily, poll for all installed filters
         and produce a list of sequence names. Only produce sequence names for
-        standard filters.
+        standard filters. Make the first filter in the sequence the current
+        filter.
 
         Returns
         -------
@@ -296,8 +297,14 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         avail_filters = await self.lsstcam.get_available_filters()
         self.log.debug(avail_filters)
         avail_filters = avail_filters[0].split(",")
+
         standard_filters = {"u_24", "g_6", "r_57", "i_39", "z_20", "y_10"}
         avail_filters = [f for f in avail_filters if f in standard_filters]
+
+        current_filter = await self.lsstcam.get_current_filter()
+        if current_filter in avail_filters:
+            avail_filters.remove(current_filter)
+            avail_filters.insert(0, current_filter)
 
         sequence_names = [f"whitelight_{filter_}_daily" for filter_ in avail_filters]
         return sequence_names
