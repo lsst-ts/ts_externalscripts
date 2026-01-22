@@ -156,6 +156,34 @@ class TestTakeCalsysFlatsLSSTCam(
 
             assert not self.script.use_camera
 
+    async def test_update_ptc_random_seed(self):
+        config = {
+            "sequence_names": ["ptc_daily_test"],
+            "use_camera": False,
+            "config_tcs": False,
+            "random_seed": 9999,
+        }
+
+        async with self.make_script():
+            await self.configure_script(**config)
+            await self.run_script()
+
+            assert not self.script.use_camera
+
+    async def test_update_ptc_start_idx(self):
+        config = {
+            "sequence_names": ["ptc_daily_test"],
+            "use_camera": False,
+            "config_tcs": False,
+            "exp_list_start_idx": 100,
+        }
+
+        async with self.make_script():
+            await self.configure_script(**config)
+            await self.run_script()
+
+            assert not self.script.use_camera
+
     async def test_make_daily_cals(self):
         config = {
             "sequence_names": ["daily"],
@@ -273,6 +301,8 @@ class TestTakeCalsysFlatsLSSTCam(
                     "sequence_names": ["whitelight_r_57_dark"],
                     "use_camera": True,
                     "config_tcs": True,
+                    "random_seed": None,
+                    "exp_list_start_idx": None,
                     "ignore": ["mtmount", "mtptg"],
                 },
             )()
