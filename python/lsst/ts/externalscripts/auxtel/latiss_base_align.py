@@ -135,6 +135,10 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         self.rot = 0.0
         self.rot_strategy = RotType.SkyAuto
 
+        self.cwfs_target = None
+        self.cwfs_target_ra = None
+        self.cwfs_target_dec = None
+
         # Angle between camera and boresight
         # Assume perfect mechanical mounting
         self.camera_rotation_angle = 0.0
