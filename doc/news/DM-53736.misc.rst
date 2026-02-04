@@ -1,0 +1,1 @@
+Updated ``LatissWepAlign`` configure unit tests. The different tests were split into their own tests and checks were fixed.
