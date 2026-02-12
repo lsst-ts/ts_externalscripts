@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import TakeCBPImagesLSSTCam
+from lsst.ts.externalscripts.maintel.take_cbp_images_lsstcam import TakeCBPImagesLSSTCam
 
 asyncio.run(TakeCBPImagesLSSTCam.amain())

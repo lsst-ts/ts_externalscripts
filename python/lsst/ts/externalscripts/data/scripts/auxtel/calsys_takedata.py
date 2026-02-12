@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import CalSysTakeData
+from lsst.ts.externalscripts.auxtel.calsys_takedata import CalSysTakeData
 
 asyncio.run(CalSysTakeData.amain())

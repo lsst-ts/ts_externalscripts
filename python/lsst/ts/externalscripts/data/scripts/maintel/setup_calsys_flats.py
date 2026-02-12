@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import SetupCalsysFlats
+from lsst.ts.externalscripts.maintel.setup_calsys_flats import SetupCalsysFlats
 
 asyncio.run(SetupCalsysFlats.amain())

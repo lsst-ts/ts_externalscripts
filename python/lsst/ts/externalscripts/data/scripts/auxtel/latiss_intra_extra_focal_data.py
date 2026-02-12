@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import LatissIntraExtraFocalData
+from lsst.ts.externalscripts.auxtel.latiss_intra_extra_focal_data import (
+    LatissIntraExtraFocalData,
+)
 
 asyncio.run(LatissIntraExtraFocalData.amain())

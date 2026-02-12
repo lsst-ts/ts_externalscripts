@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import MakeLatissCalibrations
+from lsst.ts.externalscripts.auxtel.make_latiss_calibrations import (
+    MakeLatissCalibrations,
+)
 
 asyncio.run(MakeLatissCalibrations.amain())

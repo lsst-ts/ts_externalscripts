@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import ParkCalibrationProjector
+from lsst.ts.externalscripts.maintel.park_calibration_projector import (
+    ParkCalibrationProjector,
+)
 
 asyncio.run(ParkCalibrationProjector.amain())

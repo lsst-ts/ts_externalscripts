@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import LatissWEPAlign
+from lsst.ts.externalscripts.auxtel.latiss_wep_align import LatissWEPAlign
 
 asyncio.run(LatissWEPAlign.amain())

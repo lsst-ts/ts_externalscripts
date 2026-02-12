@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import WarmUpHexapod
+from lsst.ts.externalscripts.maintel.warmup_hexapod import WarmUpHexapod
 
 asyncio.run(WarmUpHexapod.amain())

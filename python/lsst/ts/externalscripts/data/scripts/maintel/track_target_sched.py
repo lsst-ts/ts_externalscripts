@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import TrackTargetSched
+from lsst.ts.externalscripts.maintel.track_target_sched import TrackTargetSched
 
 asyncio.run(TrackTargetSched.amain())

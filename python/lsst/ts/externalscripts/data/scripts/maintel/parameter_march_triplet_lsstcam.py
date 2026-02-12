@@ -22,6 +22,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import ParameterMarchTripletLSSTCam
+from lsst.ts.externalscripts.maintel.parameter_march_triplet_lsstcam import (
+    ParameterMarchTripletLSSTCam,
+)
 
 asyncio.run(ParameterMarchTripletLSSTCam.amain())
