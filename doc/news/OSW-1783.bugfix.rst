@@ -1,0 +1,1 @@
+Move files from ``data/scripts/main/`` to the correct directory: ``data/scripts/maintel``
