@@ -24,7 +24,7 @@ import unittest
 
 import aiohttp
 from lsst.ts import utils
-from lsst.ts.externalscripts import LoveManagerClient
+from lsst.ts.externalscripts.love_manager_client import LoveManagerClient
 
 
 class MockAsyncContextManger:

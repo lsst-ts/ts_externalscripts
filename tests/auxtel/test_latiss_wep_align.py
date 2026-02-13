@@ -39,7 +39,7 @@ import logging
 
 import lsst.daf.butler as dafButler
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.auxtel import LatissWEPAlign
+from lsst.ts.externalscripts.auxtel.latiss_wep_align import LatissWEPAlign
 from lsst.utils import getPackageDir
 
 # Make matplotlib less chatty
@@ -121,7 +121,6 @@ class TestLatissWEPAlign(
         return
 
     async def configure_mocks(self):
-
         self.mocks_configured = True
 
         self.visit_id_angles = {}
@@ -622,7 +621,7 @@ class TestLatissWEPAlign(
                 f"Measured total focus offset is {self.script.offset_total_focus:0.5f}"
             )
             logger.debug(f"Reference total focus offset value is {total_focus:0.5f}")
-            logger.debug(f"Tolerance is {max((0.05*total_focus, hex_tol[2])):0.5f}")
+            logger.debug(f"Tolerance is {max((0.05 * total_focus, hex_tol[2])):0.5f}")
             assert (
                 abs(self.script.offset_total_focus - total_focus) / abs(total_focus)
                 <= 0.05

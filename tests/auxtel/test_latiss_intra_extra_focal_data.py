@@ -25,7 +25,9 @@ import unittest
 import numpy as np
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.auxtel import LatissIntraExtraFocalData
+from lsst.ts.externalscripts.auxtel.latiss_intra_extra_focal_data import (
+    LatissIntraExtraFocalData,
+)
 
 logger = logging.getLogger(__name__)
 logger.propagate = True

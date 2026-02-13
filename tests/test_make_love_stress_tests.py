@@ -24,7 +24,7 @@ import os
 import unittest
 
 from lsst.ts import externalscripts, standardscripts
-from lsst.ts.externalscripts import StressLOVE
+from lsst.ts.externalscripts.make_love_stress_tests import StressLOVE
 
 logger = logging.getLogger(__name__)
 logger.propagate = True

@@ -22,7 +22,7 @@
 import unittest
 
 from lsst.ts import externalscripts, standardscripts
-from lsst.ts.externalscripts.maintel import TakeRotatedComCam
+from lsst.ts.externalscripts.maintel.take_rotated_comcam import TakeRotatedComCam
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType

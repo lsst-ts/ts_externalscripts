@@ -25,7 +25,7 @@ import unittest
 
 import numpy as np
 from lsst.ts import externalscripts, standardscripts, utils
-from lsst.ts.externalscripts.maintel import WarmUpHexapod
+from lsst.ts.externalscripts.maintel.warmup_hexapod import WarmUpHexapod
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.xml.enums import Script
 from lsst.ts.xml.enums.MTHexapod import SalIndex

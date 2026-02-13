@@ -39,7 +39,7 @@ import logging
 
 import lsst.daf.butler as dafButler
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.auxtel import LatissCWFSAlign
+from lsst.ts.externalscripts.auxtel.latiss_cwfs_align import LatissCWFSAlign
 from lsst.utils import getPackageDir
 
 # Make matplotlib less chatty
@@ -93,7 +93,6 @@ except PermissionError:
 class TestLatissCWFSAlign(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
-
     def setUp(self):
         self.mock_configured = False
 
@@ -109,7 +108,6 @@ class TestLatissCWFSAlign(
         return (self.script,)
 
     async def configure_mock(self):
-
         self.mock_configured
 
         self.visit_id_angles = {}
@@ -535,7 +533,7 @@ class TestLatissCWFSAlign(
                 f"Measured total focus offset is {self.script.offset_total_focus:0.5f}"
             )
             logger.debug(f"Reference total focus offset value is {total_focus:0.5f}")
-            logger.debug(f"Tolerance is {max((0.05*total_focus, hex_tol[2])):0.5f}")
+            logger.debug(f"Tolerance is {max((0.05 * total_focus, hex_tol[2])):0.5f}")
             assert (
                 abs(self.script.offset_total_focus - total_focus) / abs(total_focus)
                 <= 0.05

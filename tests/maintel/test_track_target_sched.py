@@ -25,7 +25,7 @@ import unittest
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts, utils
-from lsst.ts.externalscripts.maintel import TrackTargetSched
+from lsst.ts.externalscripts.maintel.track_target_sched import TrackTargetSched
 
 random.seed(47)  # for set_random_lsst_dds_partition_prefix
 

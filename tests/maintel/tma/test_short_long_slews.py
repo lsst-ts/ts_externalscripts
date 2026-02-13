@@ -25,7 +25,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.maintel.tma import ShortLongSlews
+from lsst.ts.externalscripts.maintel.tma.short_long_slews import ShortLongSlews
 
 
 class TestShortLongSlews(

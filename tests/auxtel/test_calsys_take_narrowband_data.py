@@ -24,7 +24,9 @@ import unittest
 import numpy as np
 import yaml
 from lsst.ts import salobj, utils
-from lsst.ts.externalscripts.auxtel import CalSysTakeNarrowbandData
+from lsst.ts.externalscripts.auxtel.calsys_take_narrowband_data import (
+    CalSysTakeNarrowbandData,
+)
 
 np.random.seed(84)
 
