@@ -42,7 +42,7 @@ try:
         FitDonutRadiusTaskConfig,
     )
 
-except ImportError:
+except (ImportError, LookupError):
     warnings.warn("Cannot import required libraries. Script will not work.")
 
 CMD_TIMEOUT = 100

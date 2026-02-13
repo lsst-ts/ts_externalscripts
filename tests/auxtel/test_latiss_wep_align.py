@@ -224,10 +224,10 @@ class TestLatissWEPAlign(
         await self.atoods.evt_imageInOODS.set_write(obsid=image_name)
 
     @unittest.skipIf(
-        WEP_AVAILABLE is False,
+        not WEP_AVAILABLE,
         f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
     )
-    async def test_configure(self):
+    async def test_configure_minimum_set(self):
         # First make sure the cwfs package is present
         assert os.path.exists(wep.__file__)
         # Try configure with minimum set of parameters declared
@@ -251,6 +251,16 @@ class TestLatissWEPAlign(
             assert self.script.cwfs_target_ra is None
             assert self.script.cwfs_target_dec is None
 
+    @unittest.skipIf(
+        not WEP_AVAILABLE,
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
+    )
+    async def test_configure_with_fing_target(self):
+        # First make sure the cwfs package is present
+        assert os.path.exists(wep.__file__)
+        async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
         # Test with find_target
         # this can fail occasionally if you're unlucky and
         # don't get a target so the mag_range is large to
@@ -261,10 +271,27 @@ class TestLatissWEPAlign(
             find_target = dict(az=-180.0, el=60.0, mag_limit=6.0, mag_range=14)
             await self.configure_script(find_target=find_target)
 
-            assert self.script.cwfs_target is not None
-            assert self.script.cwfs_target_ra is None
-            assert self.script.cwfs_target_dec is None
+            assert self.script.target_config.find_target["az"] == find_target["az"]
+            assert self.script.target_config.find_target["el"] == find_target["el"]
+            assert (
+                self.script.target_config.find_target["mag_limit"]
+                == find_target["mag_limit"]
+            )
+            assert (
+                self.script.target_config.find_target["mag_range"]
+                == find_target["mag_range"]
+            )
 
+    @unittest.skipIf(
+        not WEP_AVAILABLE,
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
+    )
+    async def test_configure_fail_incomplete_find_target_only_az(self):
+        # First make sure the cwfs package is present
+        assert os.path.exists(wep.__file__)
+        async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
         # Test with find_target; fail if only az is provided
         async with self.make_script():
             self.script.atcs = unittest.mock.AsyncMock()
@@ -273,6 +300,16 @@ class TestLatissWEPAlign(
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
+    @unittest.skipIf(
+        not WEP_AVAILABLE,
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
+    )
+    async def test_configure_fail_incomplete_find_target_only_el(self):
+        # First make sure the cwfs package is present
+        assert os.path.exists(wep.__file__)
+        async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
         # Test with find_target; fail if only el is provided
         async with self.make_script():
             self.script.atcs = unittest.mock.AsyncMock()
@@ -289,6 +326,17 @@ class TestLatissWEPAlign(
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(find_target=find_target)
 
+    @unittest.skipIf(
+        not WEP_AVAILABLE,
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
+    )
+    async def test_configure_track_target_target_name_only(self):
+        # First make sure the cwfs package is present
+        assert os.path.exists(wep.__file__)
+        async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+
         # Test with track_target; give target name only
         async with self.make_script():
             self.script.atcs = unittest.mock.AsyncMock()
@@ -296,10 +344,22 @@ class TestLatissWEPAlign(
             track_target = dict(target_name="HD 185975")
             await self.configure_script(track_target=track_target)
 
-            assert self.script.cwfs_target == track_target["target_name"]
-            assert self.script.cwfs_target_ra is None
-            assert self.script.cwfs_target_dec is None
+            assert (
+                self.script.target_config.track_target["target_name"]
+                == track_target["target_name"]
+            )
+            assert "icrs" not in self.script.target_config.track_target
 
+    @unittest.skipIf(
+        not WEP_AVAILABLE,
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
+    )
+    async def test_configure_track_target_target_name_ra_dec(self):
+        # First make sure the cwfs package is present
+        assert os.path.exists(wep.__file__)
+        async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
         # Test with track_target; give target name and ra/dec
         async with self.make_script():
             self.script.atcs = unittest.mock.AsyncMock()
@@ -307,10 +367,29 @@ class TestLatissWEPAlign(
             track_target = dict(target_name="HD 185975", icrs=dict(ra=20.5, dec=-87.5))
             await self.configure_script(track_target=track_target)
 
-            assert self.script.cwfs_target == track_target["target_name"]
-            assert self.script.cwfs_target_ra == track_target["icrs"]["ra"]
-            assert self.script.cwfs_target_dec == track_target["icrs"]["dec"]
+            assert (
+                self.script.target_config.track_target["target_name"]
+                == track_target["target_name"]
+            )
+            assert (
+                self.script.target_config.track_target["icrs"]["ra"]
+                == track_target["icrs"]["ra"]
+            )
+            assert (
+                self.script.target_config.track_target["icrs"]["dec"]
+                == track_target["icrs"]["dec"]
+            )
 
+    @unittest.skipIf(
+        not WEP_AVAILABLE,
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
+    )
+    async def test_configure_fail_track_target_no_name(self):
+        # First make sure the cwfs package is present
+        assert os.path.exists(wep.__file__)
+        async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
         # Test with track_target; fail if name is not provided ra/dec
         async with self.make_script():
             self.script.atcs = unittest.mock.AsyncMock()
@@ -319,6 +398,16 @@ class TestLatissWEPAlign(
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
 
+    @unittest.skipIf(
+        not WEP_AVAILABLE,
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
+    )
+    async def test_configure_track_target_fail_only_ra(self):
+        # First make sure the cwfs package is present
+        assert os.path.exists(wep.__file__)
+        async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
         # Test with track_target; fail if only ra is provided
         async with self.make_script():
             self.script.atcs = unittest.mock.AsyncMock()
@@ -327,6 +416,16 @@ class TestLatissWEPAlign(
             with pytest.raises(salobj.ExpectedError):
                 await self.configure_script(track_target=track_target)
 
+    @unittest.skipIf(
+        not WEP_AVAILABLE,
+        f"WEP package availibility is {WEP_AVAILABLE}. Skipping test_configure.",
+    )
+    async def test_configure_track_target_fail_only_dec(self):
+        # First make sure the cwfs package is present
+        assert os.path.exists(wep.__file__)
+        async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
         # Test with track_target; fail if only dec is provided
         async with self.make_script():
             self.script.atcs = unittest.mock.AsyncMock()

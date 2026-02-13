@@ -1,0 +1,1 @@
+Add random_seed and exp_list_start_idx to take_calsys_flats_lsstcam script
