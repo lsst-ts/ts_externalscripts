@@ -170,10 +170,10 @@ def run_wep(
     )
 
     result_intra = quick_frame_measurement_task.run(
-        exposure_intra, donutDiameter=donut_diameter
+        exposure_intra.clone(), donutDiameter=donut_diameter
     )
     result_extra = quick_frame_measurement_task.run(
-        exposure_extra, donutDiameter=donut_diameter
+        exposure_extra.clone(), donutDiameter=donut_diameter
     )
 
     if not result_intra.success or not result_extra.success:
@@ -211,16 +211,16 @@ def run_wep(
 
     donut_catalog_intra = get_donut_catalog(
         *(
-            (result_intra, exposure_intra)
+            (result_intra, exposure_intra.clone())
             if not intra_source_out_of_bounds
-            else (result_extra, exposure_extra)
+            else (result_extra, exposure_extra.clone())
         )
     )
     donut_catalog_extra = get_donut_catalog(
         *(
-            (result_extra, exposure_extra)
+            (result_extra, exposure_extra.clone())
             if not extra_source_out_of_bounds
-            else (result_intra, exposure_intra)
+            else (result_intra, exposure_intra.clone())
         )
     )
 
