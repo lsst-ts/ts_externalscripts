@@ -1,0 +1,1 @@
+Added ENGTEST to the list of valid image types for OffsetAndTakeImagesLSSTCam.
