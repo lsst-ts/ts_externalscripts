@@ -1,0 +1,1 @@
+Added mock for LSSTCam in ``SetupCalsysFlats`` unit test.

@@ -59,6 +59,8 @@ class TestSetupCalsysFlats(
             return_value={}
         )
 
+        self.script.lsstcam = unittest.mock.AsyncMock()
+
     async def test_configure(self):
         async with self.make_script():
             await self.configure_script(ignore=["TunableLaser"])
