@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel.tma import ShortLongSlews
+from lsst.ts.externalscripts.maintel.tma.short_long_slews import ShortLongSlews
 
 asyncio.run(ShortLongSlews.amain())

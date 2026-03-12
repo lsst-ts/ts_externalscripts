@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel.tma import SerpentWalk
+from lsst.ts.externalscripts.maintel.tma.serpent_walk import SerpentWalk
 
 asyncio.run(SerpentWalk.amain())
