@@ -24,7 +24,7 @@ import os
 import unittest
 
 from lsst.ts import externalscripts, standardscripts
-from lsst.ts.externalscripts import UptimeLOVE
+from lsst.ts.externalscripts.make_love_uptime_tests import UptimeLOVE
 
 logger = logging.getLogger(__name__)
 logger.propagate = True

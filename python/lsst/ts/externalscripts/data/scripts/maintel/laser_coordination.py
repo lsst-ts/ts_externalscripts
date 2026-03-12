@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.coordination import LaserCoordination
+from lsst.ts.externalscripts.coordination.laser_coordination import LaserCoordination
 
 asyncio.run(LaserCoordination.amain())

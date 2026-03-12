@@ -22,7 +22,7 @@ import logging
 import unittest
 
 from lsst.ts import externalscripts, standardscripts
-from lsst.ts.externalscripts.maintel.tma import SerpentWalk
+from lsst.ts.externalscripts.maintel.tma.serpent_walk import SerpentWalk
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.xml.enums import Script
 

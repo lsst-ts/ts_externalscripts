@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import TakeTwilightFlatsComCam
+from lsst.ts.externalscripts.maintel.take_twilight_flats_comcam import (
+    TakeTwilightFlatsComCam,
+)
 
 asyncio.run(TakeTwilightFlatsComCam.amain())

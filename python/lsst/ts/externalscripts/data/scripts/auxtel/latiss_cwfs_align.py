@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import LatissCWFSAlign
+from lsst.ts.externalscripts.auxtel.latiss_cwfs_align import LatissCWFSAlign
 
 asyncio.run(LatissCWFSAlign.amain())

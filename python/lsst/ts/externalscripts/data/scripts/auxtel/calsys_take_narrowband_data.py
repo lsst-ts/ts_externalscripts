@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import CalSysTakeNarrowbandData
+from lsst.ts.externalscripts.auxtel.calsys_take_narrowband_data import (
+    CalSysTakeNarrowbandData,
+)
 
 asyncio.run(CalSysTakeNarrowbandData.amain())

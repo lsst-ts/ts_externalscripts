@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import CorrectPointing
+from lsst.ts.externalscripts.maintel.correct_pointing import CorrectPointing
 
 asyncio.run(CorrectPointing.amain())

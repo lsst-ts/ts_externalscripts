@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import MakeComCamCalibrations
+from lsst.ts.externalscripts.maintel.make_comcam_calibrations import (
+    MakeComCamCalibrations,
+)
 
 asyncio.run(MakeComCamCalibrations.amain())

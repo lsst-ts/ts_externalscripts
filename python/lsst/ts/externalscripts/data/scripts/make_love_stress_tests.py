@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts import StressLOVE
+from lsst.ts.externalscripts.make_love_stress_tests import StressLOVE
 
 asyncio.run(StressLOVE.amain())

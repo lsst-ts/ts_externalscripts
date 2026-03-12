@@ -25,7 +25,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.maintel import MakeComCamCalibrations
+from lsst.ts.externalscripts.maintel.make_comcam_calibrations import (
+    MakeComCamCalibrations,
+)
 
 logger = logging.getLogger(__name__)
 logger.propagate = True

@@ -22,21 +22,18 @@
 import unittest
 
 from lsst.ts import externalscripts, standardscripts
-from lsst.ts.externalscripts.auxtel import WepCheckout
+from lsst.ts.externalscripts.auxtel.wep_checkout import WepCheckout
 
 
 class TestWepCheckout(
     standardscripts.BaseScriptTestCase, unittest.IsolatedAsyncioTestCase
 ):
-
     async def basic_make_script(self, index):
-
         self.script = WepCheckout(index=index)
 
         return (self.script,)
 
     async def test_configure(self):
-
         config = {
             "intra_visit_id": "2021110400954",
             "extra_visit_id": "2021110400955",

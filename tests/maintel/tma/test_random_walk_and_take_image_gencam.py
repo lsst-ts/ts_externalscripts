@@ -25,7 +25,9 @@ import unittest
 
 import numpy as np
 from lsst.ts import externalscripts, standardscripts
-from lsst.ts.externalscripts.maintel.tma import RandomWalkAndTakeImagesGenCam
+from lsst.ts.externalscripts.maintel.tma.random_walk_and_take_image_gencam import (
+    RandomWalkAndTakeImagesGenCam,
+)
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.xml.enums import Script

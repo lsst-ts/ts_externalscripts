@@ -29,7 +29,7 @@ import lsst.daf.butler as dafButler
 import pytest
 from lsst.ts import salobj
 from lsst.ts.externalscripts import get_scripts_dir
-from lsst.ts.externalscripts.auxtel import LatissAcquire
+from lsst.ts.externalscripts.auxtel.latiss_acquire import LatissAcquire
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
 from lsst.ts.standardscripts import BaseScriptTestCase
 from lsst.ts.xml.enums.Script import ScriptState

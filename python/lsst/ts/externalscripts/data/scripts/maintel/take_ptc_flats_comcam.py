@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import TakePTCFlatsComCam
+from lsst.ts.externalscripts.maintel.take_ptc_flats_comcam import TakePTCFlatsComCam
 
 asyncio.run(TakePTCFlatsComCam.amain())

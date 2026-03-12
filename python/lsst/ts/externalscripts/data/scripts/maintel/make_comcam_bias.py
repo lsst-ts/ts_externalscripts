@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import MakeComCamBias
+from lsst.ts.externalscripts.maintel.make_comcam_bias import MakeComCamBias
 
 asyncio.run(MakeComCamBias.amain())

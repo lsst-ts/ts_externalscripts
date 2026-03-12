@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts import UptimeLOVE
+from lsst.ts.externalscripts.make_love_uptime_tests import UptimeLOVE
 
 asyncio.run(UptimeLOVE.amain())

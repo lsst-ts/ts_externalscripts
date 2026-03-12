@@ -25,7 +25,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.auxtel import MakeLatissCalibrations
+from lsst.ts.externalscripts.auxtel.make_latiss_calibrations import (
+    MakeLatissCalibrations,
+)
 
 logger = logging.getLogger(__name__)
 logger.propagate = True

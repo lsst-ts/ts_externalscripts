@@ -24,7 +24,9 @@ import unittest
 import pytest
 from lsst.ts import salobj
 from lsst.ts.externalscripts import get_scripts_dir
-from lsst.ts.externalscripts.maintel import OffsetAndTakeImagesLSSTCam
+from lsst.ts.externalscripts.maintel.offset_and_take_images_lsstcam import (
+    OffsetAndTakeImagesLSSTCam,
+)
 from lsst.ts.idl.enums.Script import ScriptState
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
