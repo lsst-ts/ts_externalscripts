@@ -62,13 +62,20 @@ class SetupCalsysFlats(salobj.BaseScript):
                 description: Name of sequence in MTCalsys
                 type: string
                 default: whitelight_u_source
+              use_electrometer:
+                description: Will you use any electrometer in these tests. This
+                            overrides what is in the mtcalsys configuration. It
+                            will apply to all electrometers. This is used in
+                            setup_calsys.
+                type: boolean
+                default: True
               ignore:
                 description: >-
                     CSCs from the group to ignore in status check
                 type: array
                 items:
                     type: string
-                default: ['TunableLaser','CBP','Electrometer:102','Electrometer:101']
+                default: ['TunableLaser','CBP','Electrometer:102','Electrometer:101','FiberSpectrograph:101','FiberSpectrograph:102']
 
             additionalProperties: false
         """
@@ -86,6 +93,7 @@ class SetupCalsysFlats(salobj.BaseScript):
 
         """
         self.log.info("Configure started")
+        self.use_electrometer = config.use_electrometer
 
         if self.lsstcam is None:
             self.log.debug("Creating LSSTCam.")
@@ -105,7 +113,7 @@ class SetupCalsysFlats(salobj.BaseScript):
         self.sequence_name = config.sequence_name
         self.mtcalsys.load_calibration_config_file()
         self.mtcalsys.assert_valid_configuration_option(name=self.sequence_name)
-
+        self.mtcalsys.use_electrometer = self.use_electrometer
         self.config_data = self.mtcalsys.get_calibration_configuration(
             self.sequence_name
         )
