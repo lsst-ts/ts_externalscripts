@@ -22,7 +22,6 @@
 __all__ = ["ParameterMarchTripletLSSTCam"]
 
 import asyncio
-import json
 import types
 
 import yaml
@@ -125,19 +124,9 @@ class ParameterMarchTripletLSSTCam(BaseParameterMarch):
 
         await self.mtcs.offset_camera_hexapod(x=0, y=0, z=-self.dz, u=0, v=0)
 
-        supplemented_group_id = self.next_supplemented_group_id()
-
         self.log.info("Taking intra-focal image")
 
-        print(self.config)
-        intra_visit_id = await self.camera.take_cwfs(
-            exptime=self.config.exp_time,
-            n=1,
-            group_id=supplemented_group_id,
-            filter=self.config.filter,
-            reason="INTRA" + ("" if self.reason is None else f"_{self.reason}"),
-            program=self.config.program,
-        )
+        await asyncio.sleep(self.config.exp_time)
 
         self.log.debug("Moving to extra-focal position")
 
@@ -148,34 +137,7 @@ class ParameterMarchTripletLSSTCam(BaseParameterMarch):
 
         self.log.info("Taking extra-focal image")
 
-        self.camera.rem.mtoods.evt_imageInOODS.flush()
-        extra_visit_id = await self.camera.take_cwfs(
-            exptime=self.config.exp_time,
-            n=1,
-            group_id=supplemented_group_id,
-            filter=self.config.filter,
-            reason="EXTRA" + ("" if self.reason is None else f"_{self.reason}"),
-            program=self.config.program,
-        )
-        self.log.info("Waiting for data to be ingested by OODS.")
-        for _ in range(self.max_image_in_oods_retries):
-            try:
-                await self.camera.rem.mtoods.evt_imageInOODS.next(
-                    flush=False, timeout=self.camera.long_timeout
-                )
-            except asyncio.TimeoutError:
-                break
-
-        self.log.info("Send processing request to RA OCPS.")
-        config = {
-            "LSSTCam-FROM-OCS_DONUTPAIR": f"{intra_visit_id[0]},{extra_visit_id[0]}"
-        }
-        ocps_execute_task = asyncio.create_task(
-            self.ocps.cmd_execute.set_start(
-                config=json.dumps(config),
-                timeout=self.camera.fast_timeout,
-            )
-        )
+        await asyncio.sleep(self.config.exp_time)
 
         self.log.debug("Moving to in-focus position")
 
@@ -184,19 +146,7 @@ class ParameterMarchTripletLSSTCam(BaseParameterMarch):
 
         self.log.info("Taking in-focus image")
 
-        await self.camera.take_acq(
-            exptime=self.config.exp_time,
-            n=1,
-            group_id=self.group_id,
-            filter=self.config.filter,
-            reason="INFOCUS" + ("" if self.reason is None else f"_{self.reason}"),
-            program=self.config.program,
-        )
-
-        try:
-            await ocps_execute_task
-        except Exception:
-            self.log.exception("Executing OCPS task failed. Ignoring.")
+        await asyncio.sleep(self.config.exp_time)
 
     async def configure(self, config: types.SimpleNamespace) -> None:
         await super().configure(config)
