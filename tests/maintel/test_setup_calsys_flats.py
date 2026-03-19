@@ -67,6 +67,27 @@ class TestSetupCalsysFlats(
             assert self.script.state.state == Script.ScriptState.CONFIGURED
             assert self.script.sequence_name == "whitelight_u_source"
 
+    async def test_toggle_all_on(self):
+        """All instrument toggles enabled."""
+        config = {
+            "use_electrometer": True,
+        }
+
+        async with self.make_script():
+            await self.configure_script(**config)
+            assert self.script.state.state == Script.ScriptState.CONFIGURED
+            assert self.script.mtcalsys.use_electrometer is True
+
+    async def test_toggle_all_off(self):
+        """All instrument toggles enabled."""
+        config = {
+            "use_electrometer": False,
+        }
+        async with self.make_script():
+            await self.configure_script(**config)
+            assert self.script.state.state == Script.ScriptState.CONFIGURED
+            assert self.script.mtcalsys.use_electrometer is False
+
     async def test_run_without_failures(self):
         async with self.make_script():
             await self.configure_script(

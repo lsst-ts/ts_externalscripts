@@ -1,0 +1,1 @@
+Adding electrometer as option in setup_calsys_flats script. Will overwrite what is in mtcalsys.yaml.

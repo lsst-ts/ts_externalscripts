@@ -62,6 +62,8 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                 description: List of sequence names to run flats for. If "daily",
                              then it polls all available filters.
                 type: array
+                items:
+                    type: string
                 default: ["daily"]
               config_tcs:
                 description: Specifies whether an instance of MTCS should be created.
@@ -74,7 +76,9 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                 type: boolean
                 default: True
               use_camera:
-                description: Will you use the camera during these flats
+                description: Will you use the camera during these flats.
+                             It overrides what is written in the mtcalsys.yaml
+                             configuration.
                 type: boolean
                 default: True
               random_seed:
@@ -93,6 +97,23 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                 type: array
                 items:
                   type: string
+              use_electrometer:
+                description: Will you use any electrometer in these tests. This
+                            overrides what is in the mtcalsys configuration. It
+                            will apply to all electrometers.
+                type: boolean
+                default: True
+              use_fiberspectrograph_blue:
+                description: Will you use the blue fiber spectrographs
+                             in these tests.
+                type: boolean
+                default: False
+              use_fiberspectrograph_red:
+                description: Will you use the red fiber spectrograph
+                             in these tests.
+                type: boolean
+                default: False
+
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
@@ -108,6 +129,9 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
 
     async def configure(self, config) -> None:
         self.use_camera = config.use_camera
+        self.use_electrometer = config.use_electrometer
+        self.use_fiberspectrograph_blue = config.use_fiberspectrograph_blue
+        self.use_fiberspectrograph_red = config.use_fiberspectrograph_red
         self.config_tcs = config.config_tcs
         self.random_seed = config.random_seed
         self.exp_list_start_idx = config.exp_list_start_idx
@@ -173,8 +197,12 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         self.exposure_metadata["note"] = getattr(config, "note", None)
         self.exposure_metadata["reason"] = getattr(config, "reason", None)
         self.exposure_metadata["program"] = getattr(config, "program", None)
+        self.exposure_metadata["use_camera"] = self.use_camera
 
-        self.use_camera = config.use_camera
+        self.mtcalsys.use_electrometer = self.use_electrometer
+        self.mtcalsys.use_fiberspectrograph_blue = self.use_fiberspectrograph_blue
+        self.mtcalsys.use_fiberspectrograph_red = self.use_fiberspectrograph_red
+
         self.sequence_names = config.sequence_names
         if self.sequence_names[0] == "daily":
             self.sequence_names = await self.get_avail_filters()
