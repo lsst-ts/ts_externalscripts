@@ -197,7 +197,6 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         self.exposure_metadata["note"] = getattr(config, "note", None)
         self.exposure_metadata["reason"] = getattr(config, "reason", None)
         self.exposure_metadata["program"] = getattr(config, "program", None)
-        self.exposure_metadata["use_camera"] = self.use_camera
 
         self.mtcalsys.use_electrometer = self.use_electrometer
         self.mtcalsys.use_fiberspectrograph_blue = self.use_fiberspectrograph_blue
