@@ -218,6 +218,10 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
             sequence_name=self.sequence_name,
             exposure_metadata=self.exposure_metadata,
         )
+
+        exposure_entries = await self.mtcalsys.exposure_log.get_entries()
+        self.sequence_summary["exposure_log"] = exposure_entries
+
         self.sequence_summary.update(sequence_summary)
 
         await self.publish_sequence_summary()

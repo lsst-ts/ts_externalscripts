@@ -59,6 +59,8 @@ class TestTakeCBPImagesLSSTCam(
                 {"sequence_id": 2, "duration": 12},
             ]
         )
+        self.script.mtcalsys.exposure_log = mock.MagicMock()
+        self.script.mtcalsys.exposure_log.get_entries = mock.AsyncMock(return_value=[])
 
     def mock_camera(self):
         """Mock camera instance and its methods."""
@@ -111,6 +113,52 @@ class TestTakeCBPImagesLSSTCam(
             await self.configure_script(**config)
             await self.run_script()
             assert self.script.get_instrument_filter() == "g_6"
+
+    async def test_exposure_log_in_summary(self):
+        """Verify that run_block reads the exposure log from
+        mtcalsys and includes it in the sequence summary.
+        """
+        config = {
+            "sequence_name": "cbp_g_leak",
+        }
+
+        mock_exposure_entries = [
+            {
+                "exposure_id": "exposure_1_w500.0nm",
+                "wavelength": 500.0,
+                "status": "success",
+            },
+            {
+                "exposure_id": "exposure_2_w510.0nm",
+                "wavelength": 510.0,
+                "status": "failed",
+                "error_message": "Laser timeout",
+            },
+        ]
+
+        async with self.make_script():
+            self.script.mtcalsys.get_calibration_configuration = unittest.mock.Mock(
+                return_value={
+                    "mtcamera_filter": "g_6",
+                    "exposure_times": [30],
+                    "calib_type": "CBP",
+                }
+            )
+            self.script.mtcalsys.exposure_log = mock.AsyncMock()
+            self.script.mtcalsys.exposure_log.get_entries = mock.AsyncMock(
+                return_value=mock_exposure_entries
+            )
+            self.script.publish_sequence_summary = mock.AsyncMock()
+
+            await self.configure_script(**config)
+            await self.run_script()
+
+            assert "exposure_log" in self.script.sequence_summary
+            assert len(self.script.sequence_summary["exposure_log"]) == 2
+            assert (
+                self.script.sequence_summary["exposure_log"][0]["status"] == "success"
+            )
+            assert self.script.sequence_summary["exposure_log"][1]["status"] == "failed"
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
