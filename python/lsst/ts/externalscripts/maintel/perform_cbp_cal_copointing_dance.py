@@ -108,7 +108,6 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
                     'angle': varies focal plane position (angle of incidence)
                     'position': varies pupil plane position
                 type: string
-                enum: ['angle', 'position']
                 default: angle
               pupil_plane_x_center:
                 description: X pupil plane position in mm for the center of the spiral
