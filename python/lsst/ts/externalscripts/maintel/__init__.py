@@ -18,3 +18,25 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from .correct_pointing import *
+from .focus_telescope import *
+from .make_comcam_calibrations import *
+from .make_lsstcam_calibrations import *
+from .offset_and_take_images_lsstcam import *
+from .parameter_march_comcam import *
+from .parameter_march_lsstcam import *
+from .parameter_march_triplet_lsstcam import *
+from .park_calibration_projector import *
+from .perform_cbp_cal_copointing_dance import *
+from .setup_calsys_flats import *
+from .take_calsys_flats_lsstcam import *
+from .take_cbp_images_lsstcam import *
+from .take_comcam_guider_image import *
+from .take_ptc_flats_comcam import *
+from .take_rotated_comcam import *
+from .take_rotated_lsstcam import *
+from .take_twilight_flats_comcam import *
+from .take_twilight_flats_lsstcam import *
+from .track_target_sched import *
+from .warmup_hexapod import *
