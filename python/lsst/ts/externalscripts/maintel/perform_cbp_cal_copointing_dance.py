@@ -105,10 +105,10 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
               search_type:
                 description: >-
                     Type of search to perform.
-                    'angle' (or 'incidence'): varies focal plane position (angle of incidence)
+                    'angle': varies focal plane position (angle of incidence)
                     'position': varies pupil plane position
                 type: string
-                enum: ['angle', 'incidence', 'position']
+                enum: ['angle', 'position']
                 default: angle
               pupil_plane_x_center:
                 description: X pupil plane position in mm for the center of the spiral
@@ -138,10 +138,6 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
                 description: Duration of each electrometer scan in seconds
                 type: number
                 default: 1.0
-              ignore_mtdome:
-                description: Whether to ignore the dome when slewing the TMA
-                type: boolean
-                default: true
             additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
@@ -386,7 +382,7 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
     def generate_pointings(self) -> list:
         """Generate all pointings for the spiral search.
 
-        For 'angle'/'incidence' search: varies focal plane position around
+        For 'angle' search: varies focal plane position around
         the focal_plane center while holding pupil position fixed.
 
         For 'position' search: varies pupil plane position around the
@@ -406,7 +402,7 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
 
         pointings = []
         for pt in pts:
-            if self.search_type in ("angle", "incidence"):
+            if self.search_type == "angle":
                 # Angle/incidence search: vary focal plane, hold pupil fixed
                 # IMPORTANT: Center the search around focal_center, not (0,0)
                 focal_pos = (focal_center[0] + pt[0], focal_center[1] + pt[1])
