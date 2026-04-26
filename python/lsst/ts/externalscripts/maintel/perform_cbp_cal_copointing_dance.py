@@ -94,50 +94,50 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
     @classmethod
     def get_schema(cls):
         schema_yaml = """
-        $schema: http://json-schema.org/draft-07/schema#
-        $id: https://github.com/lsst-ts/ts_externalscripts/perform_cbp_cal_copointing_dance.yaml
-        title: PerformCBPCalCopointingDance v1
-        description: >-
-            Configuration for PerformCBPCalCopointingDance.
-            Performs a hexagonal spiral search pattern for CBP-to-CBPCal copointing.
-        type: object
-        properties:
-            search_type:
+            $schema: http://json-schema.org/draft-07/schema#
+            $id: https://github.com/lsst-ts/ts_externalscripts/perform_cbp_cal_copointing_dance.yaml
+            title: PerformCBPCalCopointingDance v1
+            description: >-
+                Configuration for PerformCBPCalCopointingDance.
+                Performs a hexagonal spiral search pattern for CBP-to-CBPCal copointing.
+            type: object
+            properties:
+              search_type:
                 description: >-
                     Type of search to perform.
                     'angle': varies focal plane position (angle of incidence)
                     'position': varies pupil plane position
                 type: string
                 default: angle
-            pupil_plane_x_center:
+              pupil_plane_x_center:
                 description: X pupil plane position in mm for the center of the spiral
                 type: number
                 default: -3671.7
-            pupil_plane_y_center:
+              pupil_plane_y_center:
                 description: Y pupil plane position in mm for the center of the spiral
                 type: number
                 default: 3775.9
-            focal_plane_x_center:
+              focal_plane_x_center:
                 description: X focal plane position in mm for the center of the spiral
                 type: number
                 default: -165.0
-            focal_plane_y_center:
+              focal_plane_y_center:
                 description: Y focal plane position in mm for the center of the spiral
                 type: number
                 default: -1.4
-            spacing:
+              spacing:
                 description: Spacing between points of the hexagonal spiral in mm
                 type: number
                 default: 26.0
-            radius:
+              radius:
                 description: Outer radius of the spiral search pattern in mm
                 type: number
                 default: 126.0
-            electrometer_scan_duration:
+              electrometer_scan_duration:
                 description: Duration of each electrometer scan in seconds
                 type: number
                 default: 1.0
-        additionalProperties: false
+            additionalProperties: false
         """
         schema_dict = yaml.safe_load(schema_yaml)
 
