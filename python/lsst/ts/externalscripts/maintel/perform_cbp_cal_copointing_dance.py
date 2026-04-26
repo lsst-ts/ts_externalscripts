@@ -188,7 +188,6 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
         self.electrometer_scan_duration = getattr(
             config, "electrometer_scan_duration", 1.0
         )
-        self.ignore_mtdome = getattr(config, "ignore_mtdome", True)
 
         # Create the coordinate converter
         self.create_coordinate_converter()
