@@ -93,21 +93,21 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
 
     @classmethod
     def get_schema(cls):
-        schema_yaml = """
-            $schema: http://json-schema.org/draft-07/schema#
+        schema_yaml = """$schema: http://json-schema.org/draft-07/schema#
             $id: https://github.com/lsst-ts/ts_externalscripts/perform_cbp_cal_copointing_dance.yaml
             title: PerformCBPCalCopointingDance v1
             description: >-
-                Configuration for PerformCBPCalCopointingDance.
-                Performs a hexagonal spiral search pattern for CBP-to-CBPCal copointing.
+              Configuration for PerformCBPCalCopointingDance.
+              Performs a hexagonal spiral search pattern for CBP-to-CBPCal copointing.
             type: object
             properties:
               search_type:
                 description: >-
-                    Type of search to perform.
-                    'angle': varies focal plane position (angle of incidence)
-                    'position': varies pupil plane position
+                  Type of search to perform.
+                  'angle': varies focal plane position (angle of incidence)
+                  'position': varies pupil plane position
                 type: string
+                enum: ["angle", "position"]
                 default: angle
               pupil_plane_x_center:
                 description: X pupil plane position in mm for the center of the spiral
@@ -138,7 +138,7 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
                 type: number
                 default: 1.0
             additionalProperties: false
-        """
+            """
         schema_dict = yaml.safe_load(schema_yaml)
 
         base_schema_dict = super().get_schema()
