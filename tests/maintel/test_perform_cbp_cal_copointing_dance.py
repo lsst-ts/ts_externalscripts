@@ -40,7 +40,7 @@ class TestPerformCBPCalCopointingDance(
         self.log = logging.getLogger(__name__)
         self.log.propagate = True
 
-    def basic_make_script(self, index):
+    async def basic_make_script(self, index):
         self.script = PerformCBPCalCopointingDance(index=index)
 
         self.mock_mtcalsys()
