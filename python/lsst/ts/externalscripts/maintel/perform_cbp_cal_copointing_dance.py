@@ -93,7 +93,8 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
 
     @classmethod
     def get_schema(cls):
-        schema_yaml = """$schema: http://json-schema.org/draft-07/schema#
+        schema_yaml = """
+            $schema: http://json-schema.org/draft-07/schema#
             $id: https://github.com/lsst-ts/ts_externalscripts/perform_cbp_cal_copointing_dance.yaml
             title: PerformCBPCalCopointingDance v1
             description: >-
@@ -470,7 +471,7 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
         self.log.debug(
             f"Taking electrometer scan for {self.electrometer_scan_duration}s"
         )
-        await self.electrometer.rem.cmd_startScanDt.set_start(
+        await self.electrometer.cmd_startScanDt.set_start(
             scanDuration=self.electrometer_scan_duration,
             timeout=self.electrometer_scan_duration + 10,
         )
