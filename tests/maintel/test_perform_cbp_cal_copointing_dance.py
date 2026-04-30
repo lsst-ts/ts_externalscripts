@@ -40,7 +40,7 @@ class TestPerformCBPCalCopointingDance(
         self.log = logging.getLogger(__name__)
         self.log.propagate = True
 
-    async def basic_make_script(self, index):
+    def basic_make_script(self, index):
         self.script = PerformCBPCalCopointingDance(index=index)
 
         self.mock_mtcalsys()
@@ -48,7 +48,7 @@ class TestPerformCBPCalCopointingDance(
 
         return (self.script,)
 
-    async def mock_mtcalsys(self):
+    def mock_mtcalsys(self):
         """Mock Calsys CSCs"""
         self.script.mtcalsys = unittest.mock.AsyncMock()
         self.script.mtcalsys.assert_all_enabled = unittest.mock.AsyncMock()
