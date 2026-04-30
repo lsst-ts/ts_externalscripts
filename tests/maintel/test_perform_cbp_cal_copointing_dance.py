@@ -22,8 +22,10 @@
 import logging
 import os
 import unittest
+import unittest.mock as mock
 
-from lsst.ts import externalscripts, standardscripts, utils
+import pytest
+from lsst.ts import externalscripts, salobj, standardscripts, utils
 from lsst.ts.externalscripts.maintel.perform_cbp_cal_copointing_dance import (
     PerformCBPCalCopointingDance,
 )
@@ -42,6 +44,7 @@ class TestPerformCBPCalCopointingDance(
         self.script = PerformCBPCalCopointingDance(index=index)
 
         self.mock_mtcalsys()
+        self.mock_mtcs()
 
         return (self.script,)
 
@@ -49,11 +52,47 @@ class TestPerformCBPCalCopointingDance(
         """Mock Calsys CSCs"""
         self.script.mtcalsys = unittest.mock.AsyncMock()
         self.script.mtcalsys.assert_all_enabled = unittest.mock.AsyncMock()
-        self.script.mtcalsys.get_projector_setup = unittest.mock.AsyncMock(
-            return_value=self.projector_setup
+        self.script.mtcalsys.start_task = utils.make_done_future()
+        self.script.mtcalsys.assert_valid_configuration_option = (
+            unittest.mock.AsyncMock()
         )
-        self.script.mtcalsys.led_rest_position = 100.0
-        self.script.mtcalsys.linearstage_projector_pos_tolerance = 0.2
+
+    def mock_mtcs(self):
+        """Mock camera instance and its methods."""
+        self.script.mtcs = mock.AsyncMock()
+
+    async def test_configure(self):
+        config = {
+            "search_type": "angle",
+        }
+
+        async with self.make_script():
+            await self.configure_script(**config)
+            assert self.script.search_type == "angle"
+            assert self.focal_plane_x_center == 165.0
+
+    async def test_invalid_configuration(self):
+        bad_configs = [
+            {
+                "search_type": "asdfclkbvjlksfd",
+            },
+        ]
+
+        async with self.make_script():
+            for bad_config in bad_configs:
+                with pytest.raises(salobj.ExpectedError):
+                    await self.configure_script(**bad_config)
+
+    async def test_perform_cbp_cal_copointing_dance(self):
+        config = {
+            "search_type": "angle",
+            "radius": 30,
+        }
+
+        async with self.make_script():
+            await self.configure_script(**config)
+            await self.run_script()
+            assert self.script.radius() == 30
 
     async def test_executable(self):
         self.log.debug("Testing executable")
