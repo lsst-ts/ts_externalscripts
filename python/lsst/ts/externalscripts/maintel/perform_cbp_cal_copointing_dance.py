@@ -35,7 +35,7 @@ from lsst.obs.lsst import LsstCam
 from lsst.ts import salobj, utils
 from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
-from lsst.ts.standardscripts.base_script import BaseScript
+from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 from lsst.ts.standardscripts.utils import get_s3_bucket
 
 # CBP pointing model coefficients from laser-tracker calibration
@@ -49,7 +49,7 @@ SA = np.double(0.0037899497583516392)
 SE = np.double(0.0030070251181208096)
 
 
-class PerformCBPCalCopointingDance(BaseScript):
+class PerformCBPCalCopointingDance(BaseBlockScript):
     """Perform a CBP Cal copointing spiral search.
 
     This script generates a hexagonal spiral pattern in either:
