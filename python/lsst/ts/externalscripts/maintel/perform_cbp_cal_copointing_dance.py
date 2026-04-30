@@ -165,7 +165,7 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
         else:
             self.log.debug("MTCS already defined, skipping.")
 
-        """Handle creating the MTCalsys object and waiting remote to start."""
+        # Handle creating the MTCalsys object and waiting remote to start.
         if self.mtcalsys is None:
             self.log.debug("Creating MTCalsys.")
             self.mtcalsys = MTCalsys(domain=self.domain, log=self.log)
