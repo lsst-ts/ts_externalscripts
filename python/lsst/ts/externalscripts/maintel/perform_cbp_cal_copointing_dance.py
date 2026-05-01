@@ -135,7 +135,7 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
                 type: number
                 default: 1.0
             additionalProperties: false
-            """
+        """
         schema_dict = yaml.safe_load(schema_yaml)
 
         base_schema_dict = super().get_schema()
