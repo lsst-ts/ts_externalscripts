@@ -33,7 +33,7 @@ import yaml
 from lsst.cbp import CoordinateConverter, CoordinateConverterConfig, MaskInfo
 from lsst.obs.lsst import LsstCam
 from lsst.ts import salobj, utils
-from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys
+from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys, MTCalsysUsages
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.standardscripts.base_block_script import BaseBlockScript
 from lsst.ts.standardscripts.utils import get_s3_bucket
@@ -164,7 +164,9 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
         # Handle creating the MTCalsys object and waiting remote to start.
         if self.mtcalsys is None:
             self.log.debug("Creating MTCalsys.")
-            self.mtcalsys = MTCalsys(domain=self.domain, log=self.log)
+            self.mtcalsys = MTCalsys(
+                domain=self.domain, log=self.log, intended_usage=MTCalsysUsages.Setup
+            )
             await self.mtcalsys.start_task
 
         else:
@@ -444,7 +446,7 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
         await self.mtcalsys.rem.cbp.cmd_move.set_start(
             azimuth=azimuth,
             elevation=elevation,
-            # timeout=self.cbp_move_timeout,
+            timeout=self.cbp_move_timeout,
         )
 
     async def move_tma(self, azimuth: float, elevation: float) -> None:
@@ -574,11 +576,11 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
             tel_az, tel_el = pointing[0]
             cbp_az, cbp_el = pointing[1]
 
-            # Move CBP first (faster)
-            await self.move_cbp(cbp_az, cbp_el)
-
             # Move TMA
             await self.move_tma(tel_az, tel_el)
+
+            # Move CBP
+            await self.move_cbp(cbp_az, cbp_el)
 
             # Small settle time
             await asyncio.sleep(1.0)
