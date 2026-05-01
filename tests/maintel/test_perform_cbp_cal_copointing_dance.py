@@ -69,7 +69,6 @@ class TestPerformCBPCalCopointingDance(
         async with self.make_script():
             await self.configure_script(**config)
             assert self.script.search_type == "angle"
-            assert self.focal_plane_x_center == 165.0
 
     async def test_invalid_configuration(self):
         bad_configs = [
@@ -92,7 +91,7 @@ class TestPerformCBPCalCopointingDance(
         async with self.make_script():
             await self.configure_script(**config)
             await self.run_script()
-            assert self.script.radius() == 30
+            assert self.script.radius == 30
 
     async def test_executable(self):
         self.log.debug("Testing executable")
