@@ -98,16 +98,11 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
             $schema: http://json-schema.org/draft-07/schema#
             $id: https://github.com/lsst-ts/ts_externalscripts/perform_cbp_cal_copointing_dance.yaml
             title: PerformCBPCalCopointingDance v1
-            description: >-
-              Configuration for PerformCBPCalCopointingDance.
-              Performs a hexagonal spiral search pattern for CBP-to-CBPCal copointing.
+            description: Configuration for PerformCBPCalCopointingDance.
             type: object
             properties:
               search_type:
-                description: >-
-                  Type of search to perform.
-                  'angle': varies focal plane position (angle of incidence)
-                  'position': varies pupil plane position
+                description: Type of search to perform.
                 type: string
                 enum: ["angle", "position"]
                 default: angle
