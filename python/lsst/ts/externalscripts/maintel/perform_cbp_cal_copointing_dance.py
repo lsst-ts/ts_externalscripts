@@ -135,7 +135,7 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
                 type: number
                 default: 1.0
             additionalProperties: false
-        """
+            """
         schema_dict = yaml.safe_load(schema_yaml)
 
         base_schema_dict = super().get_schema()
@@ -444,7 +444,7 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
         await self.mtcalsys.rem.cbp.cmd_move.set_start(
             azimuth=azimuth,
             elevation=elevation,
-            timeout=self.cbp_move_timeout,
+            # timeout=self.cbp_move_timeout,
         )
 
     async def move_tma(self, azimuth: float, elevation: float) -> None:
