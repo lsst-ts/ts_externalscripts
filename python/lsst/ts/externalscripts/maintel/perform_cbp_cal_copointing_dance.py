@@ -465,7 +465,6 @@ class PerformCBPCalCopointingDance(BaseBlockScript):
             az=azimuth,
             el=elevation,
             target_name="CBPCal",
-            ignore=["mtdome", "mtdometrajectory"],
         )
 
     async def take_electrometer_scan(self) -> None:
