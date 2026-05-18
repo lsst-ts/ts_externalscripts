@@ -75,7 +75,7 @@ class SetupCalsysFlats(salobj.BaseScript):
                 type: array
                 items:
                     type: string
-                default: ['TunableLaser','CBP','Electrometer:102','Electrometer:101','FiberSpectrograph:101','FiberSpectrograph:102']
+                default: ['TunableLaser','CBP','Electrometer:102','Electrometer:101']
 
             additionalProperties: false
         """
