@@ -1,1 +1,0 @@
-Fix the hexapod warmup script to use the synchronous movement in the verification stage.
