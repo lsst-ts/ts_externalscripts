@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import TakeCalsysFlatsLSSTCam
+from lsst.ts.externalscripts.maintel.take_calsys_flats_lsstcam import (
+    TakeCalsysFlatsLSSTCam,
+)
 
 asyncio.run(TakeCalsysFlatsLSSTCam.amain())

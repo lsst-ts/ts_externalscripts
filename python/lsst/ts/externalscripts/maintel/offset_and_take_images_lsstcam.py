@@ -187,7 +187,7 @@ class OffsetAndTakeImagesLSSTCam(salobj.BaseScript, metaclass=abc.ABCMeta):
               image_type:
                 description: Image type (a.k.a. IMGTYPE). Limit options to either OBJECT or ACQ.
                 type: string
-                enum: ["OBJECT", "ACQ"]
+                enum: ["OBJECT", "ACQ", "ENGTEST"]
                 default: "ACQ"
               reset_offsets_when_finished:
                 description: Boolean parameter to reset the offsets on script completion.

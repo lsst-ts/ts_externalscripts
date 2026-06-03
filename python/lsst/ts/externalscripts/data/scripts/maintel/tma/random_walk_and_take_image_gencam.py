@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel.tma import RandomWalkAndTakeImagesGenCam
+from lsst.ts.externalscripts.maintel.tma.random_walk_and_take_image_gencam import (
+    RandomWalkAndTakeImagesGenCam,
+)
 
 asyncio.run(RandomWalkAndTakeImagesGenCam.amain())

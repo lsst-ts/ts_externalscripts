@@ -22,6 +22,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import TakeTwilightFlatsLatiss
+from lsst.ts.externalscripts.auxtel.latiss_take_twilight_flats import (
+    TakeTwilightFlatsLatiss,
+)
 
 asyncio.run(TakeTwilightFlatsLatiss.amain())

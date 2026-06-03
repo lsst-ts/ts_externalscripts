@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import TakeComCamGuiderImage
+from lsst.ts.externalscripts.maintel.take_comcam_guider_image import (
+    TakeComCamGuiderImage,
+)
 
 asyncio.run(TakeComCamGuiderImage.amain())

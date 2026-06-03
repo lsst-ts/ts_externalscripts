@@ -31,7 +31,9 @@ from contextlib import asynccontextmanager
 import lsst.daf.butler as dafButler
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.auxtel import LatissAcquireAndTakeSequence
+from lsst.ts.externalscripts.auxtel.latiss_acquire_and_take_sequence import (
+    LatissAcquireAndTakeSequence,
+)
 from lsst.ts.observatory.control.auxtel import ATCS, LATISS, ATCSUsages, LATISSUsages
 from lsst.utils import getPackageDir
 
@@ -145,17 +147,13 @@ class TestLatissAcquireAndTakeSequence(
 
     @asynccontextmanager
     async def make_controllers(self):
-
-        async with salobj.Controller("ATCamera") as self.atcamera, salobj.Controller(
-            "ATHeaderService"
-        ) as self.atheaderservice, salobj.Controller(
-            "ATOODS"
-        ) as self.atoods, salobj.Controller(
-            "ATAOS"
-        ) as self.ataos, salobj.Controller(
-            "ATSpectrograph"
-        ) as self.atspectrograph:
-
+        async with (
+            salobj.Controller("ATCamera") as self.atcamera,
+            salobj.Controller("ATHeaderService") as self.atheaderservice,
+            salobj.Controller("ATOODS") as self.atoods,
+            salobj.Controller("ATAOS") as self.ataos,
+            salobj.Controller("ATSpectrograph") as self.atspectrograph,
+        ):
             self.atcamera.cmd_takeImages.callback = unittest.mock.AsyncMock(
                 wraps=self.cmd_take_images_callback
             )

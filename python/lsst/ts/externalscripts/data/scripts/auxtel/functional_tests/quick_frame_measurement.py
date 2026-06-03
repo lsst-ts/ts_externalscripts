@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel.functional_tests import QuickFrameMeasurement
+from lsst.ts.externalscripts.auxtel.functional_tests.quick_frame_measurement import (
+    QuickFrameMeasurement,
+)
 
 asyncio.run(QuickFrameMeasurement.amain())

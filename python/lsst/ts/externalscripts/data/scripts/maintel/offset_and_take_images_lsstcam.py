@@ -21,6 +21,8 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import OffsetAndTakeImagesLSSTCam
+from lsst.ts.externalscripts.maintel.offset_and_take_images_lsstcam import (
+    OffsetAndTakeImagesLSSTCam,
+)
 
 asyncio.run(OffsetAndTakeImagesLSSTCam.amain())

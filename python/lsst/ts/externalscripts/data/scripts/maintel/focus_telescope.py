@@ -22,6 +22,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import FocusTelescope
+from lsst.ts.externalscripts.maintel.focus_telescope import FocusTelescope
 
 asyncio.run(FocusTelescope.amain())

@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import WepCheckout
+from lsst.ts.externalscripts.auxtel.wep_checkout import WepCheckout
 
 asyncio.run(WepCheckout.amain())

@@ -24,7 +24,7 @@ import unittest
 import numpy as np
 import yaml
 from lsst.ts import salobj, utils
-from lsst.ts.externalscripts.auxtel import CalSysTakeData
+from lsst.ts.externalscripts.auxtel.calsys_takedata import CalSysTakeData
 
 np.random.seed(71)
 

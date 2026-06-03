@@ -22,6 +22,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import LatissAcquire
+from lsst.ts.externalscripts.auxtel.latiss_acquire import LatissAcquire
 
 asyncio.run(LatissAcquire.amain())

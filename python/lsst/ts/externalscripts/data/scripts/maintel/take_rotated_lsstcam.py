@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import TakeRotatedLSSTCam
+from lsst.ts.externalscripts.maintel.take_rotated_lsstcam import TakeRotatedLSSTCam
 
 asyncio.run(TakeRotatedLSSTCam.amain())

@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.maintel import TakeRotatedComCam
+from lsst.ts.externalscripts.maintel.take_rotated_comcam import TakeRotatedComCam
 
 asyncio.run(TakeRotatedComCam.amain())

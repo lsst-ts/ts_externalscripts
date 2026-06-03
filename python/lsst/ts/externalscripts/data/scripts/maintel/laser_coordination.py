@@ -21,6 +21,6 @@
 
 import asyncio
 
-from lsst.ts.externalscripts.auxtel import ATCamTakeImage
+from lsst.ts.externalscripts.coordination.laser_coordination import LaserCoordination
 
-asyncio.run(ATCamTakeImage.amain())
+asyncio.run(LaserCoordination.amain())

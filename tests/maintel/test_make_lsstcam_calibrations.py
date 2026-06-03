@@ -25,7 +25,9 @@ import unittest.mock as mock
 
 import pytest
 from lsst.ts import externalscripts, salobj, standardscripts
-from lsst.ts.externalscripts.maintel import MakeLSSTCamCalibrations
+from lsst.ts.externalscripts.maintel.make_lsstcam_calibrations import (
+    MakeLSSTCamCalibrations,
+)
 
 logger = logging.getLogger(__name__)
 logger.propagate = True

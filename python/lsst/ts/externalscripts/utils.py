@@ -18,7 +18,11 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["get_scripts_dir"]
+__all__ = [
+    "get_scripts_dir",
+    "get_atqueue_scripts_dir",
+    "get_mtqueue_scripts_dir",
+]
 
 import pathlib
 
@@ -32,3 +36,25 @@ def get_scripts_dir():
         Absolute path to the specified scripts directory.
     """
     return pathlib.Path(__file__).resolve().parent / "data" / "scripts"
+
+
+def get_atqueue_scripts_dir():
+    """Get the absolute path to the ATQueue scripts directory.
+
+    Returns
+    -------
+    scripts_dir : `pathlib.Path`
+        Absolute path to the ATQueue scripts directory.
+    """
+    return pathlib.Path(__file__).resolve().parent / "data" / "atqueue"
+
+
+def get_mtqueue_scripts_dir():
+    """Get the absolute path to the MTQueue scripts directory.
+
+    Returns
+    -------
+    scripts_dir : `pathlib.Path`
+        Absolute path to the MTQueue scripts directory.
+    """
+    return pathlib.Path(__file__).resolve().parent / "data" / "mtqueue"
