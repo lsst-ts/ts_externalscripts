@@ -1,1 +1,0 @@
-Updated ``LatissBaseAlign`` to define some missing parameters in the script init method.

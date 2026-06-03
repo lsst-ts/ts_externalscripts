@@ -1,1 +1,0 @@
-Add ``data/atqueue/`` and ``data/mtqueue/`` directories with symlinks to the queue-specific executable scripts.

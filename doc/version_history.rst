@@ -8,6 +8,44 @@ Version History
 
 .. towncrier release notes start
 
+v0.35.0 (2026-06-03)
+====================
+
+New Features
+------------
+
+- Adding electrometer as option in setup_calsys_flats script. Will overwrite what is in mtcalsys.yaml. (`DM-51498 <https://rubinobs.atlassian.net/browse/DM-51498>`_)
+- Adding electrometer and fiberspectrographs as options in take_whitelight_flats script. Will overwrite what is in mtcalsys.yaml. (`DM-51498 <https://rubinobs.atlassian.net/browse/DM-51498>`_)
+- Add random_seed and exp_list_start_idx to take_calsys_flats_lsstcam script (`DM-53736 <https://rubinobs.atlassian.net/browse/DM-53736>`_)
+- Add ``data/atqueue/`` and ``data/mtqueue/`` directories with symlinks to the queue-specific executable scripts. (`OSW-1783 <https://rubinobs.atlassian.net/browse/OSW-1783>`_)
+- When calling available filters for Daily Cals, moved the current filter to the front of the list to save time. This was done in take_calsys_flats_lsstcam. (`RSO-75 <https://rubinobs.atlassian.net/browse/RSO-75>`_)
+
+
+Bug Fixes
+---------
+
+- Updated ``LatissBaseAlign`` to define some missing parameters in the script init method. (`DM-53736 <https://rubinobs.atlassian.net/browse/DM-53736>`_)
+- Updated ``LatissWEPAlign`` with `exposure.clone()`. (`DM-54058 <https://rubinobs.atlassian.net/browse/DM-54058>`_)
+- Move files from ``data/scripts/main/`` to the correct directory: ``data/scripts/maintel`` (`OSW-1783 <https://rubinobs.atlassian.net/browse/OSW-1783>`_)
+- Added mock for LSSTCam in ``SetupCalsysFlats`` unit test. (`OSW-1899 <https://rubinobs.atlassian.net/browse/OSW-1899>`_)
+- Added ENGTEST to the list of valid image types for OffsetAndTakeImagesLSSTCam. (`OSW-1899 <https://rubinobs.atlassian.net/browse/OSW-1899>`_)
+- Fix the hexapod warmup script to use the synchronous movement in the verification stage. (`OSW-2061 <https://rubinobs.atlassian.net/browse/OSW-2061>`_)
+- Removed use_camera from exposure_metadata in take_calsys_flats_lsstcam (`RSO-204 <https://rubinobs.atlassian.net/browse/RSO-204>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Update ``maintel/tma`` script executables to use direct module imports. (`OSW-1822 <https://rubinobs.atlassian.net/browse/OSW-1822>`_)
+- Removed all imports from the __init__ files and use direct module imports on script executables. (`OSW-1822 <https://rubinobs.atlassian.net/browse/OSW-1822>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Updated ``LatissWepAlign`` configure unit tests. The different tests were split into their own tests and checks were fixed. (`DM-53736 <https://rubinobs.atlassian.net/browse/DM-53736>`_)
+
+
 v0.34.0 (2026-01-07)
 ====================
 

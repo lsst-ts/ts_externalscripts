@@ -1,1 +1,0 @@
-Update ``maintel/tma`` script executables to use direct module imports.
