@@ -29,9 +29,7 @@ import numpy as np
 from lsst.daf import butler as dafButler
 from lsst.ts import salobj
 from lsst.ts.externalscripts import get_scripts_dir
-from lsst.ts.externalscripts.auxtel.build_pointing_model import (
-    BuildPointingModel,
-)
+from lsst.ts.externalscripts.auxtel.build_pointing_model import BuildPointingModel
 from lsst.ts.externalscripts.base_build_pointing_model import (
     GridType,
     generate_rotator_sequence,

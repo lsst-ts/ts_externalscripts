@@ -30,9 +30,7 @@ from lsst.ts.externalscripts.base_build_pointing_model import (
     GridType,
     generate_rotator_sequence,
 )
-from lsst.ts.externalscripts.maintel.build_pointing_model import (
-    BuildPointingModel,
-)
+from lsst.ts.externalscripts.maintel.build_pointing_model import BuildPointingModel
 from lsst.ts.standardscripts import BaseScriptTestCase
 
 
