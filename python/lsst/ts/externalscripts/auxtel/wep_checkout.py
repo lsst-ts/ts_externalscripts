@@ -150,7 +150,7 @@ class WepCheckout(salobj.BaseScript):
                     f"timeout_get_image={self.timeout_get_image}. "
                 )
 
-                (intra_result, extra_result, wep_results) = await loop.run_in_executor(
+                intra_result, extra_result, wep_results = await loop.run_in_executor(
                     pool,
                     functools.partial(
                         run_wep,
