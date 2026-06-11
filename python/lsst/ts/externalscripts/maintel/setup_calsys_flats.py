@@ -130,13 +130,3 @@ class SetupCalsysFlats(salobj.BaseScript):
 
         await self.checkpoint("Preparing for Flats")
         await self.mtcalsys.prepare_for_flat(sequence_name=self.sequence_name)
-
-        params = await self.mtcalsys.get_projector_setup()
-
-        self.log.info(
-            f"Projector Location is {params[0]}, \n"
-            f"LED Location stage pos @: {params[1]}, \n"
-            f"LED Focus stage pos @: {params[2]}, \n"
-            f"Laser Focus stage pos @: {params[3]}, \n"
-            f"LED State stage pos @: {params[4]}"
-        )
