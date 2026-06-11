@@ -8,6 +8,27 @@ Version History
 
 .. towncrier release notes start
 
+v0.36.0 (2026-06-11)
+====================
+
+New Features
+------------
+
+- Add script for taking traveling CBP data. (`RSO-559 <https://rubinobs.atlassian.net/browse/RSO-559>`_)
+
+
+Bug Fixes
+---------
+
+- Removed get_projector_setup from setup_calsys_flats so it can also be used with the CBP. This will just be moved inside the setup_projector function in mtcalsys.py (`RSO-610 <https://rubinobs.atlassian.net/browse/RSO-610>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Adding FiberSpec 101 and 102 back into setup_calsys and park_projector. (`RSO-552 <https://rubinobs.atlassian.net/browse/RSO-552>`_)
+
+
 v0.35.0 (2026-06-03)
 ====================
 

@@ -1,1 +1,0 @@
-Removed get_projector_setup from setup_calsys_flats so it can also be used with the CBP. This will just be moved inside the setup_projector function in mtcalsys.py
