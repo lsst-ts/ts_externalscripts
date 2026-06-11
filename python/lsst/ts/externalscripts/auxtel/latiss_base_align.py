@@ -316,16 +316,14 @@ class LatissBaseAlign(salobj.BaseScript, metaclass=abc.ABCMeta):
         hexapod_str = (len(hexapod_offset) * "{:0.3f}, ").format(*hexapod_offset)
         tel_str = (len(tel_offset) * "{:0.1f}, ").format(*tel_offset)
 
-        self.log.info(
-            f"""==============================
+        self.log.info(f"""==============================
     Measured [coma-X, coma-Y, focus] zernike coefficients [nm]: [{zern_str}]
     De-rotated [coma-X, coma-Y, focus]  zernike coefficients [nm]: [{rot_zern_str}]
     Gain: {self.gain}
     Hexapod [x, y, z] offsets [mm] : [{hexapod_str}]
     Telescope offsets [arcsec]: [{tel_str}]
     ==============================
-    """
-        )
+    """)
 
         results = LatissAlignResults(
             zernikes=(self.zern),
