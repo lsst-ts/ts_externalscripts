@@ -76,6 +76,10 @@ class TestTakeCBPImagesLSSTCam(
                     "mtcamera_filter": "g_6",
                     "exposure_times": [15.0],
                     "calib_type": "CBP",
+                    "n_flat": 1,
+                    "set_wavelength_range": True,
+                    "wavelength_width": 200,
+                    "wavelength_resolution": 10,
                 }
             )
             await self.configure_script(**config)
@@ -106,6 +110,10 @@ class TestTakeCBPImagesLSSTCam(
                     "mtcamera_filter": "g_6",
                     "exposure_times": [30],
                     "calib_type": "CBP",
+                    "n_flat": 1,
+                    "set_wavelength_range": True,
+                    "wavelength_width": 200,
+                    "wavelength_resolution": 10,
                 }
             )
             await self.configure_script(**config)

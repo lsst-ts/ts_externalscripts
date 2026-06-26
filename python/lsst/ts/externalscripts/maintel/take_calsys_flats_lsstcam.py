@@ -113,6 +113,13 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                              in these tests.
                 type: boolean
                 default: False
+              config_overrides:
+                description: >-
+                  Optional key-value pairs to override fields in each sequence
+                  configuration. Keys must match fields defined in the mtcalsys
+                  configuration schema. Applied to all sequence_names.
+                type: object
+                default: {}
 
             additionalProperties: false
         """
@@ -135,8 +142,6 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         self.config_tcs = config.config_tcs
         self.random_seed = config.random_seed
         self.exp_list_start_idx = config.exp_list_start_idx
-
-        """Handle creating the camera object and waiting remote to start."""
 
         if self.config_tcs and self.mtcs is None:
             self.log.debug("Creating MTCS.")
@@ -164,7 +169,6 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         else:
             self.log.debug("Camera already defined, skipping.")
 
-        """Handle creating the MTCalsys object and waiting remote to start."""
         if self.mtcalsys is None:
             self.log.debug("Creating MTCalsys.")
             if self.use_camera:
@@ -174,23 +178,6 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
             else:
                 self.mtcalsys = MTCalsys(domain=self.domain, log=self.log)
             await self.mtcalsys.start_task
-
-            # APPLY OVERRIDES HERE
-            if self.random_seed is not None:
-                self.mtcalsys.config_data.setdefault(
-                    "constrained_random_exposure_times", {}
-                )["random_seed"] = self.random_seed
-
-                self.log.info(f"Overriding MTCalsys random_seed={self.random_seed}")
-            if self.exp_list_start_idx is not None:
-                self.mtcalsys.config_data.setdefault(
-                    "constrained_random_exposure_times", {}
-                )["exp_list_start_idx"] = self.exp_list_start_idx
-
-                self.log.info(
-                    f"Overriding PTC exposure list start index={self.exp_list_start_idx}"
-                )
-
         else:
             self.log.debug("MTCalsys already defined, skipping.")
 
@@ -207,6 +194,32 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
             self.sequence_names = await self.get_avail_filters()
 
         self.log.debug(f"Sequences: {self.sequence_names}")
+
+        # Reload config from disk so overrides always start from a clean state.
+        self.mtcalsys.load_calibration_config_file()
+
+        for seq_name in self.sequence_names:
+            overrides = dict(config.config_overrides)
+
+            # Merge random_seed / exp_list_start_idx into the
+            # constrained_random_exposure_times sub-dict when present.
+            if self.random_seed is not None or self.exp_list_start_idx is not None:
+                current = self.mtcalsys.get_calibration_configuration(seq_name)
+                cret = current.get("constrained_random_exposure_times")
+                if cret is not None:
+                    cret_updates = dict(cret)
+                    if self.random_seed is not None:
+                        cret_updates["random_seed"] = self.random_seed
+                    if self.exp_list_start_idx is not None:
+                        cret_updates["exp_list_start_idx"] = self.exp_list_start_idx
+                    overrides["constrained_random_exposure_times"] = cret_updates
+
+            if overrides:
+                self.log.info(
+                    f"Applying configuration overrides to '{seq_name}': "
+                    f"{list(overrides.keys())}"
+                )
+                self.mtcalsys.update_calibration_configuration(seq_name, overrides)
 
     async def assert_feasibility(self):
         """Ensure dome components are in the required state before flats."""
@@ -256,10 +269,32 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         for sequence_name in self.sequence_names:
             config_data = self.mtcalsys.get_calibration_configuration(sequence_name)
 
-            self.log.debug(config_data)
-            target_flat_exptime = (
-                sum(config_data["exposure_times"]) * config_data["n_flat"]
-            )
+            self.log.debug(config_data.get("exposure_times"))
+            if len(config_data.get("exposure_times")) > 1:
+                target_flat_exptime = sum(
+                    config_data.get("exposure_times")
+                ) * config_data.get("n_flat")
+            else:
+                if config_data.get("set_wavelength_range"):
+                    target_flat_exptime = (
+                        (
+                            config_data.get("wavelength_width")
+                            / config_data.get("wavelength_resolution")
+                        )
+                        * config_data.get("exposure_times")[0]
+                        * config_data.get("n_flat")
+                    )
+                else:
+                    if config_data.get("wavelength_list") is not None:
+                        target_flat_exptime = (
+                            len(config_data.get("wavelength_list"))
+                            * config_data.get("n_flat")
+                            * config_data.get("exposure_times")[0]
+                        )
+                    else:
+                        target_flat_exptime = sum(
+                            config_data.get("exposure_times")
+                        ) * config_data.get("n_flat")
 
             # Setup time for the camera (readout and shutter time)
             if self.use_camera:
