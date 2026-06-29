@@ -92,6 +92,9 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
         return schema_dict
 
     async def configure(self, config) -> None:
+        self.use_camera = config.use_camera
+        self.sequence_name = config.sequence_name
+        self.config_tcs = config.config_tcs
         """Handle creating the camera object and waiting remote to start."""
         if self.config_tcs and self.mtcs is None:
             self.log.debug("Creating MTCS.")
