@@ -1,0 +1,1 @@
+Didn't add self.mtcs to self.lsstcam. need that for it to work.

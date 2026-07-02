@@ -113,6 +113,7 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
                 self.domain,
                 intended_usage=LSSTCamUsages.TakeImage,
                 log=self.log,
+                mtcs=self.mtcs,
             )
             await self.lsstcam.start_task
         else:
