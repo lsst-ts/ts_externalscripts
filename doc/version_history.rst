@@ -8,6 +8,21 @@ Version History
 
 .. towncrier release notes start
 
+v0.36.1 (2026-07-02)
+====================
+
+New Features
+------------
+
+- Adding MTCS to LSSTCam so the filter can be changed. (`OSW-2568 <https://rubinobs.atlassian.net/browse/OSW-2568>`_)
+
+
+Bug Fixes
+---------
+
+- Didn't add self.mtcs to self.lsstcam. need that for it to work. (`OSW-2568.a <https://rubinobs.atlassian.net/browse/OSW-2568.a>`_)
+
+
 v0.36.0 (2026-06-11)
 ====================
 

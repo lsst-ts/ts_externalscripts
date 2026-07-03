@@ -1,1 +1,0 @@
-Adding MTCS to LSSTCam so the filter can be changed.
