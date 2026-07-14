@@ -77,6 +77,13 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
                              which may result in failure.
                 type: boolean
                 default: True
+              config_overrides:
+                description: >-
+                  Optional key-value pairs to override fields in the named
+                  sequence configuration. Keys must match fields defined in
+                  the mtcalsys configuration schema.
+                type: object
+                default: {}
 
             additionalProperties: false
         """
@@ -139,8 +146,21 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
 
         self.use_camera = config.use_camera
         self.sequence_name = config.sequence_name
+
+        # Reload from disk so overrides always start from a clean state.
+        self.mtcalsys.load_calibration_config_file()
+
+        if config.config_overrides:
+            self.log.info(
+                f"Applying configuration overrides to '{self.sequence_name}': "
+                f"{list(config.config_overrides.keys())}"
+            )
+            self.mtcalsys.update_calibration_configuration(
+                self.sequence_name, config.config_overrides
+            )
+
         self.config_data = self.mtcalsys.get_calibration_configuration(
-            config.sequence_name
+            self.sequence_name
         )
         self.log.debug(f"Config data: {self.config_data}")
 
@@ -150,7 +170,31 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
         self.log.debug(self.config_data)
 
         self.log.debug(self.config_data.get("exposure_times"))
-        target_flat_exptime = sum(self.config_data.get("exposure_times"))
+        if len(self.config_data.get("exposure_times")) > 1:
+            target_flat_exptime = sum(
+                self.config_data.get("exposure_times")
+            ) * self.config_data.get("n_flat")
+        else:
+            if self.config_data.get("set_wavelength_range"):
+                target_flat_exptime = (
+                    (
+                        self.config_data.get("wavelength_width")
+                        / self.config_data.get("wavelength_resolution")
+                    )
+                    * self.config_data.get("exposure_times")[0]
+                    * self.config_data.get("n_flat")
+                )
+            else:
+                if self.config_data.get("wavelength_list") is not None:
+                    target_flat_exptime = (
+                        len(self.config_data.get("wavelength_list"))
+                        * self.config_data.get("n_flat")
+                        * self.config_data.get("exposure_times")[0]
+                    )
+                else:
+                    target_flat_exptime = sum(
+                        self.config_data.get("exposure_times")
+                    ) * self.config_data.get("n_flat")
 
         # Setup time for the camera (readout and shutter time)
         setup_time_per_image = self.lsstcam.read_out_time + self.lsstcam.shutter_time

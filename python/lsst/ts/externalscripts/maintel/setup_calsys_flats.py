@@ -77,6 +77,14 @@ class SetupCalsysFlats(salobj.BaseScript):
                     type: string
                 default: ['TunableLaser','CBP','Electrometer:102','Electrometer:101']
 
+              config_overrides:
+                description: >-
+                  Optional key-value pairs to override fields in the named
+                  sequence configuration. Keys must match fields defined in
+                  the mtcalsys configuration schema.
+                type: object
+                default: {}
+
             additionalProperties: false
         """
         return yaml.safe_load(schema_yaml)
@@ -113,6 +121,16 @@ class SetupCalsysFlats(salobj.BaseScript):
         self.sequence_name = config.sequence_name
         self.mtcalsys.load_calibration_config_file()
         self.mtcalsys.assert_valid_configuration_option(name=self.sequence_name)
+
+        if config.config_overrides:
+            self.log.info(
+                f"Applying configuration overrides to '{self.sequence_name}': "
+                f"{list(config.config_overrides.keys())}"
+            )
+            self.mtcalsys.update_calibration_configuration(
+                self.sequence_name, config.config_overrides
+            )
+
         self.mtcalsys.use_electrometer = self.use_electrometer
         self.config_data = self.mtcalsys.get_calibration_configuration(
             self.sequence_name

@@ -67,6 +67,7 @@ class TestTakeCalsysFlatsLSSTCam(
                 "exposure_times": [15.0],
                 "calib_type": "WhiteLight",
                 "n_flat": 20,
+                "set_wavelength_range": False,
             }
         )
         self.script.mtcalsys.run_calibration_sequence = unittest.mock.AsyncMock(
@@ -340,6 +341,7 @@ class TestTakeCalsysFlatsLSSTCam(
                     "random_seed": None,
                     "exp_list_start_idx": None,
                     "ignore": ["mtmount", "mtptg"],
+                    "config_overrides": {},
                 },
             )()
             await self.script.configure(config)

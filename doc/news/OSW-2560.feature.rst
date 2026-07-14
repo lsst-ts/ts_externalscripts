@@ -1,0 +1,1 @@
+Based on changes in ts_observatory_control/mtcalsys.py, adding in ability to change the configuraiton of sequences.
