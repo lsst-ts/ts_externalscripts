@@ -1,0 +1,1 @@
+Fixed an issue in set_metadata that showed up with whitelight flat sequences.
