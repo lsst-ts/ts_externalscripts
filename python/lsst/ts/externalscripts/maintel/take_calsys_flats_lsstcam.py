@@ -275,26 +275,29 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                     config_data.get("exposure_times")
                 ) * config_data.get("n_flat")
             else:
-                if config_data.get("set_wavelength_range"):
+                wavelength_width = config_data.get("wavelength_width")
+                wavelength_resolution = config_data.get("wavelength_resolution")
+                wavelength_list = config_data.get("wavelength_list")
+                if (
+                    config_data.get("set_wavelength_range")
+                    and wavelength_width is not None
+                    and wavelength_resolution is not None
+                ):
                     target_flat_exptime = (
-                        (
-                            config_data.get("wavelength_width")
-                            / config_data.get("wavelength_resolution")
-                        )
+                        (wavelength_width / wavelength_resolution)
                         * config_data.get("exposure_times")[0]
                         * config_data.get("n_flat")
                     )
+                elif wavelength_list is not None:
+                    target_flat_exptime = (
+                        len(wavelength_list)
+                        * config_data.get("n_flat")
+                        * config_data.get("exposure_times")[0]
+                    )
                 else:
-                    if config_data.get("wavelength_list") is not None:
-                        target_flat_exptime = (
-                            len(config_data.get("wavelength_list"))
-                            * config_data.get("n_flat")
-                            * config_data.get("exposure_times")[0]
-                        )
-                    else:
-                        target_flat_exptime = sum(
-                            config_data.get("exposure_times")
-                        ) * config_data.get("n_flat")
+                    target_flat_exptime = sum(
+                        config_data.get("exposure_times")
+                    ) * config_data.get("n_flat")
 
             # Setup time for the camera (readout and shutter time)
             if self.use_camera:

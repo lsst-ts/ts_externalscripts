@@ -175,26 +175,29 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
                 self.config_data.get("exposure_times")
             ) * self.config_data.get("n_flat")
         else:
-            if self.config_data.get("set_wavelength_range"):
+            wavelength_width = self.config_data.get("wavelength_width")
+            wavelength_resolution = self.config_data.get("wavelength_resolution")
+            wavelength_list = self.config_data.get("wavelength_list")
+            if (
+                self.config_data.get("set_wavelength_range")
+                and wavelength_width is not None
+                and wavelength_resolution is not None
+            ):
                 target_flat_exptime = (
-                    (
-                        self.config_data.get("wavelength_width")
-                        / self.config_data.get("wavelength_resolution")
-                    )
+                    (wavelength_width / wavelength_resolution)
                     * self.config_data.get("exposure_times")[0]
                     * self.config_data.get("n_flat")
                 )
+            elif wavelength_list is not None:
+                target_flat_exptime = (
+                    len(wavelength_list)
+                    * self.config_data.get("n_flat")
+                    * self.config_data.get("exposure_times")[0]
+                )
             else:
-                if self.config_data.get("wavelength_list") is not None:
-                    target_flat_exptime = (
-                        len(self.config_data.get("wavelength_list"))
-                        * self.config_data.get("n_flat")
-                        * self.config_data.get("exposure_times")[0]
-                    )
-                else:
-                    target_flat_exptime = sum(
-                        self.config_data.get("exposure_times")
-                    ) * self.config_data.get("n_flat")
+                target_flat_exptime = sum(
+                    self.config_data.get("exposure_times")
+                ) * self.config_data.get("n_flat")
 
         # Setup time for the camera (readout and shutter time)
         setup_time_per_image = self.lsstcam.read_out_time + self.lsstcam.shutter_time
