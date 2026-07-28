@@ -113,6 +113,25 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                              in these tests.
                 type: boolean
                 default: False
+              take_fiber_dark:
+                description: >-
+                  Take a dark fiber spectrograph exposure before each calibration
+                  sequence. The TunableLaser is stopped (if propagating) and all
+                  LEDs are turned off before the exposure, then the laser is
+                  restarted. Only exposures for spectrographs enabled via
+                  use_fiberspectrograph_red/blue are taken.
+                type: boolean
+                default: false
+              fiber_dark_exptime_red:
+                description: Exposure time in seconds for the red fiber spectrograph
+                             dark. Only used when take_fiber_dark is true.
+                type: number
+                default: 20.0
+              fiber_dark_exptime_blue:
+                description: Exposure time in seconds for the blue fiber spectrograph
+                             dark. Only used when take_fiber_dark is true.
+                type: number
+                default: 30.0
               config_overrides:
                 description: >-
                   Optional key-value pairs to override fields in each sequence
@@ -139,6 +158,9 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         self.use_electrometer = config.use_electrometer
         self.use_fiberspectrograph_blue = config.use_fiberspectrograph_blue
         self.use_fiberspectrograph_red = config.use_fiberspectrograph_red
+        self.take_fiber_dark = config.take_fiber_dark
+        self.fiber_dark_exptime_red = config.fiber_dark_exptime_red
+        self.fiber_dark_exptime_blue = config.fiber_dark_exptime_blue
         self.config_tcs = config.config_tcs
         self.random_seed = config.random_seed
         self.exp_list_start_idx = config.exp_list_start_idx
@@ -412,6 +434,17 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                 if not self.obs_id
                 else self.obs_id + f"_{self.salinfo.index}_{i:03}"
             )
+            if self.take_fiber_dark:
+                self.log.info(
+                    f"Taking fiber spectrograph dark for sequence {sequence_name}."
+                )
+                dark_group_id = self.exposure_metadata["group_id"] + "_fiberdark"
+                await self.mtcalsys.take_fiber_spectrograph_dark(
+                    group_id=dark_group_id,
+                    red_exposure_time=self.fiber_dark_exptime_red,
+                    blue_exposure_time=self.fiber_dark_exptime_blue,
+                )
+
             await self.mtcalsys.prepare_for_flat(sequence_name)
             self.log.info("Running calibration sequence")
             sequence_summary = await self.mtcalsys.run_calibration_sequence(
