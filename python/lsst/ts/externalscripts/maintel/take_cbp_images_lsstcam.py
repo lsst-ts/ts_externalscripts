@@ -167,14 +167,15 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
 
     def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
         """Set script metadata, including estimated duration."""
-        # Initialize estimate flat exposure time
         self.log.debug(self.config_data)
+        exposure_times = self.config_data.get("exposure_times")
+        n_flat = self.config_data.get("n_flat")
 
-        self.log.debug(self.config_data.get("exposure_times"))
-        if len(self.config_data.get("exposure_times")) > 1:
-            target_flat_exptime = sum(
-                self.config_data.get("exposure_times")
-            ) * self.config_data.get("n_flat")
+        self.log.debug(exposure_times)
+        if len(exposure_times) > 1:
+            # Multiple exposure times (e.g. PTC): single wavelength assumed.
+            n_images = len(exposure_times) * n_flat
+            total_exptime = sum(exposure_times) * n_flat
         else:
             wavelength_width = self.config_data.get("wavelength_width")
             wavelength_resolution = self.config_data.get("wavelength_resolution")
@@ -184,30 +185,19 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
                 and wavelength_width is not None
                 and wavelength_resolution is not None
             ):
-                target_flat_exptime = (
-                    (wavelength_width / wavelength_resolution)
-                    * self.config_data.get("exposure_times")[0]
-                    * self.config_data.get("n_flat")
-                )
+                n_wavelengths = int(wavelength_width / wavelength_resolution)
             elif wavelength_list is not None:
-                target_flat_exptime = (
-                    len(wavelength_list)
-                    * self.config_data.get("n_flat")
-                    * self.config_data.get("exposure_times")[0]
-                )
+                n_wavelengths = len(wavelength_list)
             else:
-                target_flat_exptime = sum(
-                    self.config_data.get("exposure_times")
-                ) * self.config_data.get("n_flat")
+                n_wavelengths = 1
+            n_images = n_wavelengths * n_flat
+            total_exptime = n_wavelengths * exposure_times[0] * n_flat
 
         # Setup time for the camera (readout and shutter time)
         setup_time_per_image = self.lsstcam.read_out_time + self.lsstcam.shutter_time
 
-        # Total duration calculation
         total_duration = (
-            self.instrument_setup_time  # Initial setup time for the instrument
-            + target_flat_exptime
-            + setup_time_per_image
+            self.instrument_setup_time + total_exptime + setup_time_per_image * n_images
         )
         metadata.instrument = "LSSTCam"
         metadata.filter = self.get_instrument_filter()
