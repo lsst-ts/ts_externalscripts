@@ -109,7 +109,7 @@ class LatissRAAlign(LatissBaseAlign):
         self.ra_timeout = config.ra_timeout
         self.ra_poll_interval = config.ra_poll_interval
 
-        self.ra_collections = ["LATISS/raw/all", "LATISS/quickLook"]
+        self.ra_collections = ["LATISS/quickLook"]
 
     async def run_align(self) -> LatissAlignResults:
         """Reads the Zernike coefficients computed by Rapid Analysis for the
@@ -153,9 +153,16 @@ class LatissRAAlign(LatissBaseAlign):
 
         start_time = time.time()
         elapsed_time = 0.0
+        attempt = 0
         datasets = []
 
         while elapsed_time < self.ra_timeout:
+            attempt += 1
+            self.log.info(
+                f"Polling Butler for '{self.ZERNIKE_DATASET_TYPE}' "
+                f"(attempt {attempt}, {elapsed_time:0.1f}/{self.ra_timeout:0.1f}s "
+                "elapsed)."
+            )
             try:
                 datasets = self.butler.query_datasets(
                     self.ZERNIKE_DATASET_TYPE,
@@ -176,7 +183,8 @@ class LatissRAAlign(LatissBaseAlign):
             raise TimeoutError(
                 f"Timed out after {self.ra_timeout}s waiting for Rapid Analysis "
                 f"to publish '{self.ZERNIKE_DATASET_TYPE}' for visits "
-                f"{self.intra_visit_id}/{self.extra_visit_id}."
+                f"{self.intra_visit_id}/{self.extra_visit_id}. "
+                f"Made {attempt} attempt(s)."
             )
 
         if len(datasets) > 1:
