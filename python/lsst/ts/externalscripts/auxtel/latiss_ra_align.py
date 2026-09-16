@@ -42,7 +42,7 @@ class LatissRAAlign(LatissBaseAlign):
     already-computed result from the Rapid Analysis (RA) service, which
     watches for consecutive LATISS intra/extra focal exposures and
     automatically performs wavefront estimation, publishing the results to
-    the ``LATISS/quickLook`` Butler collection.
+    the ``LATISS/runs/quickLook`` Butler collection.
 
     Parameters
     ----------
@@ -109,7 +109,7 @@ class LatissRAAlign(LatissBaseAlign):
         self.ra_timeout = config.ra_timeout
         self.ra_poll_interval = config.ra_poll_interval
 
-        self.ra_collections = ["LATISS/quickLook"]
+        self.ra_collections = ["LATISS/runs/quickLook"]
 
     async def run_align(self) -> LatissAlignResults:
         """Reads the Zernike coefficients computed by Rapid Analysis for the

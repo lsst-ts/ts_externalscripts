@@ -175,10 +175,7 @@ class TestLatissRAAlign(
             assert self.script.ra_timeout == 120.0
             assert self.script.ra_poll_interval == 5.0
             assert self.script.ZERNIKE_DATASET_TYPE == "zernikes"
-            assert self.script.ra_collections == [
-                "LATISS/raw/all",
-                "LATISS/quickLook",
-            ]
+            assert self.script.ra_collections == ["LATISS/runs/quickLook"]
 
     async def test_configure_ra_overrides(self):
         async with self.make_script():
@@ -219,14 +216,14 @@ class TestLatissRAAlign(
             self.script.butler.query_datasets.assert_called_once()
             args, kwargs = self.script.butler.query_datasets.call_args
             assert args[0] == "zernikes"
-            assert kwargs["collections"] == ["LATISS/raw/all", "LATISS/quickLook"]
+            assert kwargs["collections"] == ["LATISS/runs/quickLook"]
             assert "2021110400954" in kwargs["where"]
             assert "2021110400955" in kwargs["where"]
 
             self.script.butler.get.assert_called_once_with(
                 "zernikes",
                 dataId=dataset_ref.dataId,
-                collections=["LATISS/raw/all", "LATISS/quickLook"],
+                collections=["LATISS/runs/quickLook"],
             )
 
     async def test_get_zernikes_from_ra_polls_until_found(self):
