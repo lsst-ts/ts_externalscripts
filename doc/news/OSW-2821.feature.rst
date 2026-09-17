@@ -1,0 +1,1 @@
+Added new script latiss_ra_align.py which polls rapid analysis for wavefront estimation output instead of calculating it inline.
