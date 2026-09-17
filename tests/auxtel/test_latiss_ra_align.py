@@ -227,10 +227,15 @@ class TestLatissRAAlign(
             )
 
     async def test_get_zernikes_from_ra_polls_until_found(self):
+        """While waiting for Rapid Analysis, the (expected) empty-query
+        failures should not each be logged as an exception."""
         async with self.make_script():
             self.script.atcs = unittest.mock.AsyncMock()
             self.script.latiss = unittest.mock.AsyncMock()
             await self.configure_script(ra_poll_interval=0.01, ra_timeout=1.0)
+            self.script.log.exception = unittest.mock.MagicMock(
+                wraps=self.script.log.exception
+            )
 
             self.script.intra_visit_id = 100
             self.script.extra_visit_id = 101
@@ -239,15 +244,20 @@ class TestLatissRAAlign(
             dataset_ref = unittest.mock.MagicMock()
             dataset_ref.dataId = {"visit": 101}
 
-            self.script.butler.query_datasets.side_effect = [[], [], [dataset_ref]]
+            self.script.butler.query_datasets.side_effect = [
+                RuntimeError("doomed to fail"),
+                RuntimeError("doomed to fail"),
+                [dataset_ref],
+            ]
             self.script.butler.get.return_value = zk_table
 
             result = await self.script.get_zernikes_from_ra()
 
             assert result is zk_table
             assert self.script.butler.query_datasets.call_count == 3
+            self.script.log.exception.assert_not_called()
 
-    async def test_get_zernikes_from_ra_timeout(self):
+    async def test_get_zernikes_from_ra_timeout_empty_result(self):
         async with self.make_script():
             self.script.atcs = unittest.mock.AsyncMock()
             self.script.latiss = unittest.mock.AsyncMock()
@@ -260,6 +270,29 @@ class TestLatissRAAlign(
 
             with pytest.raises(TimeoutError):
                 await self.script.get_zernikes_from_ra()
+
+    async def test_get_zernikes_from_ra_timeout_logs_last_failure_once(self):
+        """On persistent failure, the exception should be reported exactly
+        once (with the last failure), not on every poll attempt."""
+        async with self.make_script():
+            self.script.atcs = unittest.mock.AsyncMock()
+            self.script.latiss = unittest.mock.AsyncMock()
+            await self.configure_script(ra_poll_interval=0.01, ra_timeout=0.05)
+            self.script.log.exception = unittest.mock.MagicMock(
+                wraps=self.script.log.exception
+            )
+
+            self.script.intra_visit_id = 100
+            self.script.extra_visit_id = 101
+
+            self.script.butler.query_datasets.side_effect = RuntimeError(
+                "doomed to fail"
+            )
+
+            with pytest.raises(TimeoutError):
+                await self.script.get_zernikes_from_ra()
+
+            self.script.log.exception.assert_called_once()
 
     async def test_arun_converges_single_iteration(self):
         async with self.make_script():

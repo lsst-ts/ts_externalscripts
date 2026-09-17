@@ -155,14 +155,16 @@ class LatissRAAlign(LatissBaseAlign):
         elapsed_time = 0.0
         attempt = 0
         datasets = []
+        last_exception = None
+
+        self.log.info(
+            f"Polling Butler for '{self.ZERNIKE_DATASET_TYPE}' for visits "
+            f"{self.intra_visit_id}/{self.extra_visit_id} "
+            f"(every {self.ra_poll_interval}s, up to {self.ra_timeout}s)."
+        )
 
         while elapsed_time < self.ra_timeout:
             attempt += 1
-            self.log.info(
-                f"Polling Butler for '{self.ZERNIKE_DATASET_TYPE}' "
-                f"(attempt {attempt}, {elapsed_time:0.1f}/{self.ra_timeout:0.1f}s "
-                "elapsed)."
-            )
             try:
                 datasets = self.butler.query_datasets(
                     self.ZERNIKE_DATASET_TYPE,
@@ -171,21 +173,29 @@ class LatissRAAlign(LatissBaseAlign):
                 )
                 if datasets:
                     break
-            except Exception:
-                self.log.exception(
-                    f"Querying '{self.ZERNIKE_DATASET_TYPE}' failed; retrying."
-                )
+            except Exception as exc:
+                # Expected while Rapid Analysis has not yet published a
+                # result: only report this if it's still happening once
+                # ra_timeout is reached, rather than logging a traceback on
+                # every poll.
+                last_exception = exc
 
             await asyncio.sleep(self.ra_poll_interval)
             elapsed_time = time.time() - start_time
 
         if not datasets:
+            if last_exception is not None:
+                self.log.exception(
+                    f"Querying '{self.ZERNIKE_DATASET_TYPE}' failed on the last "
+                    f"attempt ({attempt}).",
+                    exc_info=last_exception,
+                )
             raise TimeoutError(
                 f"Timed out after {self.ra_timeout}s waiting for Rapid Analysis "
                 f"to publish '{self.ZERNIKE_DATASET_TYPE}' for visits "
                 f"{self.intra_visit_id}/{self.extra_visit_id}. "
                 f"Made {attempt} attempt(s)."
-            )
+            ) from last_exception
 
         if len(datasets) > 1:
             self.log.warning(
