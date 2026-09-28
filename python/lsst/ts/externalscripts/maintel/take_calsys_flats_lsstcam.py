@@ -103,7 +103,7 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                             overrides what is in the mtcalsys configuration. It
                             will apply to all electrometers.
                 type: boolean
-                default: True
+                default: False
               use_fiberspectrograph_blue:
                 description: Will you use the blue fiber spectrographs
                              in these tests.

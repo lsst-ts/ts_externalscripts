@@ -68,7 +68,7 @@ class SetupCalsysFlats(salobj.BaseScript):
                             will apply to all electrometers. This is used in
                             setup_calsys.
                 type: boolean
-                default: True
+                default: False
               ignore:
                 description: >-
                     CSCs from the group to ignore in status check
