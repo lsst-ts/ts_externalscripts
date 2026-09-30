@@ -1,6 +1,6 @@
-# This file is part of ts_externalscripts
+# This file is part of ts_externalscripts.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -13,10 +13,11 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["TakeCBPImagesLSSTCam"]
 
@@ -77,6 +78,13 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
                              which may result in failure.
                 type: boolean
                 default: True
+              config_overrides:
+                description: >-
+                  Optional key-value pairs to override fields in the named
+                  sequence configuration. Keys must match fields defined in
+                  the mtcalsys configuration schema.
+                type: object
+                default: {}
 
             additionalProperties: false
         """
@@ -139,27 +147,57 @@ class TakeCBPImagesLSSTCam(BaseBlockScript):
 
         self.use_camera = config.use_camera
         self.sequence_name = config.sequence_name
+
+        # Reload from disk so overrides always start from a clean state.
+        self.mtcalsys.load_calibration_config_file()
+
+        if config.config_overrides:
+            self.log.info(
+                f"Applying configuration overrides to '{self.sequence_name}': "
+                f"{list(config.config_overrides.keys())}"
+            )
+            self.mtcalsys.update_calibration_configuration(
+                self.sequence_name, config.config_overrides
+            )
+
         self.config_data = self.mtcalsys.get_calibration_configuration(
-            config.sequence_name
+            self.sequence_name
         )
         self.log.debug(f"Config data: {self.config_data}")
 
     def set_metadata(self, metadata: salobj.BaseMsgType) -> None:
         """Set script metadata, including estimated duration."""
-        # Initialize estimate flat exposure time
         self.log.debug(self.config_data)
+        exposure_times = self.config_data.get("exposure_times")
+        n_flat = self.config_data.get("n_flat")
 
-        self.log.debug(self.config_data.get("exposure_times"))
-        target_flat_exptime = sum(self.config_data.get("exposure_times"))
+        self.log.debug(exposure_times)
+        if len(exposure_times) > 1:
+            # Multiple exposure times (e.g. PTC): single wavelength assumed.
+            n_images = len(exposure_times) * n_flat
+            total_exptime = sum(exposure_times) * n_flat
+        else:
+            wavelength_width = self.config_data.get("wavelength_width")
+            wavelength_resolution = self.config_data.get("wavelength_resolution")
+            wavelength_list = self.config_data.get("wavelength_list")
+            if (
+                self.config_data.get("set_wavelength_range")
+                and wavelength_width is not None
+                and wavelength_resolution is not None
+            ):
+                n_wavelengths = int(wavelength_width / wavelength_resolution)
+            elif wavelength_list is not None:
+                n_wavelengths = len(wavelength_list)
+            else:
+                n_wavelengths = 1
+            n_images = n_wavelengths * n_flat
+            total_exptime = n_wavelengths * exposure_times[0] * n_flat
 
         # Setup time for the camera (readout and shutter time)
         setup_time_per_image = self.lsstcam.read_out_time + self.lsstcam.shutter_time
 
-        # Total duration calculation
         total_duration = (
-            self.instrument_setup_time  # Initial setup time for the instrument
-            + target_flat_exptime
-            + setup_time_per_image
+            self.instrument_setup_time + total_exptime + setup_time_per_image * n_images
         )
         metadata.instrument = "LSSTCam"
         metadata.filter = self.get_instrument_filter()

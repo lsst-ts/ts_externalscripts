@@ -1,6 +1,6 @@
-# This file is part of ts_externalscripts
+# This file is part of ts_externalscripts.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -13,11 +13,11 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["SetupCalsysFlats"]
 
@@ -68,7 +68,7 @@ class SetupCalsysFlats(salobj.BaseScript):
                             will apply to all electrometers. This is used in
                             setup_calsys.
                 type: boolean
-                default: True
+                default: False
               ignore:
                 description: >-
                     CSCs from the group to ignore in status check
@@ -76,6 +76,14 @@ class SetupCalsysFlats(salobj.BaseScript):
                 items:
                     type: string
                 default: ['TunableLaser','CBP','Electrometer:102','Electrometer:101']
+
+              config_overrides:
+                description: >-
+                  Optional key-value pairs to override fields in the named
+                  sequence configuration. Keys must match fields defined in
+                  the mtcalsys configuration schema.
+                type: object
+                default: {}
 
             additionalProperties: false
         """
@@ -113,6 +121,16 @@ class SetupCalsysFlats(salobj.BaseScript):
         self.sequence_name = config.sequence_name
         self.mtcalsys.load_calibration_config_file()
         self.mtcalsys.assert_valid_configuration_option(name=self.sequence_name)
+
+        if config.config_overrides:
+            self.log.info(
+                f"Applying configuration overrides to '{self.sequence_name}': "
+                f"{list(config.config_overrides.keys())}"
+            )
+            self.mtcalsys.update_calibration_configuration(
+                self.sequence_name, config.config_overrides
+            )
+
         self.mtcalsys.use_electrometer = self.use_electrometer
         self.config_data = self.mtcalsys.get_calibration_configuration(
             self.sequence_name

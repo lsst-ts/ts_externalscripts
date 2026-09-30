@@ -1,0 +1,1 @@
+Updated license header in all files and updated ts-pre-commit configuration to include new license check.

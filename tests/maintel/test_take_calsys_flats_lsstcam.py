@@ -1,6 +1,6 @@
-# This file is part of ts_externalscripts
+# This file is part of ts_externalscripts.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -13,11 +13,11 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
 import logging
@@ -67,6 +67,7 @@ class TestTakeCalsysFlatsLSSTCam(
                 "exposure_times": [15.0],
                 "calib_type": "WhiteLight",
                 "n_flat": 20,
+                "set_wavelength_range": False,
             }
         )
         self.script.mtcalsys.run_calibration_sequence = unittest.mock.AsyncMock(
@@ -340,6 +341,7 @@ class TestTakeCalsysFlatsLSSTCam(
                     "random_seed": None,
                     "exp_list_start_idx": None,
                     "ignore": ["mtmount", "mtptg"],
+                    "config_overrides": {},
                 },
             )()
             await self.script.configure(config)
