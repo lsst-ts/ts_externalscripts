@@ -8,6 +8,30 @@ Version History
 
 .. towncrier release notes start
 
+v0.37.0 (2026-09-30)
+====================
+
+New Features
+------------
+
+- Based on changes in ts_observatory_control/mtcalsys.py, adding in ability to change the configuraiton of sequences. (`OSW-2560 <https://rubinobs.atlassian.net/browse/OSW-2560>`_)
+- Added new script latiss_ra_align.py which polls rapid analysis for wavefront estimation output instead of calculating it inline. (`OSW-2821 <https://rubinobs.atlassian.net/browse/OSW-2821>`_)
+
+
+Bug Fixes
+---------
+
+- Fixed an issue in set_metadata that showed up with whitelight flat sequences. (`RSO-840 <https://rubinobs.atlassian.net/browse/RSO-840>`_)
+- Fixed estimate of script duration for calsys scripts. (`RSO-937 <https://rubinobs.atlassian.net/browse/RSO-937>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Updated license header in all files and updated ts-pre-commit configuration to include new license check. (`OSW-2901 <https://rubinobs.atlassian.net/browse/OSW-2901>`_)
+- Making use_electrometer default False for take_calsys_flat and setup_flats while Electrometer:103 is not available. (`RSO-958 <https://rubinobs.atlassian.net/browse/RSO-958>`_)
+
+
 v0.36.1 (2026-07-02)
 ====================
 
