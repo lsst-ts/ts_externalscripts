@@ -1,0 +1,1 @@
+Added new ``maintel/warmup_m2.py`` script to perform rigid body motions with the M2 mirror similar to the hexapod warmup scripts.
