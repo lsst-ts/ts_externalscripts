@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v0.38.0 (2026-10-14)
+====================
+
+New Features
+------------
+
+- Added new ``maintel/warmup_m2.py`` script to perform rigid body motions with the M2 mirror similar to the hexapod warmup scripts. (`SSW-3052 <https://rubinobs.atlassian.net/browse/SSW-3052>`_)
+
+
 v0.37.0 (2026-09-30)
 ====================
 
