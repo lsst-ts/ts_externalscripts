@@ -1,0 +1,1 @@
+Add exposure log entries to calibration sequence summary in take_calsys_flats_lsstcam and take_cbp_images_lsstcam.

@@ -76,6 +76,8 @@ class TestTakeCalsysFlatsLSSTCam(
                 {"sequence_id": 2, "duration": 12},
             ]
         )
+        self.script.mtcalsys.exposure_log = mock.MagicMock()
+        self.script.mtcalsys.exposure_log.get_entries = mock.AsyncMock(return_value=[])
 
     def mock_camera(self):
         """Mock camera instance and its methods."""
@@ -349,6 +351,46 @@ class TestTakeCalsysFlatsLSSTCam(
             self.script.mtcs.disable_checks_for_components.assert_any_call(
                 components=["mtmount", "mtptg"]
             )
+
+    async def test_exposure_log_in_summary(self):
+        """Verify that run_block reads the exposure log from
+        mtcalsys and includes it in the sequence summary.
+        """
+        config = {
+            "sequence_names": ["whitelight_r_57_dark"],
+            "config_tcs": False,
+        }
+
+        mock_exposure_entries = [
+            {
+                "exposure_id": "exposure_1",
+                "wavelength": 650.0,
+                "status": "success",
+            },
+            {
+                "exposure_id": "exposure_2",
+                "wavelength": 660.0,
+                "status": "failed",
+                "error_message": "Failed to take exposure",
+            },
+        ]
+
+        async with self.make_script():
+            self.script.mtcalsys.exposure_log = mock.AsyncMock()
+            self.script.mtcalsys.exposure_log.get_entries = mock.AsyncMock(
+                return_value=mock_exposure_entries
+            )
+            self.script.publish_sequence_summary = mock.AsyncMock()
+
+            await self.configure_script(**config)
+            await self.run_script()
+
+            assert "exposure_log" in self.script.sequence_summary
+            assert len(self.script.sequence_summary["exposure_log"]) == 2
+            assert (
+                self.script.sequence_summary["exposure_log"][0]["status"] == "success"
+            )
+            assert self.script.sequence_summary["exposure_log"][1]["status"] == "failed"
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
