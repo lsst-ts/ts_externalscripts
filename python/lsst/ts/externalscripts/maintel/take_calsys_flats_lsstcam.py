@@ -114,6 +114,15 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                              in these tests.
                 type: boolean
                 default: False
+              take_fiber_dark:
+                description: >-
+                  Take a dark fiber spectrograph exposure once, before the first
+                  calibration sequence. The TunableLaser is stopped (if
+                  propagating) and all LEDs are turned off before the exposure,
+                  then the laser is restarted. Only exposures for spectrographs
+                  enabled via use_fiberspectrograph_red/blue are taken.
+                type: boolean
+                default: false
               config_overrides:
                 description: >-
                   Optional key-value pairs to override fields in each sequence
@@ -140,6 +149,7 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         self.use_electrometer = config.use_electrometer
         self.use_fiberspectrograph_blue = config.use_fiberspectrograph_blue
         self.use_fiberspectrograph_red = config.use_fiberspectrograph_red
+        self.take_fiber_dark = config.take_fiber_dark
         self.config_tcs = config.config_tcs
         self.random_seed = config.random_seed
         self.exp_list_start_idx = config.exp_list_start_idx
@@ -398,12 +408,24 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
         """
         await self.assert_feasibility()
 
+        if self.take_fiber_dark:
+            first_group_id = (
+                self.group_id
+                if not self.obs_id
+                else self.obs_id + f"_{self.salinfo.index}_{0:03}"
+            )
+            self.log.info("Taking fiber spectrograph dark.")
+            await self.mtcalsys.take_fiber_spectrograph_dark(
+                group_id=first_group_id + "_fiberdark",
+            )
+
         for i, sequence_name in enumerate(self.sequence_names):
             self.exposure_metadata["group_id"] = (
                 self.group_id
                 if not self.obs_id
                 else self.obs_id + f"_{self.salinfo.index}_{i:03}"
             )
+
             await self.mtcalsys.prepare_for_flat(sequence_name)
             self.log.info("Running calibration sequence")
             sequence_summary = await self.mtcalsys.run_calibration_sequence(
