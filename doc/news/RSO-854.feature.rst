@@ -1,0 +1,1 @@
+COnfiguration updates to be able to take dark fiber spectrograph exposures.

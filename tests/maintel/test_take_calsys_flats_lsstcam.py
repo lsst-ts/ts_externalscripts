@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-
 import logging
 import os
 import unittest
@@ -106,6 +105,7 @@ class TestTakeCalsysFlatsLSSTCam(
 
             assert self.script.sequence_names == ["whitelight_r_57_dark"]
             assert self.script.use_camera
+            assert self.script.take_fiber_dark is False
 
     async def test_invalid_configuration(self):
         bad_configs = [
@@ -337,6 +337,7 @@ class TestTakeCalsysFlatsLSSTCam(
                     "use_electrometer": True,
                     "use_fiberspectrograph_blue": True,
                     "use_fiberspectrograph_red": True,
+                    "take_fiber_dark": False,
                     "config_tcs": True,
                     "random_seed": None,
                     "exp_list_start_idx": None,
@@ -349,6 +350,37 @@ class TestTakeCalsysFlatsLSSTCam(
             self.script.mtcs.disable_checks_for_components.assert_any_call(
                 components=["mtmount", "mtptg"]
             )
+
+    async def test_take_fiber_dark_disabled_by_default(self):
+        """Fiber spectrograph dark is not taken unless explicitly enabled."""
+        config = {
+            "sequence_names": ["whitelight_r_57_dark"],
+            "config_tcs": False,
+        }
+
+        async with self.make_script():
+            await self.configure_script(**config)
+            await self.run_script()
+
+            self.script.mtcalsys.take_fiber_spectrograph_dark.assert_not_awaited()
+
+    async def test_take_fiber_dark(self):
+        """Fiber spectrograph dark is taken once, before the first
+        sequence, when take_fiber_dark is enabled."""
+        config = {
+            "sequence_names": ["whitelight_r_57_dark", "whitelight_z_20_dark"],
+            "config_tcs": False,
+            "take_fiber_dark": True,
+        }
+
+        async with self.make_script():
+            await self.configure_script(**config)
+            await self.run_script()
+
+            assert self.script.take_fiber_dark is True
+            dark_calls = self.script.mtcalsys.take_fiber_spectrograph_dark
+            assert dark_calls.await_count == 1
+            assert dark_calls.await_args.kwargs["group_id"].endswith("_fiberdark")
 
     async def test_executable(self):
         scripts_dir = externalscripts.get_scripts_dir()
