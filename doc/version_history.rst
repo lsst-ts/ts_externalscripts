@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v0.38.1 (2026-10-21)
+====================
+
+New Features
+------------
+
+- COnfiguration updates to be able to take dark fiber spectrograph exposures. (`RSO-854 <https://rubinobs.atlassian.net/browse/RSO-854>`_)
+
+
 v0.38.0 (2026-10-14)
 ====================
 
