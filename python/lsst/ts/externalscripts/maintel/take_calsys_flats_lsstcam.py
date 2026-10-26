@@ -108,12 +108,12 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                 description: Will you use the blue fiber spectrographs
                              in these tests.
                 type: boolean
-                default: False
+                default: true
               use_fiberspectrograph_red:
                 description: Will you use the red fiber spectrograph
                              in these tests.
                 type: boolean
-                default: False
+                default: true
               take_fiber_dark:
                 description: >-
                   Take a dark fiber spectrograph exposure once, before the first
@@ -122,7 +122,7 @@ class TakeCalsysFlatsLSSTCam(BaseBlockScript):
                   then the laser is restarted. Only exposures for spectrographs
                   enabled via use_fiberspectrograph_red/blue are taken.
                 type: boolean
-                default: false
+                default: true
               config_overrides:
                 description: >-
                   Optional key-value pairs to override fields in each sequence
