@@ -1,0 +1,1 @@
+In ``BaseParameterMarch``, increased the timeout for the TCS to be in position after applying DoF offsets. This helps mitigate the cases where long hexapod motions would timeout with the standard wait period.
