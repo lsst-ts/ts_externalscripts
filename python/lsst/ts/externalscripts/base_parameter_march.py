@@ -81,6 +81,7 @@ class BaseParameterMarch(BaseBlockScript):
                 intended_usage=MTCSUsages.Slew | MTCSUsages.StateTransition,
             )
             await self.mtcs.start_task
+            self.mtcs.long_timeout = self.mtcs.long_long_timeout
         else:
             self.log.debug("MTCS already defined, skipping.")
 
@@ -381,7 +382,12 @@ class BaseParameterMarch(BaseBlockScript):
         for i, dof_offset in enumerate(offset_values):
             offset_dof_data.value[i] = dof_offset
         await self.tcs.rem.mtaos.cmd_offsetDOF.start(data=offset_dof_data)
-        await self.tcs.ready_to_take_data()
+        try:
+            await self.tcs.wait_for_inposition(timeout=self.tcs.long_long_timeout)
+        except asyncio.TimeoutError:
+            self.log.warning(
+                "Taking too long for the system to arrive in position. Pre-slew check, continuing."
+            )
         self.total_offset += start_position
 
         self.iterations_started = True
@@ -415,6 +421,18 @@ class BaseParameterMarch(BaseBlockScript):
             if rot_offsets:
                 await self.track_target_with_rotation(
                     rot_offsets[self.iterations_executed]
+                )
+
+            self.log.info("Waiting for TCS to be in position.")
+            try:
+                await self.tcs.wait_for_inposition(timeout=self.tcs.long_long_timeout)
+                self.log.info("TCS in position. Continuing...")
+            except asyncio.TimeoutError:
+                self.log.warning(
+                    "Taking too long for system to arrive in position. "
+                    f"Waited for {self.tcs.long_long_timeout}s. "
+                    "Continuing, but this can cause timeout later.",
+                    exc_info=True,
                 )
 
             # Take images at the current dof position
