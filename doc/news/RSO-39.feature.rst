@@ -1,0 +1,1 @@
+Add script to do the CBP copointing dance.
