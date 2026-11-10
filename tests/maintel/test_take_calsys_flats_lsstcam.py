@@ -105,7 +105,7 @@ class TestTakeCalsysFlatsLSSTCam(
 
             assert self.script.sequence_names == ["whitelight_r_57_dark"]
             assert self.script.use_camera
-            assert self.script.take_fiber_dark is False
+            assert self.script.take_fiber_dark is True
 
     async def test_invalid_configuration(self):
         bad_configs = [
@@ -351,11 +351,12 @@ class TestTakeCalsysFlatsLSSTCam(
                 components=["mtmount", "mtptg"]
             )
 
-    async def test_take_fiber_dark_disabled_by_default(self):
-        """Fiber spectrograph dark is not taken unless explicitly enabled."""
+    async def test_take_fiber_dark_disabled_when_configured(self):
+        """Fiber spectrograph dark is not taken when explicitly disabled."""
         config = {
             "sequence_names": ["whitelight_r_57_dark"],
             "config_tcs": False,
+            "take_fiber_dark": False,
         }
 
         async with self.make_script():
@@ -364,13 +365,12 @@ class TestTakeCalsysFlatsLSSTCam(
 
             self.script.mtcalsys.take_fiber_spectrograph_dark.assert_not_awaited()
 
-    async def test_take_fiber_dark(self):
+    async def test_take_fiber_dark_enabled_by_default(self):
         """Fiber spectrograph dark is taken once, before the first
-        sequence, when take_fiber_dark is enabled."""
+        sequence, by default."""
         config = {
             "sequence_names": ["whitelight_r_57_dark", "whitelight_z_20_dark"],
             "config_tcs": False,
-            "take_fiber_dark": True,
         }
 
         async with self.make_script():
