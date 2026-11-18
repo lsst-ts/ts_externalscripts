@@ -86,6 +86,12 @@ class TestLatissIntraExtraFocalData(
     async def configure_script(self, **kwargs):
         await super().configure_script(**kwargs)
 
+        # Avoid reaching out to the Simbad server when searching for targets.
+        self.mock_target_name = "HD 12345"
+        self.script.atcs.find_target_simbad = unittest.mock.AsyncMock(
+            return_value=self.mock_target_name
+        )
+
         await self.script._configure_target()
         self.script.latiss.ready_to_take_data = unittest.mock.AsyncMock(
             return_value=True
@@ -139,16 +145,15 @@ class TestLatissIntraExtraFocalData(
             assert self.script.offset_ry == offset_ry
             assert self.script.offset_m1 == offset_m1
 
-    # Test with find_target
-    # this can fail occasionally if you're unlucky and
-    # don't get a target so the mag_range is large to
-    # prevent this
     async def test_configure_with_find_target(self):
         async with self.make_script():
             find_target = dict(az=-180.0, el=60.0, mag_limit=6.0, mag_range=14)
             await self.configure_script(find_target=find_target)
 
-            assert self.script.cwfs_target is not None
+            self.script.atcs.find_target_simbad.assert_awaited_once_with(
+                radius=0.5, **find_target
+            )
+            assert self.script.cwfs_target == self.mock_target_name
             assert self.script.cwfs_target_ra is None
             assert self.script.cwfs_target_dec is None
 
